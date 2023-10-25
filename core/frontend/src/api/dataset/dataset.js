@@ -111,6 +111,14 @@ export function listApiDatasource() {
   })
 }
 
+export function listPiApiDatasource() {
+  return request({
+    url: '/datasource/list/pi_api',
+    loading: true,
+    method: 'get'
+  })
+}
+
 export function getTable(id, hideMsg = false) {
   return request({
     url: '/dataset/table/get/' + id,

@@ -2929,5 +2929,15 @@ export default {
     confirm_title: '强行登录会导致其他客户端掉线',
     confirm: '是否强行登录？',
     forced_offline: '`当前账号在客户端【${ip}】登录，您已被挤下线！`'
+  },
+  pi:{
+    url:'请求地址',
+    client_id:'client_id',
+    client_secret:'client_secret',
+    dataset:'PI API 数据源',
+    point_name:'点位名称',
+    data_rate:'查询频率',
+    start_time:'开始时间',
+    end_time:'结束时间'
   }
 }

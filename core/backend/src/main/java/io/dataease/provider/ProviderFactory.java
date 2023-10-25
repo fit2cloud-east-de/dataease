@@ -53,6 +53,8 @@ public class ProviderFactory implements ApplicationContextAware {
                     return context.getBean("esProviders", Provider.class);
                 case api:
                     return context.getBean("apiProvider", Provider.class);
+                case pi_api:
+                    return context.getBean("piApiProvider", Provider.class);
                 default:
                     return context.getBean("jdbc", Provider.class);
             }
@@ -71,6 +73,8 @@ public class ProviderFactory implements ApplicationContextAware {
             case "TiDB":
             case "StarRocks":
                 return context.getBean("dorisQueryProvider", QueryProvider.class);
+            case "pi_api":
+                return context.getBean("piApiQueryProvider", QueryProvider.class);
             default:
                 return SpringContextUtil.getApplicationContext().getBean(type + "QueryProvider", QueryProvider.class);
         }

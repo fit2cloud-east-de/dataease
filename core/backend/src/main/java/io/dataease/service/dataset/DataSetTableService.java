@@ -54,6 +54,7 @@ import io.dataease.plugins.xpack.auth.dto.request.ColumnPermissionItem;
 import io.dataease.provider.DDLProvider;
 import io.dataease.provider.ProviderFactory;
 import io.dataease.provider.datasource.JdbcProvider;
+import io.dataease.provider.datasource.PiApiProvider;
 import io.dataease.service.chart.util.ChartDataBuild;
 import io.dataease.service.datasource.DatasourceService;
 import io.dataease.service.engine.EngineService;
@@ -147,6 +148,8 @@ public class DataSetTableService {
     private DatasourceService datasourceService;
     @Resource
     private DatasetSqlLogMapper datasetSqlLogMapper;
+    @Resource
+    private PiApiProvider piApiProvider;
 
     private static boolean isUpdatingDatasetTableStatus = false;
     private static final String lastUpdateTime = "${__last_update_time__}";
@@ -338,7 +341,6 @@ public class DataSetTableService {
             datasetTable.setCreateBy(AuthUtils.getUser().getUsername());
             datasetTable.setCreateTime(System.currentTimeMillis());
             int insert = datasetTableMapper.insert(datasetTable);
-
 
             // 清理权限缓存
             CacheUtils.removeAll(AuthConstants.USER_PERMISSION_CACHE_NAME);
@@ -569,6 +571,8 @@ public class DataSetTableService {
 
     public Map<String, Object> getPreviewData(DataSetTableRequest dataSetTableRequest, Integer page, Integer pageSize,
                                               List<DatasetTableField> extFields, DatasetRowPermissionsTreeObj extTree) throws Exception {
+
+
         Map<String, Object> map = new HashMap<>();
         String syncStatus = "";
         DatasetTableField datasetTableField = DatasetTableField.builder().tableId(dataSetTableRequest.getId())
@@ -765,7 +769,8 @@ public class DataSetTableService {
                     DEException.throwException(Translator.get("i18n_ds_error") + "->" + e.getMessage());
                 }
             }
-        } else if (StringUtils.equalsIgnoreCase(datasetTable.getType(), "excel")) {
+        }
+        else if (StringUtils.equalsIgnoreCase(datasetTable.getType(), "excel")) {
             if (!checkEngineTableIsExists(dataSetTableRequest.getId())) {
                 throw new RuntimeException(Translator.get("i18n_data_not_sync"));
             }
@@ -802,7 +807,8 @@ public class DataSetTableService {
                 syncStatus = dataSetTaskLogDTOS.get(0).getStatus();
             }
 
-        } else if (StringUtils.equalsIgnoreCase(datasetTable.getType(), "custom")) {
+        }
+        else if (StringUtils.equalsIgnoreCase(datasetTable.getType(), "custom")) {
             if (datasetTable.getMode() == 0) {
                 Datasource ds = datasourceMapper.selectByPrimaryKey(dataSetTableRequest.getDataSourceId());
                 if (ObjectUtils.isEmpty(ds)) {
@@ -874,7 +880,8 @@ public class DataSetTableService {
                     DEException.throwException(Translator.get("i18n_ds_error") + "->" + e.getMessage());
                 }
             }
-        } else if (StringUtils.equalsIgnoreCase(datasetTable.getType(), "union")) {
+        }
+        else if (StringUtils.equalsIgnoreCase(datasetTable.getType(), "union")) {
             if (datasetTable.getMode() == 0) {
                 Datasource ds = datasourceMapper.selectByPrimaryKey(dataSetTableRequest.getDataSourceId());
                 if (ObjectUtils.isEmpty(ds)) {
@@ -944,6 +951,11 @@ public class DataSetTableService {
                     DEException.throwException(Translator.get("i18n_ds_error") + "->" + e.getMessage());
                 }
             }
+        }
+        else if (StringUtils.equalsIgnoreCase(datasetTable.getType(), "pi_api")) {
+            Datasource ds = datasourceMapper.selectByPrimaryKey(dataSetTableRequest.getDataSourceId());
+            Map<String, List> stringListMap = piApiProvider.fetchResultAndField(ds.getConfiguration(), dataSetTableRequest.getInfo());
+            data = stringListMap.get("dataList");
         }
 
         List<Map<String, Object>> jsonArray = new ArrayList<>();
@@ -1214,6 +1226,7 @@ public class DataSetTableService {
         String sqlAsTable = qp.createSQLPreview(qp.sqlForPreview(dataTableInfo.getTable(), ds), null);
         datasourceRequest.setQuery(sqlAsTable);
         datasourceRequest.setTable(dataTableInfo.getTable());
+        datasourceRequest.setInfo(dataSetTableRequest.getInfo());
         Map<String, List> result = datasourceProvider.fetchResultAndField(datasourceRequest);
         List<String[]> data = result.get("dataList");
         List<TableField> fields = result.get("fieldList");
@@ -1934,7 +1947,7 @@ public class DataSetTableService {
 
         List<TableField> fields = new ArrayList<>();
         long syncTime = System.currentTimeMillis();
-        if (StringUtils.equalsIgnoreCase(datasetTable.getType(), DatasetType.DB.name()) || StringUtils.equalsIgnoreCase(datasetTable.getType(), DatasetType.API.name())) {
+        if (StringUtils.equalsIgnoreCase(datasetTable.getType(), DatasetType.DB.name()) || StringUtils.equalsIgnoreCase(datasetTable.getType(), DatasetType.API.name()) || StringUtils.equalsIgnoreCase(datasetTable.getType(), DatasetType.PI_API.name()) ) {
             fields = getFields(datasetTable);
         } else if (StringUtils.equalsIgnoreCase(datasetTable.getType(), DatasetType.SQL.name())) {
             Provider datasourceProvider = ProviderFactory.getProvider(ds.getType());

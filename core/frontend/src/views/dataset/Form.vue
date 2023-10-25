@@ -69,12 +69,13 @@ import AddApi from './add/AddApi'
 import AddSQL from './add/AddSQL'
 import AddExcel from './add/AddExcel'
 import AddUnion from '@/views/dataset/add/AddUnion'
+import AddPiApi from "@/views/dataset/add/AddPiApi";
 import { post } from '@/api/dataset/dataset'
 import { datasetTypeMap } from './group/options'
 import msgCfm from '@/components/msgCfm/index'
 export default {
   name: 'DatasetForm',
-  components: { AddDB, AddSQL, AddExcel, AddApi, AddUnion },
+  components: { AddDB, AddSQL, AddExcel, AddApi, AddUnion, AddPiApi },
   mixins: [msgCfm],
   data() {
     return {
@@ -255,6 +256,9 @@ export default {
           break
         case 'api':
           this.component = AddApi
+          break
+        case 'pi_api':
+          this.component = AddPiApi
           break
         default:
           break

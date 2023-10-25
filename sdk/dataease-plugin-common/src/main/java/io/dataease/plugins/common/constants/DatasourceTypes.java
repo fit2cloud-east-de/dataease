@@ -23,6 +23,10 @@ public enum DatasourceTypes {
     es("es", "Elasticsearch", "\"", "\"", "\"", "\"", "", true, DatasourceCalculationMode.DIRECT, null, null,false, DatabaseClassification.OLAP),
     api("api", "API", "\"", "\"", "\"", "\"", "rebuildschema=true&authSource=admin", true, DatasourceCalculationMode.SYNC, null, null,false, DatabaseClassification.OTHER),
     excel("excel", "Excel", "", "", "", "", "", false, DatasourceCalculationMode.SYNC, null, null,false, DatabaseClassification.OLTP),
+
+    pi_api("pi_api", "PI API", "\"", "\"", "\"", "\"", null, true, DatasourceCalculationMode.DIRECT, null, null,false, DatabaseClassification.OTHER),
+
+
     //engine
     engine_doris("engine_doris", "engine_doris", "`", "`", "", "", "characterEncoding=UTF-8&connectTimeout=5000&useSSL=false&allowPublicKeyRetrieval=true", false, null, null,null, true, DatabaseClassification.OLAP),
     engine_mysql("engine_mysql", "engine_mysql", "`", "`", "", "", "characterEncoding=UTF-8&connectTimeout=5000&useSSL=false&allowPublicKeyRetrieval=true", false, null, null, null,true, DatabaseClassification.OLTP);

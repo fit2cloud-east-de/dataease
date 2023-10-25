@@ -112,7 +112,7 @@
       </template>
 
       <el-form-item
-        v-if="form.type !== 'es' && form.type !== 'api'"
+        v-if="form.type !== 'es' && form.type !== 'api' && form.type !== 'pi_api' "
         :label="$t('datasource.host')"
         prop="configuration.host"
       >
@@ -122,6 +122,49 @@
           autocomplete="off"
         />
       </el-form-item>
+
+
+
+      <el-form-item
+        v-if="form.type === 'pi_api' "
+        :label="$t('pi.url')"
+        prop="configuration.url"
+      >
+        <el-input
+          v-model="form.configuration.url"
+          :placeholder="$t('pi.url')"
+          autocomplete="off"
+        />
+      </el-form-item>
+
+
+      <el-form-item
+        v-if="form.type === 'pi_api' "
+        :label="$t('pi.client_id')"
+        prop="configuration.client_id"
+      >
+        <el-input
+          v-model="form.configuration.client_id"
+          :placeholder="$t('pi.client_id')"
+          autocomplete="off"
+        />
+      </el-form-item>
+
+      <el-form-item
+        v-if="form.type === 'pi_api' "
+        :label="$t('pi.client_secret')"
+        prop="configuration.client_secret"
+      >
+        <el-input
+          v-model="form.configuration.client_secret"
+          :placeholder="$t('pi.client_secret')"
+          autocomplete="off"
+        />
+      </el-form-item>
+
+
+
+
 
       <el-form-item
         v-if="form.type == 'es'"
@@ -136,7 +179,7 @@
       </el-form-item>
 
       <el-form-item
-        v-if="form.type !== 'es' && form.type !== 'api'"
+        v-if="form.type !== 'es' && form.type !== 'api' && form.type !== 'pi_api' "
         :label="$t('datasource.data_base')"
         prop="configuration.dataBase"
       >
@@ -216,6 +259,7 @@
         v-if="
           form.type !== 'es' &&
             form.type !== 'api' &&
+               form.type !== 'pi_api' &&
             form.configuration.authMethod !== 'kerberos'
         "
         :label="$t('datasource.user_name')"
@@ -231,6 +275,7 @@
         v-if="
           form.type !== 'es' &&
             form.type !== 'api' &&
+               form.type !== 'pi_api' &&
             form.configuration.authMethod !== 'kerberos'
         "
         :label="$t('datasource.password')"
@@ -264,7 +309,7 @@
 
       <el-form-item
         v-if="
-          form.type !== 'es' && form.type !== 'oracle' && form.type !== 'api'
+          form.type !== 'es' && form.type !== 'oracle' && form.type !== 'api' && form.type !== 'pi_api'
         "
         :label="$t('datasource.extra_params')"
       >
@@ -276,7 +321,7 @@
       </el-form-item>
 
       <el-form-item
-        v-if="form.type !== 'es' && form.type !== 'api'"
+        v-if="form.type !== 'es' && form.type !== 'api' && form.type !== 'pi_api'  "
         :label="$t('datasource.port')"
         prop="configuration.port"
       >
@@ -367,7 +412,7 @@
       </el-form-item>
 
       <span
-        v-if="!['es', 'api', 'mongo'].includes(form.type)"
+        v-if="!['es', 'api', 'mongo' , 'pi_api'].includes(form.type)"
         class="de-expand de-mar0"
         @click="showPriority = !showPriority"
       >{{ $t('datasource.priority')

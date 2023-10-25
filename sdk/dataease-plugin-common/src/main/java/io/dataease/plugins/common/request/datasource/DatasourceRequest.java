@@ -3,7 +3,9 @@ package io.dataease.plugins.common.request.datasource;
 
 import io.dataease.plugins.common.base.domain.DatasetTableField;
 import io.dataease.plugins.common.base.domain.Datasource;
+import io.dataease.plugins.common.dto.chart.ChartFieldCustomFilterDTO;
 import io.dataease.plugins.common.dto.chart.ChartViewFieldDTO;
+import io.dataease.plugins.common.request.chart.ChartExtFilterRequest;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -21,6 +23,9 @@ public class DatasourceRequest {
     protected String query;
 
     public String getQuery() {
+        if (datasource.getType().equals("pi_api")) {
+            return null;
+        }
         return rebuildSqlWithFragment(this.query);
     }
 
@@ -40,6 +45,12 @@ public class DatasourceRequest {
     private List<ChartViewFieldDTO> yAxis;
     private List<DatasetTableField> permissionFields;
     private boolean totalPageFlag;
+
+    private String info;
+
+    private List<ChartFieldCustomFilterDTO> filterDTOS;
+
+    private List<ChartExtFilterRequest> chartExtFilterRequests;
 
     private String rebuildSqlWithFragment(String sql) {
         if (!sql.toLowerCase().startsWith("with")) {

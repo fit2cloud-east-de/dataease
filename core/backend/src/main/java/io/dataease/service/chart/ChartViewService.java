@@ -1152,6 +1152,9 @@ public class ChartViewService {
             yAxisForRequest.addAll(yAxis);
             datasourceRequest.setYAxis(yAxisForRequest);
             datasourceRequest.setTotalPageFlag(false);
+            datasourceRequest.setChartExtFilterRequests(chartExtRequest.getFilter());
+            datasourceRequest.setInfo(table.getInfo());
+            datasourceRequest.setFilterDTOS(fieldCustomFilter);
             data = datasourceProvider.getData(datasourceRequest);
             if (CollectionUtils.isNotEmpty(assistFields)) {
                 datasourceAssistRequest.setQuery(assistSQL(datasourceRequest.getQuery(), assistFields, ds));
@@ -1462,7 +1465,9 @@ public class ChartViewService {
         ChartViewDTO dto = new ChartViewDTO();
         BeanUtils.copyBean(dto, view);
         dto.setData(map);
-        dto.setSql(java.util.Base64.getEncoder().encodeToString(sql.getBytes()));
+        if (StringUtils.isNotEmpty(sql)) {
+            dto.setSql(java.util.Base64.getEncoder().encodeToString(sql.getBytes()));
+        }
         dto.setDrill(isDrill);
         dto.setDrillFilters(drillFilters);
         return dto;

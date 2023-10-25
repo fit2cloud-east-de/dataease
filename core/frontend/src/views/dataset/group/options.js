@@ -3,5 +3,6 @@ export const datasetTypeMap = {
   sql: 'SQL',
   excel: 'EXCEL',
   union: 'dataset.union',
-  api: 'API'
+  api: 'API',
+  pi_api: 'PI API'
 }

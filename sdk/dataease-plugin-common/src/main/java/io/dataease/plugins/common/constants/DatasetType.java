@@ -10,6 +10,7 @@ public enum DatasetType {
     CUSTOM("custom"),
     EXCEL("excel"),
     API("api"),
+    PI_API("pi_api"),
     UNION("union");
 
     private String  type;

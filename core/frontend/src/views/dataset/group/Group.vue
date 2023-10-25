@@ -55,6 +55,7 @@
               />
               {{ $t('dataset.union_data') }}
             </el-dropdown-item>
+
             <el-dropdown-item command="api">
               <svg-icon
                 icon-class="ds-api"
@@ -62,6 +63,17 @@
               />
               {{ $t('dataset.api_data') }}
             </el-dropdown-item>
+
+
+            <el-dropdown-item command="pi_api">
+              <svg-icon
+                icon-class="ds-api"
+                class="ds-icon-api"
+              />
+              {{ $t('pi.dataset') }}
+            </el-dropdown-item>
+
+
             <el-dropdown-item
               class="de-top-border"
               command="group"
@@ -207,6 +219,18 @@
                         />
                         {{ $t('dataset.api_data') }}
                       </el-dropdown-item>
+
+
+                      <el-dropdown-item command="pi_api">
+                        <svg-icon
+                          icon-class="ds-api"
+                          class="ds-icon-api"
+                        />
+                        {{ $t('pi.dataset') }}
+                      </el-dropdown-item>
+
+
+
                       <el-dropdown-item
                         class="de-top-border"
                         command="group"
@@ -1068,6 +1092,9 @@ export default {
           break
         case 'api':
           this.addData('AddApi')
+          break
+        case 'pi_api':
+          this.addData('AddPiApi')
           break
       }
 
