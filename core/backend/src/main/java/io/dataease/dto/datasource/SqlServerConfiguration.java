@@ -12,7 +12,7 @@ public class SqlServerConfiguration extends JdbcConfiguration {
     private String driver = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
     private String extraParams = "";
     public String getJdbc(){
-        if(StringUtils.isEmpty(extraParams.trim())){
+        if(StringUtils.isNotEmpty(extraParams) && StringUtils.isEmpty(extraParams.trim())){
             return "jdbc:sqlserver://HOSTNAME:PORT;DatabaseName=DATABASE"
                     .replace("HOSTNAME", getHost().trim())
                     .replace("PORT", getPort().toString().trim())

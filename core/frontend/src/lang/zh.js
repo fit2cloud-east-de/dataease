@@ -2938,6 +2938,7 @@ export default {
     point_name:'点位名称',
     data_rate:'查询频率',
     start_time:'开始时间',
-    end_time:'结束时间'
+    end_time:'结束时间',
+    sql:'上下限 SQL'
   }
 }

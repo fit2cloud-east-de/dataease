@@ -116,11 +116,19 @@
                     icon-class="ds-api"
                     class="ds-icon-api"
                   />
+
+                  <svg-icon
+                    v-show="data.modelInnerType === 'pi_api'"
+                    icon-class="ds-pi-api"
+                    class="ds-icon-pi-api"
+                  />
+
                 </span>
                 <span
                   v-if="
                     data.modelInnerType === 'db' ||
-                      data.modelInnerType === 'sql'
+                      data.modelInnerType === 'sql' ||
+                        data.modelInnerType === 'pi_api'
                   "
                 >
                   <span

@@ -8,11 +8,11 @@
         slot="header"
         class="clearfix license-header"
       >
-        <img
-          src="@/assets/DataEase-white.png"
-          alt=""
-          width="300"
-        >
+<!--        <img-->
+<!--          src="@/assets/DataEase-white.png"-->
+<!--          alt=""-->
+<!--          width="300"-->
+<!--        >-->
       </div>
       <div class="license-content">
         <div v-if="license.status === 'Fail'">{{ $t('about.invalid_license') }}</div>

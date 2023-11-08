@@ -52,51 +52,55 @@
                 filterable
                 v-model="pi_api_info.point_name"
                 :placeholder="$t('pi.point_name')"
+                onchange="changePointName()"
                 size="small" >
       </el-input>
 
 
-      <p class="select-ds">
-        {{ $t('pi.data_rate') }}
-      </p>
-      <el-input class="ds-list"
-                filterable
-                v-model="pi_api_info.data_rate"
-                :placeholder="$t('pi.data_rate')"
-                size="small" >
+<!--      <p class="select-ds">-->
+<!--        {{ $t('pi.data_rate') }}-->
+<!--      </p>-->
+<!--      <el-input class="ds-list"-->
+<!--                filterable-->
+<!--                v-model="pi_api_info.data_rate"-->
+<!--                readonly-->
+<!--                :placeholder="$t('pi.data_rate')"-->
+<!--                size="small" >-->
 
-      </el-input>
+<!--      </el-input>-->
 
-      <p class="select-ds">
-        {{ $t('pi.start_time') }}
-      </p>
-
-
-      <el-date-picker
-       class="ds-list"
-       type="datetime"
-       value-format="yyyy-MM-ddTHH:mm:ss.SSSZ"
-       format="yyyy-MM-dd HH:mm:ss"
-       v-model="pi_api_info.start_time"
-       :placeholder="$t('pi.start_time')"
-       size="small" >
-
-      </el-date-picker>
+<!--      <p class="select-ds">-->
+<!--        {{ $t('pi.start_time') }}-->
+<!--      </p>-->
 
 
-      <p class="select-ds">
-        {{ $t('pi.end_time') }}
-      </p>
-      <el-date-picker
-      class="ds-list"
-      type="datetime"
-      value-format="yyyy-MM-ddTHH:mm:ss.SSSZ"
-      format="yyyy-MM-dd HH:mm:ss"
-      v-model="pi_api_info.end_time"
-      :placeholder="$t('pi.end_time')"
-      size="small" >
+<!--      <el-date-picker-->
+<!--       class="ds-list"-->
+<!--       type="datetime"-->
+<!--       value-format="yyyy-MM-ddTHH:mm:ss.SSSZ"-->
+<!--       format="yyyy-MM-dd HH:mm:ss"-->
+<!--       readonly-->
+<!--       v-model="pi_api_info.start_time"-->
+<!--       :placeholder="$t('pi.start_time')"-->
+<!--       size="small" >-->
 
-      </el-date-picker>
+<!--      </el-date-picker>-->
+
+
+<!--      <p class="select-ds">-->
+<!--        {{ $t('pi.end_time') }}-->
+<!--      </p>-->
+<!--      <el-date-picker-->
+<!--      class="ds-list"-->
+<!--      type="datetime"-->
+<!--      value-format="yyyy-MM-ddTHH:mm:ss.SSSZ"-->
+<!--      format="yyyy-MM-dd HH:mm:ss"-->
+<!--      readonly-->
+<!--      v-model="pi_api_info.end_time"-->
+<!--      :placeholder="$t('pi.end_time')"-->
+<!--      size="small" >-->
+
+<!--      </el-date-picker>-->
 
       <deBtn
         type="primary"
@@ -120,7 +124,7 @@
             v-model="activeTable.datasetName"
             size="small"
             clearable
-            @change="validateName"
+            disabled
           />
           <div
             v-if="activeTable.nameExist"
@@ -239,7 +243,6 @@ export default {
   },
   watch: {
     checkTableList(val) {
-      this.validateName()
       this.$emit('setTableNum', val.length)
     },
     dataSource(val) {
@@ -271,6 +274,9 @@ export default {
   beforeDestroy() {
     window.removeEventListener('resize', this.calHeight)
   },
+
+
+
   mounted() {
     this.initDataSource()
     window.addEventListener('resize', this.calHeight)
@@ -314,15 +320,8 @@ export default {
           .filter((name) => name === ele.datasetName)
           .length > 1
     },
-    validateName() {
-      this.tables.forEach((ele, index) => {
-        if (this.checkTableList.includes(ele.name)) {
-          this.nameExistValidator(ele)
-        } else {
-          ele.nameExist = false
-        }
-      })
-    },
+
+
     calHeight() {
       const that = this
       setTimeout(function() {
@@ -332,10 +331,10 @@ export default {
     },
 
     loadData(){
-      this.activeName = this.dataSource.name
 
-      this.activeTable.datasetName = this.activeName
-      //this.activeTable = this.tableData.find((ele) => ele.name === this.activeName) || {}
+      this.activeTable.datasetName = this.pi_api_info.point_name;
+      this.activeName = this.pi_api_info.point_name;
+      // this.activeTable.datasetName = this.activeName
 
       this.dbPreview({
         dataSourceId: this.dataSource.id,
@@ -373,14 +372,16 @@ export default {
         return `${t.name}`
       }
     },
-
+    changePointName(){
+      this.activeTable.datasetName = this.pi_api_info.point_name
+    },
 
 
     save() {
-      if (this.tableData.some((ele) => ele.nameExist)) {
-        this.openMessageSuccess('deDataset.cannot_be_duplicate', 'error')
-        return
-      }
+      // if (this.tableData.some((ele) => ele.nameExist)) {
+      //   this.openMessageSuccess('deDataset.cannot_be_duplicate', 'error')
+      //   return
+      // }
       if (this.loading) return
       this.loading = true
       const sceneId = this.param.id
@@ -390,7 +391,7 @@ export default {
       const syncType = this.syncType
 
       tables.push({
-        name: this.dataSource.name,
+        name: this.pi_api_info.point_name,
         sceneId: sceneId,
         dataSourceId: dataSourceId,
         type: 'pi_api',

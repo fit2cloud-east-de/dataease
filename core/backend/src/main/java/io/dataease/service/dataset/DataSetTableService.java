@@ -954,7 +954,13 @@ public class DataSetTableService {
         }
         else if (StringUtils.equalsIgnoreCase(datasetTable.getType(), "pi_api")) {
             Datasource ds = datasourceMapper.selectByPrimaryKey(dataSetTableRequest.getDataSourceId());
-            Map<String, List> stringListMap = piApiProvider.fetchResultAndField(ds.getConfiguration(), dataSetTableRequest.getInfo());
+
+            DatasourceRequest datasourceRequest = new DatasourceRequest();
+            datasourceRequest.setDatasource(ds);
+            datasourceRequest.setInfo(dataSetTableRequest.getInfo());
+
+            Map<String, List> stringListMap = piApiProvider.fetchResultAndField(datasourceRequest);
+
             data = stringListMap.get("dataList");
         }
 

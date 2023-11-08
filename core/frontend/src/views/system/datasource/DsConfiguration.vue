@@ -111,6 +111,8 @@
         </template>
       </template>
 
+
+
       <el-form-item
         v-if="form.type !== 'es' && form.type !== 'api' && form.type !== 'pi_api' "
         :label="$t('datasource.host')"
@@ -123,7 +125,12 @@
         />
       </el-form-item>
 
-
+      <div v-if="form.type === 'pi_api' "
+           class="de-row-rules"
+           style="margin: 0 0 16px 0;"
+      >
+        <span>PI Web API 相关信息</span>
+      </div>
 
       <el-form-item
         v-if="form.type === 'pi_api' "
@@ -163,7 +170,88 @@
       </el-form-item>
 
 
+      <div v-if="form.type === 'pi_api' "
+           class="de-row-rules"
+           style="margin: 0 0 16px 0;"
+      >
+        <span>SQL Server 相关信息</span>
+      </div>
 
+
+      <el-form-item
+        v-if="form.type === 'pi_api' "
+        :label="$t('datasource.host')"
+        prop="configuration.host"
+      >
+        <el-input
+          v-model="form.configuration.host"
+          :placeholder="$t('datasource._ip_address')"
+          autocomplete="off"
+        />
+      </el-form-item>
+
+
+
+      <el-form-item
+        v-if="form.type === 'pi_api' "
+        :label="$t('datasource.data_base')"
+        prop="configuration.dataBase"
+      >
+        <el-input
+          v-model="form.configuration.dataBase"
+          :placeholder="$t('datasource.please_input_data_base')"
+          autocomplete="off"
+        />
+      </el-form-item>
+
+      <el-form-item
+        v-if=" form.type === 'pi_api' "
+        :label="$t('datasource.user_name')"
+      >
+        <el-input
+          v-model="form.configuration.username"
+          :placeholder="$t('components.one_user_name')"
+          autocomplete="off"
+        />
+      </el-form-item>
+
+      <el-form-item
+        v-if=" form.type === 'pi_api'"
+        :label="$t('datasource.password')"
+      >
+        <dePwd
+          v-model="form.configuration.password"
+          :placeholder="$t('components.input_a_password')"
+        />
+      </el-form-item>
+
+
+
+
+      <el-form-item
+      v-if=" form.type === 'pi_api' "
+      :label="$t('datasource.extra_params')"
+      >
+      <el-input
+        v-model="form.configuration.extraParams"
+        :placeholder="$t('fu.search_bar.please_input') + $t('datasource.extra_params')"
+        autocomplete="off"
+      />
+      </el-form-item>
+
+      <el-form-item
+        v-if="form.type === 'pi_api'  "
+        :label="$t('datasource.port')"
+        prop="configuration.port"
+      >
+        <el-input
+          v-model="form.configuration.port"
+          autocomplete="off"
+          type="number"
+          :placeholder="$t('components.enter_the_port')"
+          min="0"
+        />
+      </el-form-item>
 
 
       <el-form-item
@@ -179,16 +267,16 @@
       </el-form-item>
 
       <el-form-item
-        v-if="form.type !== 'es' && form.type !== 'api' && form.type !== 'pi_api' "
-        :label="$t('datasource.data_base')"
-        prop="configuration.dataBase"
-      >
-        <el-input
-          v-model="form.configuration.dataBase"
-          :placeholder="$t('datasource.please_input_data_base')"
-          autocomplete="off"
-        />
-      </el-form-item>
+      v-if="form.type !== 'es' && form.type !== 'api' && form.type !== 'pi_api' "
+      :label="$t('datasource.data_base')"
+      prop="configuration.dataBase"
+    >
+      <el-input
+        v-model="form.configuration.dataBase"
+        :placeholder="$t('datasource.please_input_data_base')"
+        autocomplete="off"
+      />
+    </el-form-item>
 
       <el-form-item
         v-if="form.type == 'oracle' && form.type !== 'api'"
@@ -336,7 +424,7 @@
 
       <el-form-item
         v-if="
-          ['oracle', 'sqlServer', 'pg', 'redshift', 'db2'].includes(form.type)
+          ['oracle', 'sqlServer', 'pg', 'redshift', 'db2','pi_api'].includes(form.type)
         "
         class="schema-label"
       >
@@ -372,6 +460,21 @@
           {{ $t('datasource.please_choose_schema') }}
         </div>
       </el-form-item>
+
+
+      <el-form-item
+        v-if="form.type === 'pi_api'  "
+        :label="$t('pi.sql')"
+        prop="pi.sql"
+      >
+        <el-input
+          v-model="form.configuration.sql"
+          autocomplete="off"
+          type="textarea"
+          :placeholder="$t('pi.sql')"
+        />
+      </el-form-item>
+
 
       <el-form-item
         v-if="form.type == 'oracle'"
@@ -412,7 +515,7 @@
       </el-form-item>
 
       <span
-        v-if="!['es', 'api', 'mongo' , 'pi_api'].includes(form.type)"
+        v-if="!['es', 'api', 'mongo'].includes(form.type)"
         class="de-expand de-mar0"
         @click="showPriority = !showPriority"
       >{{ $t('datasource.priority')
@@ -474,7 +577,7 @@
           </el-col>
           <el-col :span="12">
             <el-form-item
-              v-if="datasourceType.isJdbc"
+              v-if="datasourceType.isJdbc || form.type === 'pi_api'"
               :label="$t('datasource.query_timeout')"
               prop="configuration.queryTimeout"
             >
