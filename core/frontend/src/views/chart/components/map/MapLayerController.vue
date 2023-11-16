@@ -1,10 +1,12 @@
 <template>
 
   <el-popover
-    placement="right"
+    placement="left-start"
     title=""
     width="150"
+    :append-to-body="false"
     trigger="click"
+    :popper-class="showEditPosition === 'bar-main-preview' ? 'map-layer-poper' : ''"
   >
     <i
       slot="reference"
@@ -50,6 +52,10 @@ export default {
           id: ''
         }
       }
+    },
+    showEditPosition: {
+      type: String,
+      required: true
     }
   },
   data() {
@@ -97,9 +103,15 @@ export default {
   }
 }
 </script>
+<style lang="scss">
+.map-layer-poper {
+  top: 3px !important;
+  right: 80px !important;
+  left: auto !important;
+}
+</style>
 
 <style scoped lang="scss">
-
 .de-ul li {
   margin: 5px 2px;
   cursor: pointer;

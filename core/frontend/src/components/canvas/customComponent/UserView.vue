@@ -362,7 +362,7 @@ export default {
   computed: {
     // 首次加载且非编辑状态新复制的视图，使用外部filter
     initLoad() {
-      return !(this.isEdit && this.currentCanvasNewId.includes(this.element.id)) && this.isFirstLoad
+      return !(this.isEdit && this.currentCanvasNewId.includes(this.element.id)) && this.isFirstLoad && this.canvasId === 'canvas-main'
     },
     scaleCoefficient() {
       if (this.terminal === 'pc' && !this.mobileLayoutStatus) {
@@ -565,6 +565,9 @@ export default {
       deep: true
     },
     'chart.yaxis': function(newVal, oldVal) {
+      this.$emit('fill-chart-2-parent', this.chart)
+    },
+    'chart.title': function(newVal, oldVal) {
       this.$emit('fill-chart-2-parent', this.chart)
     }
   },
@@ -1007,6 +1010,12 @@ export default {
             sourceInfo = param.viewId + '#' + dimension.id
             jumpInfo = this.nowPanelJumpInfo[sourceInfo]
           }
+          // 没有主维度，子维度相等
+          if (!jumpInfo && dimensionItem.value === param.category) {
+            dimension = dimensionItem
+            sourceInfo = param.viewId + '#' + dimension.id
+            jumpInfo = this.nowPanelJumpInfo[sourceInfo]
+          }
         })
       } else {
         for (let i = param.dimensionList.length - 1; i >= 0; i--) {
@@ -1029,7 +1038,7 @@ export default {
             if (this.publicLinkStatus) {
               // 判断是否有公共链接ID
               if (jumpInfo.publicJumpId) {
-                const url = '/link/' + jumpInfo.publicJumpId
+                const url = '/link/' + jumpInfo.publicJumpId + '?fromLink=true'
                 const currentUrl = window.location.href
                 localStorage.setItem('beforeJumpUrl', currentUrl)
                 this.windowsJump(url, jumpInfo.jumpType)

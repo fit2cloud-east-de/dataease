@@ -158,8 +158,13 @@ export function getLabel(chart) {
         // label value formatter
         if (chart.type && chart.type !== 'waterfall') {
           label.formatter = function(param) {
-            let yAxis, extStack, xaxisExt
+            let xAxis, yAxis, extStack, xaxisExt
             let res = param.value
+            try {
+              xAxis = JSON.parse(chart.xaxis)
+            } catch (e) {
+              xAxis = JSON.parse(JSON.stringify(chart.xaxis))
+            }
             try {
               yAxis = JSON.parse(chart.yaxis)
             } catch (e) {
@@ -244,38 +249,46 @@ export function getLabel(chart) {
             } else {
               for (let i = 0; i < yAxis.length; i++) {
                 const f = yAxis[i]
-                if (f.name === param.category) {
-                  let formatterCfg = formatterItem
-                  if (f.formatterCfg) {
-                    formatterCfg = f.formatterCfg
-                  }
-                  // 饼图和环形图格式优化
-                  if (equalsAny(chart.type, 'pie', 'pie-donut')) {
-                    // 这边默认值取指标是为了兼容存量的视图
-                    const labelContent = l.labelContent ?? ['quota']
-                    const contentItems = []
-                    if (labelContent.includes('dimension')) {
-                      contentItems.push(param.field)
-                    }
-                    if (labelContent.includes('quota')) {
-                      contentItems.push(valueFormatter(param.value, formatterCfg))
-                    }
-                    if (labelContent.includes('proportion')) {
-                      const percentage = `${(Math.round(param.percent * 10000) / 100).toFixed(l.reserveDecimalCount)}%`
-                      if (labelContent.length === 3) {
-                        contentItems.push(`(${percentage})`)
-                      } else {
-                        contentItems.push(percentage)
-                      }
-                    }
-                    res = contentItems.join(' ')
-                  } else if (equalsAny(chart.type, 'pie-rose', 'pie-donut-rose')) {
-                    const quotaValue = valueFormatter(param.value, formatterCfg)
-                    res = [param.field, quotaValue].join(' ')
-                  } else {
+                let formatterCfg = formatterItem
+                if (f.formatterCfg) {
+                  formatterCfg = f.formatterCfg
+                }
+
+                if (chart.type === 'scatter' && xAxis && xAxis.length > 0 && xAxis[0].groupType === 'q') {
+                  // 针对横轴为指标的散点图
+                  if (f.name === param.group) {
                     res = valueFormatter(param.value, formatterCfg)
                   }
-                  break
+                } else {
+                  if (f.name === param.category) {
+                  // 饼图和环形图格式优化
+                    if (equalsAny(chart.type, 'pie', 'pie-donut')) {
+                    // 这边默认值取指标是为了兼容存量的视图
+                      const labelContent = l.labelContent ?? ['quota']
+                      const contentItems = []
+                      if (labelContent.includes('dimension')) {
+                        contentItems.push(param.field)
+                      }
+                      if (labelContent.includes('quota')) {
+                        contentItems.push(valueFormatter(param.value, formatterCfg))
+                      }
+                      if (labelContent.includes('proportion')) {
+                        const percentage = `${(Math.round(param.percent * 10000) / 100).toFixed(l.reserveDecimalCount)}%`
+                        if (labelContent.length === 3) {
+                          contentItems.push(`(${percentage})`)
+                        } else {
+                          contentItems.push(percentage)
+                        }
+                      }
+                      res = contentItems.join(' ')
+                    } else if (equalsAny(chart.type, 'pie-rose', 'pie-donut-rose')) {
+                      const quotaValue = valueFormatter(param.value, formatterCfg)
+                      res = [param.field, quotaValue].join(' ')
+                    } else {
+                      res = valueFormatter(param.value, formatterCfg)
+                    }
+                    break
+                  }
                 }
               }
             }
@@ -300,21 +313,28 @@ export function getTooltip(chart) {
       const t = JSON.parse(JSON.stringify(customAttr.tooltip))
       if (t.show) {
         tooltip = {}
+        let xAxis, yAxis, extStack
+
+        try {
+          xAxis = JSON.parse(chart.xaxis)
+        } catch (e) {
+          xAxis = JSON.parse(JSON.stringify(chart.xaxis))
+        }
+        try {
+          yAxis = JSON.parse(chart.yaxis)
+        } catch (e) {
+          yAxis = JSON.parse(JSON.stringify(chart.yaxis))
+        }
+        try {
+          extStack = JSON.parse(chart.extStack)
+        } catch (e) {
+          extStack = JSON.parse(JSON.stringify(chart.extStack))
+        }
+
         // tooltip value formatter
         if (chart.type && chart.type !== 'waterfall') {
           tooltip.formatter = function(param) {
-            let yAxis, extStack
             let res = param.value
-            try {
-              yAxis = JSON.parse(chart.yaxis)
-            } catch (e) {
-              yAxis = JSON.parse(JSON.stringify(chart.yaxis))
-            }
-            try {
-              extStack = JSON.parse(chart.extStack)
-            } catch (e) {
-              extStack = JSON.parse(JSON.stringify(chart.extStack))
-            }
 
             let obj
             if (equalsAny(chart.type, 'bar-stack', 'line-stack',
@@ -444,6 +464,51 @@ export function getTooltip(chart) {
             }
             obj.value = res === null ? '' : res
             return obj
+          }
+          //
+          if (chart.type === 'scatter' && xAxis && xAxis.length > 0 && xAxis[0].groupType === 'q') {
+            tooltip.fields = ['x', 'category', 'value', 'group']
+            tooltip.customContent = (title, data) => {
+              const key1 = xAxis[0]?.name
+              let key2, v1, v2
+
+              if (data && data.length > 0) {
+                title = data[0].data.category
+                key2 = data[0].data.group
+
+                const fx = xAxis[0]
+                if (fx.formatterCfg) {
+                  v1 = valueFormatter(data[0].data.x, fx.formatterCfg)
+                } else {
+                  v1 = valueFormatter(data[0].data.x, formatterItem)
+                }
+
+                for (let i = 0; i < yAxis.length; i++) {
+                  const f = yAxis[i]
+                  if (f.name === key2) {
+                    if (f.formatterCfg) {
+                      v2 = valueFormatter(data[0].data.value, f.formatterCfg)
+                    } else {
+                      v2 = valueFormatter(data[0].data.value, formatterItem)
+                    }
+                    break
+                  }
+                }
+              }
+
+              return `
+                     <div>
+                       <div class="g2-tooltip-title">${title}</div>
+                       <div class="g2-tooltip-item">
+                           <span class="g2-tooltip-name">${key1}:</span><span class="g2-tooltip-value">${v1}</span>
+                       </div>
+                       <div class="g2-tooltip-item">
+                           <span class="g2-tooltip-name">${key2}:</span><span class="g2-tooltip-value">${v2}</span>
+                       </div>
+                       <div class="g2-tooltip-item">&nbsp;</div>
+                     </div>
+                    `
+            }
           }
         }
       } else {
@@ -952,7 +1017,7 @@ export function getAnalyse(chart) {
       }
 
       const fixedLines = senior.assistLine.filter(ele => ele.field === '0')
-      const dynamicLines = chart.data.dynamicAssistLines
+      const dynamicLines = chart.data.dynamicAssistData
       const lines = fixedLines.concat(dynamicLines)
 
       lines.forEach(ele => {
