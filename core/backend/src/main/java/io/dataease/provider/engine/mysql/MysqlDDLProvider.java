@@ -80,7 +80,7 @@ public class MysqlDDLProvider extends DDLProviderImpl {
         StringBuilder Column_Fields = new StringBuilder("dataease_uuid  varchar(50), `");
         for (DatasetTableField datasetTableField : datasetTableFields) {
             Column_Fields.append(datasetTableField.getDataeaseName()).append("` ");
-            Integer size = datasetTableField.getSize() * 4;
+            Integer size = (datasetTableField.getSize() == null? 0: datasetTableField.getSize()) * 4;
             switch (datasetTableField.getDeExtractType()) {
                 case 0:
                     Column_Fields.append("longtext").append(",`");

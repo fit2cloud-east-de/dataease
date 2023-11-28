@@ -56,8 +56,10 @@ public class DorisDDLProvider extends DDLProviderImpl {
         StringBuilder Column_Fields = new StringBuilder("dataease_uuid  varchar(50), `");
         for (DatasetTableField datasetTableField : datasetTableFields) {
             Column_Fields.append(datasetTableField.getDataeaseName()).append("` ");
-            Integer size = datasetTableField.getSize() * 3;
-            if (datasetTableField.getSize() == 0 || datasetTableField.getSize() > 65533 || datasetTableField.getSize() * 3 > 65533) {
+            Integer size = (datasetTableField.getSize() == null ? 0 : datasetTableField.getSize())  * 3;
+            if ((datasetTableField.getSize() == null ? 0 : datasetTableField.getSize()) == 0
+                    || (datasetTableField.getSize() == null ? 0 : datasetTableField.getSize()) > 65533
+                    || (datasetTableField.getSize() == null ? 0 : datasetTableField.getSize()) * 3 > 65533) {
                 size = 65533;
             }
             switch (datasetTableField.getDeExtractType()) {

@@ -118,6 +118,10 @@ public class JdbcProvider extends DefaultJdbcProvider {
                 } else if (datasourceRequest.getDatasource().getType().equalsIgnoreCase(DatasourceTypes.sqlServer.name())) {
                     if (tableName.equals(datasourceRequest.getTable()) && database.equalsIgnoreCase(getDatabase(datasourceRequest)) && schema.equalsIgnoreCase(getDsSchema(datasourceRequest))) {
                         TableField tableField = getTableFiled(resultSet, datasourceRequest);
+                        System.out.println("当前字段是："+tableField.getFieldName());
+                        if ("IsKeep".equals(tableField.getFieldName())) {
+                            System.out.println(1);
+                        }
                         list.add(tableField);
                     }
                 } else {
@@ -143,6 +147,7 @@ public class JdbcProvider extends DefaultJdbcProvider {
                 datasourceRequest.setQuery("select * from " + datasourceRequest.getTable());
                 return fetchResultField(datasourceRequest);
             } else {
+                e.printStackTrace();
                 DataEaseException.throwException(Translator.get("i18n_datasource_connect_error") + e.getMessage());
             }
 
@@ -164,7 +169,7 @@ public class JdbcProvider extends DefaultJdbcProvider {
         if (dbType.equalsIgnoreCase("LONG")) {
             tableField.setFieldSize(65533);
         }
-        if (StringUtils.isNotEmpty(dbType) && dbType.toLowerCase().contains("date") && tableField.getFieldSize() < 50) {
+        if (StringUtils.isNotEmpty(dbType) && dbType.toLowerCase().contains("date") && (tableField.getFieldSize() == null || tableField.getFieldSize() < 50  )) {
             tableField.setFieldSize(50);
         }
 

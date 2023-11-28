@@ -111,12 +111,12 @@ public class PiApiProvider extends QueryProvider {
     }
 
     @Override
-    public String getSQLScatter(String s, List<ChartViewFieldDTO> list, List<ChartViewFieldDTO> list1, List<ChartFieldCustomFilterDTO> list2, List<DataSetRowPermissionsTreeDTO> rowPermissionsTree, List<ChartExtFilterRequest> list3, List<ChartViewFieldDTO> list4, Datasource datasource, ChartViewWithBLOBs chartViewWithBLOBs) {
+    public String getSQLScatter(String table, List<ChartViewFieldDTO> xAxis, List<ChartViewFieldDTO> yAxis, List<ChartFieldCustomFilterDTO> fieldCustomFilter, List<DataSetRowPermissionsTreeDTO> rowPermissionsTree, List<ChartExtFilterRequest> extFilterRequestList, List<ChartViewFieldDTO> extBubble, List<ChartViewFieldDTO> extGroup, Datasource ds, ChartViewWithBLOBs view) {
         return null;
     }
 
     @Override
-    public String getSQLAsTmpScatter(String s, List<ChartViewFieldDTO> list, List<ChartViewFieldDTO> list1, List<ChartFieldCustomFilterDTO> list2, List<DataSetRowPermissionsTreeDTO> rowPermissionsTree, List<ChartExtFilterRequest> list3, List<ChartViewFieldDTO> list4, ChartViewWithBLOBs chartViewWithBLOBs) {
+    public String getSQLAsTmpScatter(String table, List<ChartViewFieldDTO> xAxis, List<ChartViewFieldDTO> yAxis, List<ChartFieldCustomFilterDTO> fieldCustomFilter, List<DataSetRowPermissionsTreeDTO> rowPermissionsTree, List<ChartExtFilterRequest> extFilterRequestList, List<ChartViewFieldDTO> extBubble, List<ChartViewFieldDTO> extGroup, ChartViewWithBLOBs view) {
         return null;
     }
 
