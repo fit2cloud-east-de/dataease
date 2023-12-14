@@ -157,7 +157,7 @@ public class PiApiProvider extends Provider {
 
 
 
-        private Map<String, List>  mergePiAndSqlServerDataAndField (Map<String, List> piApiStringListMap , Map<String, List> sqlServerStringListMap ) {
+    private Map<String, List>  mergePiAndSqlServerDataAndField (Map<String, List> piApiStringListMap , Map<String, List> sqlServerStringListMap ) {
 
         // 合并数据
         // 字段
@@ -229,7 +229,7 @@ public class PiApiProvider extends Provider {
         return null;
     }
 
-    public JSONArray executePiApiQuery (String  configuration , String info , List<ChartExtFilterRequest> chartExtFilterRequests) {
+    public Map<String , JSONArray> executePiApiQuery (String  configuration , String info , List<ChartExtFilterRequest> chartExtFilterRequests) {
         String oauthToken = getOauthToken(configuration);
 
         HttpClientConfig httpClientConfig = new HttpClientConfig();
@@ -296,20 +296,26 @@ public class PiApiProvider extends Provider {
         JSONArray resultData = resp.getJSONArray("ResultData");
         JSONArray dataValues = resultData.getJSONObject(0).getJSONArray("DataValue");
 
-        return dataValues;
+        Map <String , JSONArray> returnMap = new HashMap<>();
+        returnMap.put(point_name ,dataValues);
+
+        return returnMap;
     }
 
     public Map<String, List> fetchResultAndField(String  configuration , String info ,List<ChartExtFilterRequest> chartExtFilterRequests) throws Exception {
 
-        JSONArray dataValues = executePiApiQuery(configuration, info , chartExtFilterRequests);
+        Map<String, JSONArray> stringJSONArrayMap = executePiApiQuery(configuration, info, chartExtFilterRequests);
+        String pointCode = (String) stringJSONArrayMap.keySet().toArray()[0];
+
+        JSONArray dataValues = stringJSONArrayMap.get(pointCode);
 
         List<String[]> dataList = new ArrayList<>();
 
         for (int i = 0 ; i < dataValues.size() ; i++) {
             JSONObject dataValue = dataValues.getJSONObject(i);
             dataList.add(new String[]{dataValue.getString("DataValue") , dataValue.getString("DataStatus"),
-                    dataValue.getString("DataTime") , dataValue.getString("PointCode"),
-                    dataValue.getString("ValueType")  });
+                    dataValue.getString("DataTime") ,
+                    pointCode });
         }
 
         Map<String, List> result = new HashMap<>();
@@ -341,7 +347,6 @@ public class PiApiProvider extends Provider {
         fieldList.add(TableField.builder().fieldName("DataStatus").remarks("DataStatus").fieldType("0").build());
         fieldList.add(TableField.builder().fieldName("DataTime").remarks("DataTime").fieldType("1").build());
         fieldList.add(TableField.builder().fieldName("PointCode").remarks("PointCode").fieldType("0").build());
-        fieldList.add(TableField.builder().fieldName("ValueType").remarks("ValueType").fieldType("0").build());
         return fieldList;
     }
 
