@@ -4,6 +4,7 @@ package io.dataease.plugins.datasource.dm.query;
 
 import io.dataease.plugins.common.constants.datasource.SQLConstants;
 
+import static io.dataease.plugins.common.constants.DatasourceTypes.mysql;
 import static io.dataease.plugins.common.constants.DatasourceTypes.oracle;
 
 public class DmConstants extends SQLConstants {
@@ -55,7 +56,7 @@ public class DmConstants extends SQLConstants {
     // public static final String GROUP_CONCAT = "vm_concat(%s)";
     public static final String GROUP_CONCAT = "to_char(listagg(%s,',' ) within GROUP (order by (%s)))";
 
-    public static final String NAME = "oracle";
+    public static final String NAME = "dm";
 
 
 }
