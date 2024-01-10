@@ -130,10 +130,18 @@ export function getLabel(chart) {
             label.type = 'spider'
           }
         } else if (chart.type.includes('line') || chart.type.includes('area')) {
-          label = {
-            position: l.position,
-            offsetY: -8
+          label = {}
+          if (customAttr.label.layout !== 'none') {
+            label.layout = {
+              type: customAttr.label.layout
+            }
+          } else {
+            label = {
+              position: l.position,
+              offsetY: -8
+            }
           }
+
         } else if (equalsAny(chart.type, 'pie-rose', 'pie-donut-rose')) {
           label = {
             autoRotate: true

@@ -15,6 +15,9 @@ import { antVCustomColor, handleEmptyDataStrategy } from '@/views/chart/chart/ut
 import _ from 'lodash'
 
 export function baseLineOptionAntV(plot, container, chart, action) {
+
+  console.log(chart)
+
   // theme
   const theme = getTheme(chart)
   // attr

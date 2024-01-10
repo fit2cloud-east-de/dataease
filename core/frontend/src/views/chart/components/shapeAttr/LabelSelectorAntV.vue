@@ -56,6 +56,27 @@
               />
             </el-select>
           </el-form-item>
+
+          <el-form-item
+              :label="$t('标签布局')"
+              class="form-item"
+          >
+            <el-select
+                v-model="labelForm.layout"
+                :placeholder="$t('请选择标签布局方式')"
+                size="mini"
+                @change="changeLabelAttr('layout')"
+            >
+              <el-option
+                  v-for="option in labelLayout"
+                  :key="option.value"
+                  :label="option.name"
+                  :value="option.value"
+              />
+            </el-select>
+          </el-form-item>
+
+
           <el-form-item
             v-show="showProperty('color')"
             :label="$t('chart.text_color')"
@@ -293,6 +314,13 @@ export default {
       fontSize: [],
       isSetting: false,
       labelPosition: [],
+      labelLayout:[
+        { name: '无', value: 'none' },
+        { name: '四周偏移标签', value: 'overlap' },
+        { name: '固定位置偏移标签', value: 'fixed-overlap' },
+        { name: '移除受图形限制标签', value: 'limit-in-shape' }
+      ],
+
       labelPositionPie: [
         { name: this.$t('chart.inside'), value: 'inner' },
         { name: this.$t('chart.outside'), value: 'outer' }
