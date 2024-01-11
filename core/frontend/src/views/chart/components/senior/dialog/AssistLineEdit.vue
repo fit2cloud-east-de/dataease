@@ -157,6 +157,33 @@
         >
           <el-color-picker
             v-model="item.color"
+            :title="$t('chart.assist_line_color')"
+            class="color-picker-style"
+            :predefine="predefineColors"
+            @change="changeAssistLine"
+          />
+        </el-col>
+        <el-col
+          :span="1"
+          style="text-align: center;"
+          v-if="chartType=='bar'"
+        >
+          <el-color-picker
+            v-model="item.ltColor"
+            :title="$t('chart.lt')"
+            class="color-picker-style"
+            :predefine="predefineColors"
+            @change="changeAssistLine"
+          />
+        </el-col>
+        <el-col
+          :span="1"
+          style="text-align: center;"
+          v-if="chartType=='bar'"
+        >
+          <el-color-picker
+            v-model="item.geColor"
+            :title="$t('chart.ge')"
             class="color-picker-style"
             :predefine="predefineColors"
             @change="changeAssistLine"
@@ -188,6 +215,10 @@ export default {
     },
     quotaFields: {
       type: Array,
+      required: true
+    },
+    chartType: {
+      type: String,
       required: true
     }
   },
