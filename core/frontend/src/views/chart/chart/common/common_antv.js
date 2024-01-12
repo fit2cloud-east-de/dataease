@@ -134,7 +134,7 @@ export function getLabel(chart) {
           }
         } else if (chart.type.includes('line') || chart.type.includes('area')) {
           label = {}
-          if (customAttr.label.layout !== 'none') {
+          if (customAttr.label.layout && customAttr.label.layout !== 'none') {
             label.layout = {
               type: customAttr.label.layout
             }
