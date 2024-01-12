@@ -116,6 +116,48 @@ export function baseBarOptionAntV(plot, container, chart, action, isGroup, isSta
   options.isPercent = chart.type === 'percentage-bar-stack'
   // custom color
   options.color = antVCustomColor(chart)
+
+  let senior = JSON.parse(chart.senior);
+  if (senior && senior.assistLine && senior.assistLine.length > 0 && chart.type == 'bar') {
+    options.seriesField = 'value';
+    options.isGroup = false;
+    options.tooltip = {
+      customItems: (originalItems) => {
+        originalItems[0].name = originalItems[0].data.category;
+        return originalItems;
+      }
+    }
+    let itemColor = options.color[0];
+    let assistLine = senior.assistLine[0];
+    let criticalValue = parseFloat(chart.data.dynamicAssistData[0].value);
+    if (assistLine.ltColor) {
+      if (assistLine.geColor) {
+        options.color = ({ value }) => {
+          if (value < criticalValue) {
+            return assistLine.ltColor;
+          }
+          return assistLine.geColor;
+        }
+      } else {
+        options.color = ({ value }) => {
+          if (value < criticalValue) {
+            return assistLine.ltColor;
+          }
+          return itemColor;
+        }
+      }
+    } else {
+      if (assistLine.geColor) {
+        options.color = ({ value }) => {
+          if (value >= criticalValue) {
+            return assistLine.geColor;
+          }
+          return itemColor;
+        }
+      }
+    }
+  }
+
   if (customAttr.color.gradient) {
     options.color = options.color.map((ele) => {
       return setGradientColor(ele, customAttr.color.gradient, 270)

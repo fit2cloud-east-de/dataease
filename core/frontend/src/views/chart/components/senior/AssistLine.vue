@@ -57,6 +57,7 @@
       <assist-line-edit
         :line="assistLine"
         :quota-fields="quotaData"
+        :chart-type="chart.type"
         @onAssistLineChange="lineChange"
       />
       <div

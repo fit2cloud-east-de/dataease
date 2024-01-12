@@ -388,6 +388,38 @@ export function seniorCfg(chart_option, chart) {
             }
           }
         })
+        if (chart.type == 'bar') {
+          let itemColor = chart_option.series[0].itemStyle.color;
+          let assistLine = senior.assistLine[0];
+          let value = parseFloat(lines[0].value);
+          let pieces = [];
+          if (assistLine.ltColor) {
+            pieces.push({
+              lt: value,
+              color: assistLine.ltColor
+            })
+          } else {
+            pieces.push({
+              lt: value,
+              color: itemColor
+            })
+          }
+          if (assistLine.geColor) {
+            pieces.push({
+              ge: value,
+              color: assistLine.geColor
+            })
+          } else {
+            pieces.push({
+              ge: value,
+              color: itemColor
+            })
+          }
+          chart_option.visualMap = {
+            pieces: pieces,
+            show: false //标签是否显示
+          }
+        }
       }
     }
   }
