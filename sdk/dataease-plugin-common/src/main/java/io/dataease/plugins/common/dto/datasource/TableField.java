@@ -3,6 +3,8 @@ package io.dataease.plugins.common.dto.datasource;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.lang.reflect.Field;
+
 @Setter
 @Getter
 public class TableField {
@@ -13,5 +15,7 @@ public class TableField {
     private int accuracy;
     private boolean notNull;
     private boolean primaryKey;
+
+    private Field field;
 
 }

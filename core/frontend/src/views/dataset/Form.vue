@@ -39,12 +39,12 @@
       </span>
       <span class="oprate">
         <span
-          v-if="['db', 'excel', 'api'].includes(datasetType)"
+          v-if="['db', 'excel', 'api' ].includes(datasetType)"
           class="table-num"
         >{{ $t('deDataset.selected') }} {{ tableNum }}
           {{ ['excel'].includes(datasetType) ? $t('deDataset.table') : $t('deDataset.item') }}</span>
         <deBtn
-          :disabled="(['db', 'excel', 'api', 'union'].includes(datasetType) && !tableNum)"
+          :disabled="(['db', 'excel', 'api', 'union' ].includes(datasetType) && !tableNum)"
           type="primary"
           @click="datasetSave"
         >{{
@@ -69,6 +69,7 @@
 <script>
 import AddDB from './add/AddDB'
 import AddApi from './add/AddApi'
+import AddOpcUa from "./add/AddOpcUa";
 import AddSQL from './add/AddSQL'
 import AddExcel from './add/AddExcel'
 import AddUnion from '@/views/dataset/add/AddUnion'
@@ -77,7 +78,7 @@ import { datasetTypeMap } from './group/options'
 import msgCfm from '@/components/msgCfm/index'
 export default {
   name: 'DatasetForm',
-  components: { AddDB, AddSQL, AddExcel, AddApi, AddUnion },
+  components: { AddDB, AddSQL, AddExcel, AddApi, AddUnion, AddOpcUa },
   mixins: [msgCfm],
   data() {
     return {
@@ -258,6 +259,9 @@ export default {
           break
         case 'api':
           this.component = AddApi
+          break
+        case 'opcua':
+          this.component = AddOpcUa
           break
         default:
           break

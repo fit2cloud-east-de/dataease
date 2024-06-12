@@ -6,6 +6,7 @@ import io.dataease.commons.constants.*;
 import io.dataease.commons.model.AuthURD;
 import io.dataease.commons.utils.*;
 import io.dataease.controller.request.datasource.ApiDefinition;
+import io.dataease.controller.request.datasource.OpcUaDefinitionRequest;
 import io.dataease.plugins.common.dto.dataset.DataTableInfoDTO;
 import io.dataease.plugins.common.dto.dataset.ExcelSheetData;
 import io.dataease.dto.datasource.*;
@@ -366,7 +367,7 @@ public class ExtractDataService {
                     if (datasetTable.getLastUpdateTime() == null || datasetTable.getLastUpdateTime() == 0) {
                         throw new Exception("未进行全量同步");
                     }
-                    if (datasource.getType().equalsIgnoreCase(DatasourceTypes.api.name())) {
+                    if (datasource.getType().equalsIgnoreCase(DatasourceTypes.api.name()) || datasource.getType().equalsIgnoreCase(DatasourceTypes.opcua.name()) ) {
                         extractData(datasetTable, datasource, datasetTableFields, "incremental_add", null);
                     } else {
                         DatasetTableIncrementalConfig datasetTableIncrementalConfig = dataSetTableService.incrementalConfig(datasetTableId);
@@ -460,6 +461,12 @@ public class ExtractDataService {
             extractApiData(datasetTable, datasource, datasetTableFields, extractType);
             return;
         }
+
+        if (datasource.getType().equalsIgnoreCase(DatasourceTypes.opcua.name())) {
+            extractOpcUaData(datasetTable, datasource, datasetTableFields, extractType);
+            return;
+        }
+
         Map<String, String> sql = getSelectSQL(extractType, datasetTable, datasource, datasetTableFields, selectSQL);
         if (StringUtils.isNotEmpty(sql.get("totalSql"))) {
             DatasourceRequest datasourceRequest = new DatasourceRequest();
@@ -478,6 +485,96 @@ public class ExtractDataService {
             extractDataByKettle(datasetTable, datasource, datasetTableFields, extractType, sql.get("selectSQL"));
         }
     }
+
+
+    private void extractOpcUaData(DatasetTable datasetTable, Datasource datasource, List<DatasetTableField> datasetTableFields, String extractType) throws Exception {
+
+        DataTableInfoDTO dataTableInfoDTO = new Gson().fromJson(datasetTable.getInfo(), DataTableInfoDTO.class);
+//        OpcUaDefinitionRequest opcUaDefinitionRequest = new Gson().fromJson(datasource.getConfiguration(), OpcUaDefinitionRequest.class);
+        Provider datasourceProvider = ProviderFactory.getProvider(datasource.getType());
+        DatasourceRequest datasourceRequest = new DatasourceRequest();
+        datasourceRequest.setDatasource(datasource);
+        datasourceRequest.setTable(new Gson().fromJson(datasetTable.getInfo(), DataTableInfoDTO.class).getTable());
+        Map<String, List> result = datasourceProvider.fetchResultAndField(datasourceRequest);
+        List<String[]> dataList = result.get("dataList");
+
+        if (engineService.isSimpleMode()) {
+            extractDataForSimpleMode(extractType, datasetTable.getId(), dataList);
+            return;
+        }
+
+        Datasource engine = engineService.getDeEngine();
+        DorisConfiguration dorisConfiguration = new Gson().fromJson(engine.getConfiguration(), DorisConfiguration.class);
+        String columns = "dataease_uuid, " + datasetTableFields.stream().map(DatasetTableField::getDataeaseName).collect(Collectors.joining(","));
+        String dataFile = null;
+        String script = null;
+        String streamLoadScript = "";
+        if (kettleFilesKeep) {
+            streamLoadScript = shellScript;
+        } else {
+            streamLoadScript = shellScriptForDeleteFile;
+        }
+        switch (extractType) {
+            case "all_scope":
+                dataFile = root_path + TableUtils.tmpName(TableUtils.tableName(datasetTable.getId())) + "." + extension;
+                script = String.format(streamLoadScript, dorisConfiguration.getUsername(), dorisConfiguration.getPassword(), System.currentTimeMillis(), separator, columns, "APPEND", dataFile, dorisConfiguration.getHost(), dorisConfiguration.getHttpPort(), dorisConfiguration.getDataBase(), TableUtils.tmpName(TableUtils.tableName(datasetTable.getId())), dataFile);
+                break;
+            default:
+                dataFile = root_path + TableUtils.addName(TableUtils.tableName(datasetTable.getId())) + "." + extension;
+                script = String.format(streamLoadScript, dorisConfiguration.getUsername(), dorisConfiguration.getPassword(), System.currentTimeMillis(), separator, columns, "APPEND", dataFile, dorisConfiguration.getHost(), dorisConfiguration.getHttpPort(), dorisConfiguration.getDataBase(), TableUtils.tableName(datasetTable.getId()), dataFile);
+                break;
+        }
+        BufferedWriter bw = new BufferedWriter(new FileWriter(dataFile));
+        for (String[] strings : dataList) {
+            String content = "";
+            for (int i = 0; i < strings.length; i++) {
+                content = i != strings.length - 1 ? content + strings[i] + separator : content + strings[i];
+            }
+            boolean isSetKey = dataTableInfoDTO.isSetKey() && CollectionUtils.isNotEmpty(dataTableInfoDTO.getKeys());
+            if (!isSetKey) {
+                content = Md5Utils.md5(content) + separator + content;
+            }
+            bw.write(content);
+            bw.newLine();
+        }
+        bw.close();
+
+        File scriptFile = new File(root_path + datasetTable.getId() + ".sh");
+        scriptFile.createNewFile();
+        scriptFile.setExecutable(true);
+
+        BufferedWriter scriptFileBw = new BufferedWriter(new FileWriter(root_path + datasetTable.getId() + ".sh"));
+        scriptFileBw.write("#!/bin/sh");
+        scriptFileBw.newLine();
+        scriptFileBw.write(script);
+        scriptFileBw.newLine();
+        scriptFileBw.close();
+
+        try {
+            Process process = Runtime.getRuntime().exec(root_path + datasetTable.getId() + ".sh");
+            process.waitFor();
+            if (process.waitFor() != 0) {
+                BufferedReader input = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+                String errMsg = "";
+                String line = "";
+                while ((line = input.readLine()) != null) {
+                    errMsg = errMsg + line + System.getProperty("line.separator");
+                }
+                input = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                while ((line = input.readLine()) != null) {
+                    errMsg = errMsg + line + System.getProperty("line.separator");
+                }
+                throw new Exception(errMsg);
+            }
+        } catch (Exception e) {
+            throw e;
+        } finally {
+//            File deleteFile = new File(root_path + datasetTable.getId() + ".sh");
+//            FileUtils.forceDelete(deleteFile);
+        }
+
+    }
+
 
     private void extractApiData(DatasetTable datasetTable, Datasource datasource, List<DatasetTableField> datasetTableFields, String extractType) throws Exception {
         DataTableInfoDTO dataTableInfoDTO = new Gson().fromJson(datasetTable.getInfo(), DataTableInfoDTO.class);

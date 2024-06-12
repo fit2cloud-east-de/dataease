@@ -331,7 +331,7 @@
           </el-radio-group>
         </el-form-item>
         <div
-          v-if="taskForm.type === 'add_scope' && table.type !== 'api'"
+          v-if="taskForm.type === 'add_scope' && table.type !== 'api' && table.type !== 'opcua'"
           class="add-scope-cont"
         >
           <el-form-item
@@ -710,7 +710,7 @@ export default {
     engineMode().then((res) => {
       this.engineMode = res.data
       if (this.engineMode === 'simple') {
-        if (this.table.type === 'api') {
+        if (this.table.type === 'api' || this.table.type === 'opcua' ) {
           this.enableUpdate = true
         } else {
           this.enableUpdate = false

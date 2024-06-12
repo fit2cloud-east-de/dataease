@@ -10,7 +10,8 @@ public enum DatasetType {
     CUSTOM("custom"),
     EXCEL("excel"),
     API("api"),
-    UNION("union");
+    UNION("union"),
+    OPCUA("opcua");
 
     private String  type;
 

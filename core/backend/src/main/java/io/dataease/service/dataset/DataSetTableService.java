@@ -611,7 +611,7 @@ public class DataSetTableService {
         if (page == Integer.parseInt(dataSetTableRequest.getRow()) / pageSize + 1) {
             realSize = Integer.parseInt(dataSetTableRequest.getRow()) % pageSize;
         }
-        if (StringUtils.equalsIgnoreCase(datasetTable.getType(), DatasetType.DB.name()) || StringUtils.equalsIgnoreCase(datasetTable.getType(), DatasetType.API.name())) {
+        if (StringUtils.equalsIgnoreCase(datasetTable.getType(), DatasetType.DB.name()) || StringUtils.equalsIgnoreCase(datasetTable.getType(), DatasetType.API.name()) ||  StringUtils.equalsIgnoreCase(datasetTable.getType(), DatasetType.OPCUA.name() )) {
             if (datasetTable.getMode() == 0) {
                 Datasource ds = datasourceMapper.selectByPrimaryKey(dataSetTableRequest.getDataSourceId());
                 if (ObjectUtils.isEmpty(ds)) {
@@ -1877,7 +1877,8 @@ public class DataSetTableService {
 
         List<TableField> fields = new ArrayList<>();
         long syncTime = System.currentTimeMillis();
-        if (StringUtils.equalsIgnoreCase(datasetTable.getType(), DatasetType.DB.name()) || StringUtils.equalsIgnoreCase(datasetTable.getType(), DatasetType.API.name())) {
+        if (StringUtils.equalsIgnoreCase(datasetTable.getType(), DatasetType.DB.name()) || StringUtils.equalsIgnoreCase(datasetTable.getType(), DatasetType.API.name())
+                || StringUtils.equalsIgnoreCase(datasetTable.getType(), DatasetType.OPCUA.name())) {
             fields = getFields(datasetTable);
         } else if (StringUtils.equalsIgnoreCase(datasetTable.getType(), DatasetType.SQL.name())) {
             Provider datasourceProvider = ProviderFactory.getProvider(ds.getType());

@@ -103,6 +103,14 @@ export function getPanelGroupList() {
   })
 }
 
+export function listOpcUaDatasource() {
+  return request({
+    url: '/datasource/list/opcua',
+    loading: true,
+    method: 'get'
+  })
+}
+
 export function listApiDatasource() {
   return request({
     url: '/datasource/list/api',
