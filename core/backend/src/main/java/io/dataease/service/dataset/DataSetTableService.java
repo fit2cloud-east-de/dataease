@@ -1227,6 +1227,7 @@ public class DataSetTableService {
         String sqlAsTable = qp.createSQLPreview(qp.sqlForPreview(dataTableInfo.getTable(), ds), null);
         datasourceRequest.setQuery(sqlAsTable);
         datasourceRequest.setTable(dataTableInfo.getTable());
+        datasourceRequest.setTables(dataTableInfo.getTables());
         Map<String, List> result = datasourceProvider.fetchResultAndField(datasourceRequest);
         List<String[]> data = result.get("dataList");
         List<TableField> fields = result.get("fieldList");

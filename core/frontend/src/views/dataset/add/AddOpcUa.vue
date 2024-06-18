@@ -45,20 +45,39 @@
         />
       </el-select>
       <p class="select-ds">{{ $t('datasource.node_id') }}</p>
+      <div v-for="(item , index) in nodeList" :key="index" style="margin-top: 20px"
+      >
       <el-input
-        v-model="activeName"
+        v-model="nodeList[index]"
+        style="width: 80%;margin-right: 5%;margin-bottom: 10px"
         size="small"
-        class="search"
         :placeholder="$t('deDataset.enter_node_id')"
       />
+        <i
+          v-show="nodeList.length > 1"
+          style="width: 15%"
+          class="el-icon-arrow-down el-icon-delete data-area-clear"
+          @click="deletePoint(index)"
+        />
+      </div>
       <el-button
         style="margin-top: 20px"
         type="primary"
         size="small"
-        @click="setActiveName(activeName)"
+        @click="addInput()"
+      >
+        添加节点
+      </el-button>
+
+      <el-button
+        style="margin-top: 20px"
+        type="primary"
+        size="small"
+        @click="setActiveName()"
       >
         加载节点数据
       </el-button>
+
     </div>
     <div class="table-detail">
       <div class="top-table-detail">
@@ -97,7 +116,7 @@
         :description="$t('dataset.pls_slc_data_source')"
         :image="noSelectTable"
       />
-      <template v-else-if="activeName">
+      <template v-else-if="nodeList.length>0">
         <div class="dataset">
           <span class="name">{{ $t('dataset.name') }}</span>
           <el-input
@@ -197,6 +216,7 @@ export default {
       mode: '1',
       syncType: 'sync_now',
       tableData: [],
+      nodeList:[''],
       kettleRunning: false,
       engineMode: 'local',
       selectedDatasource: {},
@@ -286,11 +306,20 @@ export default {
         that.height = currentHeight - 56 - 64 - 75 - 32 - 24 - 16 - 10
       }, 10)
     },
-    setActiveName(name) {
+    setActiveName() {
       this.dbPreview({
         dataSourceId: this.dataSource,
-        info: JSON.stringify({  table : name })
+        info: JSON.stringify({  tables : this.nodeList })
       })
+    },
+    addInput(){
+      this.nodeList.push("");
+    },
+    deletePoint(index){
+      console.log(index);
+      this.nodeList.splice(index,1)
+      console.log("数组长度："+this.nodeList)
+      console.log("数组长度："+this.nodeList.length)
     },
     dbPreview(data) {
       dbPreview(data)
@@ -338,7 +367,7 @@ export default {
         type: 'opcua',
         syncType: syncType,
         mode: parseInt(mode),
-        info: JSON.stringify({ table: this.activeName })
+        info: JSON.stringify({ tables : this.nodeList })
       })
 
       post('/dataset/table/batchAdd', tables)

@@ -62,6 +62,15 @@
               />
               {{ $t('dataset.api_data') }}
             </el-dropdown-item>
+
+            <el-dropdown-item command="opcua">
+              <svg-icon
+                icon-class="ds-opcua"
+                class="ds-icon-opcua"
+              />
+              {{ $t('dataset.opcua_data') }}
+            </el-dropdown-item>
+
             <el-dropdown-item
               class="de-top-border"
               command="group"
@@ -211,8 +220,8 @@
 
                       <el-dropdown-item command="opcua">
                         <svg-icon
-                          icon-class="ds-api"
-                          class="ds-icon-api"
+                          icon-class="ds-opcua"
+                          class="ds-icon-opcua"
                         />
                         {{ $t('dataset.opcua_data') }}
                       </el-dropdown-item>
@@ -306,6 +315,13 @@
                     icon-class="ds-api"
                     class="ds-icon-api"
                   />
+
+                  <svg-icon
+                    v-if="data.modelInnerType === 'opcua'"
+                    icon-class="ds-opcua"
+                    class="ds-icon-opcua"
+                  />
+
                 </span>
                 <span v-if="['db', 'sql'].includes(data.modelInnerType)">
                   <span

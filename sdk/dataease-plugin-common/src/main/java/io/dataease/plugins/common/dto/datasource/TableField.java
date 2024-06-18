@@ -8,6 +8,8 @@ import java.lang.reflect.Field;
 @Setter
 @Getter
 public class TableField {
+
+    private String nodeId;
     private String fieldName;
     private String remarks;
     private String fieldType;

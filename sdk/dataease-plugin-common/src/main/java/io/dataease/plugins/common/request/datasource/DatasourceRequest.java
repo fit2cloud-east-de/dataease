@@ -29,6 +29,7 @@ public class DatasourceRequest {
     }
 
     protected String table;
+    protected List<String> tables;
     protected Datasource datasource;
     private Integer pageSize;
     private Integer page;

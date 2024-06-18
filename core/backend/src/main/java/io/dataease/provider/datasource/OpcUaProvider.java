@@ -116,9 +116,18 @@ public class OpcUaProvider extends Provider {
         Gson gson = new Gson();
         OpcUaDefinitionRequest opcUaDefinitionRequest = gson.fromJson(datasourceRequest.getDatasource().getConfiguration(), OpcUaDefinitionRequest.class);
         OpcUaClient client = createClient(opcUaDefinitionRequest);
-        OpcUaData opcUaData = readNode(client, datasourceRequest.getTable());
+
         List<TableField> tableFields = getTableFields(OpcUaData.class);
-        List<String[]> dataList = fetchResult(opcUaData, tableFields);
+
+        List<String> tables = datasourceRequest.getTables();
+
+        List<String[]> dataList = new ArrayList<>();
+
+        for (String table: tables  ) {
+            OpcUaData opcUaData = readNode(client, table);
+            String[] str = fetchResult(opcUaData, tableFields);
+            dataList.add(str);
+        }
 
         result.put("fieldList", tableFields);
         result.put("dataList", dataList);
@@ -136,7 +145,7 @@ public class OpcUaProvider extends Provider {
 
         DataValue dataValue = client.readValue(
                 0.0,
-                TimestampsToReturn.Neither,
+                TimestampsToReturn.Both,
                 NodeId.parse(nodeId)
         ).get();
 
@@ -145,6 +154,8 @@ public class OpcUaProvider extends Provider {
         Variant value = dataValue.getValue();
 
         opcUaData.setValue(value.getValue().toString());
+
+        opcUaData.setNodeId(nodeId);
 
         opcUaData.setServerTime( dataValue.getServerTime() == null ? null : simpleDateFormat.format(dataValue.getServerTime().getJavaDate()));
         opcUaData.setSourceTime( dataValue.getSourceTime() == null ? null : simpleDateFormat.format(dataValue.getSourceTime().getJavaDate()));
@@ -183,10 +194,7 @@ public class OpcUaProvider extends Provider {
         return tableFields;
     }
 
-    private List<String[]> fetchResult(OpcUaData opcUaData , List<TableField> fieldList) {
-
-        List<String[]> dataList = new ArrayList<>();
-
+    private String[] fetchResult(OpcUaData opcUaData , List<TableField> fieldList) {
         String[] str = new String[fieldList.size()];
         fieldList.stream().forEach(tableField -> {
             try {
@@ -195,9 +203,7 @@ public class OpcUaProvider extends Provider {
                 e.printStackTrace();
             }
         });
-        dataList.add(str);
-
-        return dataList;
+        return str;
     }
 
 

@@ -15,6 +15,7 @@ import java.util.List;
 @Getter
 public class DataTableInfoDTO {
     private String table;
+    private List<String> tables;
     private boolean setKey = false;
     private List<String> keys = new ArrayList<>();
     private String sql;

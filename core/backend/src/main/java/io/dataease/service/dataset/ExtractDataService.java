@@ -495,6 +495,7 @@ public class ExtractDataService {
         DatasourceRequest datasourceRequest = new DatasourceRequest();
         datasourceRequest.setDatasource(datasource);
         datasourceRequest.setTable(new Gson().fromJson(datasetTable.getInfo(), DataTableInfoDTO.class).getTable());
+        datasourceRequest.setTables(new Gson().fromJson(datasetTable.getInfo(), DataTableInfoDTO.class).getTables());
         Map<String, List> result = datasourceProvider.fetchResultAndField(datasourceRequest);
         List<String[]> dataList = result.get("dataList");
 
