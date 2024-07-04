@@ -28,6 +28,7 @@ public class SQLConstants {
     public static final String SQL_TEMPLATE = "pluginSqltemplate.stg";
 
     public static final String TABLE_ALIAS_PREFIX = "t_a_%s";
+    public static final String TABLE_JOIN_ALIAS_PREFIX = "t_j_a_%s";
     public static final String FIELD_ALIAS_X_PREFIX = "f_ax_%s";
     public static final String FIELD_ALIAS_Y_PREFIX = "f_ay_%s";
     public static final String GROUP_ALIAS_PREFIX = "g_a_%s";

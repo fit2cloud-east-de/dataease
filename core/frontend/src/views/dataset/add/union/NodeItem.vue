@@ -275,15 +275,15 @@ export default {
           return
         }
       }
-      const arr = this.getAllDs()
-      if (arr.indexOf(this.tempDs.id) > -1) {
-        this.$message({
-          type: 'error',
-          message: this.$t('dataset.union_repeat'),
-          showClose: true
-        })
-        return
-      }
+      // const arr = this.getAllDs()
+      // if (arr.indexOf(this.tempDs.id) > -1) {
+      //   this.$message({
+      //     type: 'error',
+      //     message: this.$t('dataset.union_repeat'),
+      //     showClose: true
+      //   })
+      //   return
+      // }
       // check over
       const ds = JSON.parse(JSON.stringify(this.unionItem))
       ds.currentDs = this.tempDs

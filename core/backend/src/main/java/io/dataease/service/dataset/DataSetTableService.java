@@ -94,10 +94,13 @@ import java.text.MessageFormat;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static io.dataease.plugins.common.constants.datasource.SQLConstants.TABLE_ALIAS_PREFIX;
+import static io.dataease.plugins.common.constants.datasource.SQLConstants.TABLE_JOIN_ALIAS_PREFIX;
 
 /**
  * @Author gin
@@ -1352,7 +1355,7 @@ public class DataSetTableService {
             sqlMap = getUnionSQLDoris(dataTableInfoDTO);
         }
         String sql = (String) sqlMap.get("sql");
-        List<DatasetTableField> fieldList = (List<DatasetTableField>) sqlMap.get("field");
+        List<DatasetTableFieldDTO> fieldList = (List<DatasetTableFieldDTO>) sqlMap.get("field");
 
         Map<String, Object> res = new HashMap<>();
         // 处理结果
@@ -1377,9 +1380,9 @@ public class DataSetTableService {
             }
 
             // 获取每个字段在当前de数据库中的name，作为sql查询后的remarks返回前端展示
-            for (DatasetTableField datasetTableField : fieldList) {
+            for (DatasetTableFieldDTO datasetTableField : fieldList) {
                 for (TableField tableField : fields) {
-                    if (StringUtils.equalsIgnoreCase(tableField.getFieldName(), TableUtils.fieldName(datasetTableField.getTableId() + "_" + datasetTableField.getDataeaseName())) || StringUtils.equalsIgnoreCase(tableField.getFieldName(), TableUtils.fieldNameShort(datasetTableField.getTableId() + "_" + datasetTableField.getOriginName()))) {
+                    if (StringUtils.equalsIgnoreCase(tableField.getFieldName(), TableUtils.fieldName(datasetTableField.getTableId() + "_" + datasetTableField.getDataeaseName())) || StringUtils.equalsIgnoreCase(tableField.getFieldName(), TableUtils.fieldNameShort(datasetTableField.getTableId() + "_" + datasetTableField.getOriginName())) || StringUtils.equalsIgnoreCase(tableField.getFieldName(), TableUtils.fieldNameShort(datasetTableField.getTableId() + "_" + datasetTableField.getOriginName() + "_" + datasetTableField.getTableAlias()))) {
                         tableField.setRemarks(datasetTableField.getName());
                         break;
                     }
@@ -1718,12 +1721,16 @@ public class DataSetTableService {
         // 所有选中的字段，即select后的查询字段
         Map<String, String[]> checkedInfo = new LinkedHashMap<>();
         List<UnionParamDTO> unionList = new ArrayList<>();
-        List<DatasetTableField> checkedFields = new ArrayList<>();
+        List<DatasetTableFieldDTO> checkedFields = new ArrayList<>();
         String sql = "";
         String tableName = new Gson().fromJson(datasetTableMapper.selectByPrimaryKey(union.get(0).getCurrentDs().getId()).getInfo(), DataTableInfoDTO.class).getTable();
-        for (UnionDTO unionDTO : union) {
+        String tableAlias = "";
+        AtomicInteger sub = new AtomicInteger(0);
+        for (int i = 0; i < union.size(); i++) {
+            UnionDTO unionDTO = union.get(i);
             DatasetTable datasetTable = datasetTableMapper.selectByPrimaryKey(unionDTO.getCurrentDs().getId());
-            String table = new Gson().fromJson(datasetTable.getInfo(), DataTableInfoDTO.class).getTable();
+//            String table = new Gson().fromJson(datasetTable.getInfo(), DataTableInfoDTO.class).getTable();
+            tableAlias = String.format(TABLE_ALIAS_PREFIX, i);
             String tableId = unionDTO.getCurrentDs().getId();
             if (ObjectUtils.isEmpty(datasetTable)) {
                 DataEaseException.throwException(Translator.get("i18n_custom_ds_delete") + String.format(":table id [%s]", tableId));
@@ -1737,12 +1744,20 @@ public class DataSetTableService {
             }
             List<DatasetTableField> fields = dataSetTableFieldsService.getListByIdsEach(unionDTO.getCurrentDsField());
 
-            String[] array = fields.stream().map(f -> String.format(keyword, table) + "." + String.format(keyword, f.getOriginName()) + " AS " + TableUtils.fieldNameShort(tableId + "_" + f.getOriginName())).toArray(String[]::new);
-            checkedInfo.put(table, array);
-            checkedFields.addAll(fields);
+            String tempTableAlias = tableAlias;
+            String[] array = fields.stream().map(f -> String.format(keyword, tempTableAlias) + "." + String.format(keyword, f.getOriginName()) + " AS " + TableUtils.fieldNameShort(tableId + "_" + f.getOriginName() + "_" + tempTableAlias)).toArray(String[]::new);
+            checkedInfo.put(tableAlias, array);
+
+            checkedFields.addAll(fields.stream().map(datasetTableField -> {
+                DatasetTableFieldDTO datasetTableFieldDTO = new DatasetTableFieldDTO();
+                BeanUtils.copyBean(datasetTableFieldDTO, datasetTableField);
+                datasetTableFieldDTO.setTableAlias(tempTableAlias);
+                return datasetTableFieldDTO;
+            }).collect(Collectors.toList()));
+
             // 获取child的fields和union
             if (CollectionUtils.isNotEmpty(unionDTO.getChildrenDs())) {
-                getUnionSQLDatasourceJoin(unionDTO.getChildrenDs(), checkedInfo, unionList, keyword, checkedFields);
+                getUnionSQLDatasourceJoin(unionDTO.getChildrenDs(), checkedInfo, unionList, keyword, checkedFields, tableAlias, sub);
             }
         }
         // build sql
@@ -1767,17 +1782,19 @@ public class DataSetTableService {
                 }
                 DatasetTable parentTable = datasetTableMapper.selectByPrimaryKey(pField.getTableId());
                 String parentTableName = new Gson().fromJson(parentTable.getInfo(), DataTableInfoDTO.class).getTable();
+                String parentTableAlias = u.getParentTableAlias();
+                String currentTableAlias = u.getCurrentTableAlias();
                 DatasetTable currentTable = datasetTableMapper.selectByPrimaryKey(cField.getTableId());
                 String currentTableName = new Gson().fromJson(currentTable.getInfo(), DataTableInfoDTO.class).getTable();
 
-                join.append(" ").append(joinType).append(" ").append(joinPrefix).append(String.format(keyword, currentTableName)).append(" ON ");
+                join.append(" ").append(joinType).append(" ").append(joinPrefix).append(String.format(keyword, currentTableName)).append(" ").append(String.format(keyword, currentTableAlias)).append(" ON ");
                 for (int i = 0; i < unionParamDTO.getUnionFields().size(); i++) {
                     UnionItemDTO unionItemDTO = unionParamDTO.getUnionFields().get(i);
                     // 通过field id取得field详情，并且以第一组为准，寻找dataset table
                     DatasetTableField parentField = dataSetTableFieldsService.get(unionItemDTO.getParentField().getId());
                     DatasetTableField currentField = dataSetTableFieldsService.get(unionItemDTO.getCurrentField().getId());
 
-                    join.append(String.format(keyword, parentTableName)).append(".").append(String.format(keyword, parentField.getOriginName())).append(" = ").append(String.format(keyword, currentTableName)).append(".").append(String.format(keyword, currentField.getOriginName()));
+                    join.append(String.format(keyword, parentTableAlias)).append(".").append(String.format(keyword, parentField.getOriginName())).append(" = ").append(String.format(keyword, currentTableAlias)).append(".").append(String.format(keyword, currentField.getOriginName()));
                     if (i < unionParamDTO.getUnionFields().size() - 1) {
                         join.append(" AND ");
                     }
@@ -1786,13 +1803,13 @@ public class DataSetTableService {
             if (StringUtils.isEmpty(f)) {
                 DataEaseException.throwException(Translator.get("i18n_union_ds_no_checked"));
             }
-            sql = MessageFormat.format("SELECT {0} FROM {1}", f, joinPrefix + String.format(keyword, tableName)) + join.toString();
+            sql = MessageFormat.format("SELECT {0} FROM {1}", f, joinPrefix + String.format(keyword, tableName)) + " " + String.format(keyword, tableAlias) + join.toString();
         } else {
-            String f = StringUtils.join(checkedInfo.get(tableName), ",");
+            String f = StringUtils.join(checkedInfo.get(tableAlias), ",");
             if (StringUtils.isEmpty(f)) {
                 throw new RuntimeException(Translator.get("i18n_union_ds_no_checked"));
             }
-            sql = MessageFormat.format("SELECT {0} FROM {1}", f, joinPrefix + String.format(keyword, tableName));
+            sql = MessageFormat.format("SELECT {0} FROM {1}", f, joinPrefix + String.format(keyword, tableName) + " " + String.format(keyword, tableAlias));
         }
         Map<String, Object> map = new HashMap<>();
         map.put("sql", sql);
@@ -1812,24 +1829,36 @@ public class DataSetTableService {
     }
 
     // 递归计算出所有子级的checkedFields和unionParam
-    private void getUnionSQLDatasourceJoin(List<UnionDTO> childrenDs, Map<String, String[]> checkedInfo, List<UnionParamDTO> unionList, String keyword, List<DatasetTableField> checkedFields) {
-        for (UnionDTO unionDTO : childrenDs) {
+    private void getUnionSQLDatasourceJoin(List<UnionDTO> childrenDs, Map<String, String[]> checkedInfo, List<UnionParamDTO> unionList, String keyword, List<DatasetTableFieldDTO> checkedFields, String parentTableAlias, AtomicInteger sub) {
+        for (int i = 0; i < childrenDs.size(); i++) {
+            UnionDTO unionDTO = childrenDs.get(i);
             DatasetTable datasetTable = datasetTableMapper.selectByPrimaryKey(unionDTO.getCurrentDs().getId());
             String tableId = unionDTO.getCurrentDs().getId();
             if (ObjectUtils.isEmpty(datasetTable)) {
                 DataEaseException.throwException(Translator.get("i18n_custom_ds_delete") + String.format(":table id [%s]", tableId));
             }
-            String table = new Gson().fromJson(datasetTable.getInfo(), DataTableInfoDTO.class).getTable();
+//            String table = new Gson().fromJson(datasetTable.getInfo(), DataTableInfoDTO.class).getTable();
+            String currentTableAlias = String.format(TABLE_JOIN_ALIAS_PREFIX, sub.get());
+            sub.incrementAndGet();
 
             List<DatasetTableField> fields = dataSetTableFieldsService.getListByIdsEach(unionDTO.getCurrentDsField());
+            String[] array = fields.stream().map(f -> String.format(keyword, currentTableAlias) + "." + String.format(keyword, f.getOriginName()) + " AS " + TableUtils.fieldNameShort(tableId + "_" + f.getOriginName() + "_" + currentTableAlias)).toArray(String[]::new);
+            checkedInfo.put(currentTableAlias, array);
+            checkedFields.addAll(fields.stream().map(datasetTableField -> {
+                DatasetTableFieldDTO datasetTableFieldDTO = new DatasetTableFieldDTO();
+                BeanUtils.copyBean(datasetTableFieldDTO, datasetTableField);
+                datasetTableFieldDTO.setTableAlias(currentTableAlias);
+                return datasetTableFieldDTO;
+            }).collect(Collectors.toList()));
 
-            String[] array = fields.stream().map(f -> String.format(keyword, table) + "." + String.format(keyword, f.getOriginName()) + " AS " + TableUtils.fieldNameShort(tableId + "_" + f.getOriginName())).toArray(String[]::new);
-            checkedInfo.put(table, array);
-            checkedFields.addAll(fields);
-
+            for (UnionItemDTO unionItemDTO : unionDTO.getUnionToParent().getUnionFields()) {
+                unionItemDTO.setParentTableAlias(parentTableAlias);
+                unionItemDTO.setCurrentTableAlias(currentTableAlias);
+            }
             unionList.add(unionDTO.getUnionToParent());
+
             if (CollectionUtils.isNotEmpty(unionDTO.getChildrenDs())) {
-                getUnionSQLDatasourceJoin(unionDTO.getChildrenDs(), checkedInfo, unionList, keyword, checkedFields);
+                getUnionSQLDatasourceJoin(unionDTO.getChildrenDs(), checkedInfo, unionList, keyword, checkedFields, currentTableAlias, sub);
             }
         }
     }
@@ -1974,16 +2003,16 @@ public class DataSetTableService {
 
                 Map<String, Object> sqlMap = getUnionSQLDatasource(dt, ds);
                 String sql = (String) sqlMap.get("sql");
-                List<DatasetTableField> fieldList = (List<DatasetTableField>) sqlMap.get("field");
+                List<DatasetTableFieldDTO> fieldList = (List<DatasetTableFieldDTO>) sqlMap.get("field");
 
                 // getQuerySql to get field
                 QueryProvider qp = ProviderFactory.getQueryProvider(ds.getType());
                 datasourceRequest.setQuery(qp.createSQLPreview(sql, null));
                 fields = datasourceProvider.fetchResultField(datasourceRequest);
 
-                for (DatasetTableField field : fieldList) {
+                for (DatasetTableFieldDTO field : fieldList) {
                     for (TableField tableField : fields) {
-                        if (StringUtils.equalsIgnoreCase(TableUtils.fieldNameShort(field.getTableId() + "_" + field.getOriginName()), tableField.getFieldName())) {
+                        if (StringUtils.equalsIgnoreCase(TableUtils.fieldNameShort(field.getTableId() + "_" + field.getOriginName()), tableField.getFieldName()) || StringUtils.equalsIgnoreCase(TableUtils.fieldNameShort(field.getTableId() + "_" + field.getOriginName() + "_" + field.getTableAlias()), tableField.getFieldName())) {
                             tableField.setRemarks(field.getName());
                             break;
                         }

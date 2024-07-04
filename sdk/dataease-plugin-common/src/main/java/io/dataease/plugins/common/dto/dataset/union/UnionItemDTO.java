@@ -10,5 +10,7 @@ import lombok.Data;
 @Data
 public class UnionItemDTO {
     private DatasetTableField parentField;
+    private String parentTableAlias;
     private DatasetTableField currentField;
+    private String currentTableAlias;
 }
