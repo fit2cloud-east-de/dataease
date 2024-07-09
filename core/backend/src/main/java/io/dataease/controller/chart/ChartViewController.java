@@ -5,6 +5,7 @@ import io.dataease.auth.annotation.DePermission;
 import io.dataease.auth.annotation.DePermissionProxy;
 import io.dataease.commons.constants.DePermissionType;
 import io.dataease.commons.constants.ResourceAuthLevel;
+import io.dataease.commons.utils.LogUtil;
 import io.dataease.controller.request.chart.*;
 import io.dataease.controller.response.ChartDetail;
 import io.dataease.dto.chart.ChartViewDTO;
@@ -92,6 +93,7 @@ public class ChartViewController {
     @PostMapping("/getData/{id}/{panelId}")
     public ChartViewDTO getData(@PathVariable String id, @PathVariable String panelId,
                                 @RequestBody ChartExtRequest requestList) throws Exception {
+        LogUtil.debug("current time: " + System.currentTimeMillis() + ", deal with chart data stating, view id: " + id + ", panel id: " + panelId);
         return chartViewService.getData(id, requestList);
     }
 

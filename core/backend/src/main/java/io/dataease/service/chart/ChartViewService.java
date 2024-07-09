@@ -334,6 +334,7 @@ public class ChartViewService {
             if (CommonConstants.VIEW_DATA_FROM.TEMPLATE.equals(view.getDataFrom())) {
                 return extendDataService.getChartDataInfo(id, view);
             } else {
+                LogUtil.debug("current time: " + System.currentTimeMillis() + ", calcData");
                 return calcData(view, request, request.isCache());
             }
 
@@ -1552,6 +1553,7 @@ public class ChartViewService {
             }
         }
 
+        LogUtil.debug("current time: " + System.currentTimeMillis() + ", build results");
         // 构建结果
         Map<String, Object> map = new TreeMap<>();
         // 图表组件可再扩展
@@ -1629,6 +1631,7 @@ public class ChartViewService {
         chartViewDTO = uniteViewResult(datasourceRequest.getQuery(), mapChart, mapTableNormal, view, isDrill, drillFilters, dynamicAssistFields, assistData);
         chartViewDTO.setTotalPage(totalPage);
         chartViewDTO.setTotalItems(totalItems);
+        LogUtil.debug("current time: " + System.currentTimeMillis() + ", return results");
         return chartViewDTO;
     }
 

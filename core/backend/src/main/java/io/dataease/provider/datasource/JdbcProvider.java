@@ -438,6 +438,7 @@ public class JdbcProvider extends DefaultJdbcProvider {
         JdbcConfiguration jdbcConfiguration = new Gson().fromJson(dsr.getDatasource().getConfiguration(), JdbcConfiguration.class);
         int queryTimeout = jdbcConfiguration.getQueryTimeout() > 0 ? jdbcConfiguration.getQueryTimeout() : 0;
         try (Connection connection = getConnectionFromPool(dsr); PreparedStatement stat = getPreparedStatement(connection, queryTimeout, dsr.getQuery())) {
+            LogUtil.debug("current time: " + System.currentTimeMillis() + "exec sql start: " + dsr.getQuery());
             LogUtil.info("getData sql: " + dsr.getQuery());
             if (CollectionUtils.isNotEmpty(dsr.getTableFieldWithValues())) {
                 for (int i = 0; i < dsr.getTableFieldWithValues().size(); i++) {
@@ -453,7 +454,7 @@ public class JdbcProvider extends DefaultJdbcProvider {
                 Integer realSize = dsr.getPage() * dsr.getPageSize() < list.size() ? dsr.getPage() * dsr.getPageSize() : list.size();
                 list = list.subList((dsr.getPage() - 1) * dsr.getPageSize(), realSize);
             }
-
+            LogUtil.debug("current time: " + System.currentTimeMillis() + "exec sql end: " + dsr.getQuery());
         } catch (SQLException e) {
             DataEaseException.throwException("SQL ERROR" + e.getMessage());
         } catch (Exception e) {
