@@ -47,7 +47,11 @@ public class SqlparserUtils {
         boolean hasVariables = false;
         while (matcher.find()) {
             hasVariables = true;
-            tmpSql = tmpSql.replace(matcher.group(), SubstitutedParams);
+            if (matcher.group().contains("whole_sql")) {
+                tmpSql = tmpSql.replace(matcher.group(), SubstitutedSql);
+            } else {
+                tmpSql = tmpSql.replace(matcher.group(), SubstitutedParams);
+            }
         }
         if (!hasVariables && !tmpSql.contains(SubstitutedParams)) {
             return tmpSql;

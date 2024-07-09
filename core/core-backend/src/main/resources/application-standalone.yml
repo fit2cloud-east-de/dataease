@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/dataease?autoReconnect=false&useUnicode=true&characterEncoding=UTF-8&characterSetResults=UTF-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/dataease2?autoReconnect=false&useUnicode=true&characterEncoding=UTF-8&characterSetResults=UTF-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true
     username: root
-    password: 123456
+    password: Password123@mysql
   messages:
     basename: i18n/lic,i18n/core,i18n/permissions,i18n/xpack
   flyway:
@@ -16,4 +16,6 @@ spring:
 mybatis-plus:
   mapper-locations: classpath:mybatis/*.xml
 
-
+#logging:
+#  level:
+#    io.dataease.visualization.dao.ext.mapper: debug
