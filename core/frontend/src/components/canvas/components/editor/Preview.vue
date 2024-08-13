@@ -172,7 +172,7 @@
         <el-button
           v-if="showChartInfoType==='details' && showChartInfo.dataFrom !== 'template' && !userId && hasDataPermission('export',panelInfo.privileges)"
           size="mini"
-          :disabled="$store.getters.loadingMap[$store.getters.currentPath] || dialogLoading"
+          :disabled="$store.getters.loadingMap[$store.getters.currentPath]"
           @click="exportSourceDetails"
         >
           <svg-icon
@@ -195,6 +195,7 @@
 </template>
 
 <script>
+import { Button } from 'element-ui'
 import { getStyle } from '@/components/canvas/utils/style'
 import { mapState } from 'vuex'
 import ComponentWrapper from './ComponentWrapper'
@@ -874,11 +875,89 @@ export default {
         this.$nextTick(() => (eventBus.$emit('resizing', '')))
       }
     },
+    openMessageLoading(cb) {
+      const h = this.$createElement
+      const iconClass = `el-icon-loading`
+      const customClass = `de-message-loading de-message-export`
+      this.$message({
+        message: h('p', null, [
+          this.$t('data_export.exporting'),
+          h(
+              Button,
+              {
+                props: {
+                  type: 'text',
+                },
+                class: 'btn-text',
+                on: {
+                  click: () => {
+                    cb()
+                  }
+                }
+              },
+              this.$t('data_export.export_center')
+            ),
+          this.$t('data_export.export_info')
+        ]),
+        iconClass,
+        showClose: true,
+        customClass
+      })
+    },
+    openMessageSuccess(text, type, cb) {
+      const h = this.$createElement
+      const iconClass = `el-icon-${type || 'success'}`
+      const customClass = `de-message-${type || 'success'} de-message-export`
+      this.$message({
+        message: h('p', null, [
+          h('span', null, text),
+          h(
+            Button,
+            {
+              props: {
+                type: 'text',
+              },
+              class: 'btn-text',
+              on: {
+                click: () => {
+                  cb()
+                }
+              }
+            },
+            this.$t('data_export.export_center')
+          )
+        ]),
+        iconClass,
+        showClose: true,
+        customClass
+      })
+    },
+    exportData() {
+      bus.$emit('data-export-center')
+    },
     exportExcel() {
-      this.$refs['userViewDialog-canvas-main'].exportExcel()
+      this.$refs['userViewDialog-canvas-main'].exportExcel((val) => {
+        if (val && val.success) {
+          this.openMessageLoading(this.exportData)
+        }
+
+        if (val && val.success === false) {
+          this.openMessageSuccess(`${this.showChartTableInfo.title ? this.showChartTableInfo.title : this.showChartTableInfo.name} 导出失败，前往`, 'error', this.exportData)
+        }
+        this.dialogLoading = false
+      })
     },
     exportSourceDetails() {
-      this.$refs['userViewDialog-canvas-main'].exportExcel()
+      this.$refs['userViewDialog-canvas-main'].exportExcel((val) => {
+        if (val && val.success) {
+          this.openMessageLoading(this.exportData)
+        }
+
+        if (val && val.success === false) {
+          this.openMessageSuccess(`${this.showChartTableInfo.title ? this.showChartTableInfo.title : this.showChartTableInfo.name} 导出失败，前往`, 'error', this.exportData)
+        }
+        this.dialogLoading = false
+      })
     },
     exportViewImg() {
       this.imageDownloading = true

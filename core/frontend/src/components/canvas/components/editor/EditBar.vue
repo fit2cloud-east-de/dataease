@@ -489,13 +489,11 @@ export default {
       this.$message({
         message: h('p', null, [
           this.$t('data_export.exporting'),
-          this.showEditPosition === 'bar-main-preview'
-            ? h(
+          h(
               Button,
               {
                 props: {
                   type: 'text',
-                  size: 'mini'
                 },
                 class: 'btn-text',
                 on: {
@@ -505,7 +503,7 @@ export default {
                 }
               },
               this.$t('data_export.export_center')
-            ) : this.$t('data_export.export_center'),
+            ),
           this.$t('data_export.export_info')
         ]),
         iconClass,
@@ -525,7 +523,6 @@ export default {
             {
               props: {
                 type: 'text',
-                size: 'mini'
               },
               class: 'btn-text',
               on: {
