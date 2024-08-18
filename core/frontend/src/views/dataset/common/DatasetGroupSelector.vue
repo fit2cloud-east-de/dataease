@@ -160,6 +160,13 @@
                     icon-class="ds-api"
                     class="ds-icon-api"
                   />
+
+                  <svg-icon
+                    v-if="data.type === 'opcua'"
+                    icon-class="ds-opcua"
+                    class="ds-icon-opcua"
+                  />
+
                 </span>
                 <span v-if="data.type === 'db' || data.type === 'sql'">
                   <span

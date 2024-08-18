@@ -25,6 +25,12 @@
         class="ds-icon-api"
       />
 
+      <svg-icon
+        v-else-if="currentNode.currentDs.modelInnerType === 'opcua'"
+        icon-class="ds-opcua"
+        class="ds-icon-opcua"
+      />
+
       <span
         class="node-name"
         :title="currentNode.currentDs.name"

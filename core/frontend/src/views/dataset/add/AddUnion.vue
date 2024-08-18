@@ -213,7 +213,7 @@ export default {
         },
         allChildCount: 0
       },
-      customType: ['db', 'sql', 'excel', 'api'],
+      customType: ['db', 'sql', 'excel', 'api' , 'opcua'],
       selectDsDialog: false,
       // 弹框临时选中的数据集
       tempDs: {},

@@ -21,6 +21,7 @@ public enum DatasourceTypes {
     redshift("redshift", "AWS Redshift", "\"", "\"", "\"", "\"", "", true, DatasourceCalculationMode.DIRECT, null, null, true, DatabaseClassification.DL, ""),
     es("es", "Elasticsearch", "\"", "\"", "\"", "\"", "", true, DatasourceCalculationMode.DIRECT, null, null, false, DatabaseClassification.OLAP, ""),
     api("api", "API", "\"", "\"", "\"", "\"", "rebuildschema=true&authSource=admin", true, DatasourceCalculationMode.SYNC, null, null, false, DatabaseClassification.OTHER, ""),
+    opcua("opcua", "OPCUA", "\"", "\"", "\"", "\"", "rebuildschema=true&authSource=admin", true, DatasourceCalculationMode.SYNC, null, null, false, DatabaseClassification.OTHER, ""),
     excel("excel", "Excel", "", "", "", "", "", false, DatasourceCalculationMode.SYNC, null, null, false, DatabaseClassification.OLTP, ""),
     //engine
     engine_doris("engine_doris", "engine_doris", "`", "`", "", "", "characterEncoding=UTF-8&connectTimeout=5000&useSSL=false&allowPublicKeyRetrieval=true", false, null, null, null, true, DatabaseClassification.OLAP, ""),

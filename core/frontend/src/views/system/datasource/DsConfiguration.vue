@@ -115,7 +115,7 @@
       </template>
 
       <el-form-item
-        v-if="form.type !== 'es' && form.type !== 'api'"
+        v-if="form.type !== 'es' && form.type !== 'api' && form.type !== 'opcua' "
         :label="$t('datasource.host')"
         prop="configuration.host"
       >
@@ -127,7 +127,7 @@
       </el-form-item>
 
       <el-form-item
-        v-if="form.type == 'es'"
+        v-if="form.type === 'es'"
         :label="$t('datasource.datasource_url')"
         prop="configuration.url"
       >
@@ -138,8 +138,10 @@
         />
       </el-form-item>
 
+
+
       <el-form-item
-        v-if="form.type !== 'es' && form.type !== 'api'"
+        v-if="form.type !== 'es' && form.type !== 'api' && form.type !== 'opcua' "
         :label="$t('datasource.data_base')"
         prop="configuration.dataBase"
       >
@@ -151,7 +153,7 @@
       </el-form-item>
 
       <el-form-item
-        v-if="form.type == 'oracle' && form.type !== 'api'"
+        v-if="form.type == 'oracle' && form.type !== 'api' && form.type !== 'opcua'"
         :label="$t('datasource.connection_mode')"
         prop="configuration.connectionType"
       >
@@ -219,6 +221,7 @@
         v-if="
           form.type !== 'es' &&
             form.type !== 'api' &&
+             form.type !== 'opcua' &&
             form.configuration.authMethod !== 'kerberos'
         "
         :label="$t('datasource.user_name')"
@@ -234,6 +237,7 @@
         v-if="
           form.type !== 'es' &&
             form.type !== 'api' &&
+              form.type !== 'opcua' &&
             form.configuration.authMethod !== 'kerberos'
         "
         :label="$t('datasource.password')"
@@ -265,9 +269,50 @@
         />
       </el-form-item>
 
+
+      <el-form-item
+        v-if="form.type === 'opcua'"
+        :label="$t('datasource.end_point_url')"
+        prop="form.configuration.endpoint"
+      >
+        <el-input
+          v-model="form.configuration.endpoint"
+          :placeholder="$t('datasource.please_input_endpoint')"
+          autocomplete="off"
+        />
+      </el-form-item>
+
+      <el-form-item
+        v-if="form.type === 'opcua'"
+        :label="$t('datasource.user_name')"
+      >
+        <el-input
+          v-model="form.configuration.opcUaUsername"
+          :placeholder="$t('components.one_user_name')"
+          autocomplete="off"
+        />
+      </el-form-item>
+
+      <el-form-item
+        v-if="form.type === 'opcua'"
+        :label="$t('datasource.password')"
+      >
+        <dePwd
+          v-model="form.configuration.opcUaPassword"
+          :placeholder="$t('components.input_a_password')"
+        />
+      </el-form-item>
+
+
+
+
+
+
+
+
       <el-form-item
         v-if="
-          form.type !== 'es' && form.type !== 'oracle' && form.type !== 'api'
+          form.type !== 'es' && form.type !== 'oracle' && form.type !== 'api' && form.type !== 'opcua'
         "
         :label="$t('datasource.extra_params')"
       >
@@ -279,7 +324,7 @@
       </el-form-item>
 
       <el-form-item
-        v-if="form.type !== 'es' && form.type !== 'api'"
+        v-if="form.type !== 'es' && form.type !== 'api' && form.type !== 'opcua'"
         :label="$t('datasource.port')"
         prop="configuration.port"
       >
@@ -370,7 +415,7 @@
       </el-form-item>
 
       <span
-        v-if="!['es', 'api', 'mongo'].includes(form.type)"
+        v-if="!['es', 'api', 'opcua', 'mongo'].includes(form.type)"
         class="de-expand de-mar0"
         @click="showPriority = !showPriority"
       >{{ $t('datasource.priority')

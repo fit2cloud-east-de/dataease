@@ -136,7 +136,7 @@
       </el-tab-pane>
       <el-tab-pane
         v-if="
-          table.mode === 1 && ['api', 'sql', 'db'].includes(table.type)
+          table.mode === 1 && ['api', 'sql', 'db' , 'opcua'].includes(table.type)
         "
         :label="$t('dataset.update_info')"
         name="updateInfo"

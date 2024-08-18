@@ -11,6 +11,7 @@
       <el-tab-pane
         :label="$t('datasource.data_source_table')"
         name="table"
+        v-if="showTables !== 'opcua'"
       />
     </el-tabs>
     <div class="el-tabs-content">
@@ -90,7 +91,8 @@ export default {
   data() {
     return {
       activeName: 'detail',
-      canEdit: false
+      canEdit: false,
+      showTables: this.params.type
     }
   },
   computed: {
@@ -119,7 +121,7 @@ export default {
     save() {
       this.$refs.DsFormContent.save()
     }
-  }
+  },
 }
 </script>
 

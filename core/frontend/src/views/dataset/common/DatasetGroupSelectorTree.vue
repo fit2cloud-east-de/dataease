@@ -116,6 +116,13 @@
                     icon-class="ds-api"
                     class="ds-icon-api"
                   />
+
+                  <svg-icon
+                    v-if="data.modelInnerType === 'opcua'"
+                    icon-class="ds-opcua"
+                    class="ds-icon-opcua"
+                  />
+
                 </span>
                 <span
                   v-if="
