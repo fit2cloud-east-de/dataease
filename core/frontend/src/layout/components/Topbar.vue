@@ -78,12 +78,12 @@
             <el-dropdown-item>{{ $t('commons.personal_info') }}</el-dropdown-item>
           </router-link>
 
-          <router-link
-            v-if="$store.getters.validate"
-            to="/ukey/index"
-          >
-            <el-dropdown-item>{{ $t('commons.ukey_title') }}</el-dropdown-item>
-          </router-link>
+<!--          <router-link-->
+<!--            v-if="$store.getters.validate"-->
+<!--            to="/ukey/index"-->
+<!--          >-->
+<!--            <el-dropdown-item>{{ $t('commons.ukey_title') }}</el-dropdown-item>-->
+<!--          </router-link>-->
 
           <router-link
             v-if="!isOtherPlatform"
@@ -92,9 +92,10 @@
             <el-dropdown-item>{{ $t('user.change_password') }}</el-dropdown-item>
           </router-link>
 
-          <router-link to="/about/index">
+          <router-link v-if="!isHaveLicense" to="/about/index">
             <el-dropdown-item>{{ $t('commons.about_us') }}</el-dropdown-item>
           </router-link>
+
           <el-dropdown-item
             v-if="!isOtherPlatform"
             divided
@@ -137,6 +138,10 @@ import { pluginLoaded } from '@/api/user'
 import { initTheme } from '@/utils/ThemeUtil'
 import TemplateMarket from '@/views/panel/templateMarket'
 import { changeFavicon, inOtherPlatform } from '@/utils/index'
+import { haveLicense } from '@/api/system/about'
+
+
+
 export default {
   name: 'Topbar',
   components: {
@@ -158,7 +163,8 @@ export default {
       logoUrl: null,
       axiosFinished: false,
       isPluginLoaded: false,
-      templateMarketShow: false
+      templateMarketShow: false,
+      isHaveLicense:false
     }
   },
 
@@ -166,7 +172,6 @@ export default {
     theme() {
       return this.$store.state.settings.theme
     },
-
     topMenuColor() {
       if (this.$store.getters.uiInfo && this.$store.getters.uiInfo['ui.topMenuColor'] && this.$store.getters.uiInfo[
         'ui.topMenuColor'].paramValue) {
@@ -264,7 +269,8 @@ export default {
     bus.$off('sys-logout', this.logout)
   },
   created() {
-    this.loadUiInfo()
+    this.loadUiInfo();
+    this.haveLicenseFunc();
   },
   beforeCreate() {
     pluginLoaded().then(res => {
@@ -275,6 +281,11 @@ export default {
     })
   },
   methods: {
+    haveLicenseFunc(){
+      haveLicense().then(res => {
+        this.isHaveLicense = res.data
+      })
+    },
     beforeunloadHandler() {
       this.beforeUnload_time = new Date().getTime()
     },

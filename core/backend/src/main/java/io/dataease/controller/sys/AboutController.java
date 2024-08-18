@@ -22,6 +22,11 @@ public class AboutController {
         return aboutService.updateLicense(map.get("license"));
     }
 
+    @GetMapping("/haveLicense")
+    public Boolean haveLicense() {
+        return aboutService.haveLicense();
+    }
+
     @PostMapping("/license/validate")
     public F2CLicenseResponse validateLicense(@RequestBody Map<String, String> map) {
         return aboutService.validateLicense(map.get("license"));

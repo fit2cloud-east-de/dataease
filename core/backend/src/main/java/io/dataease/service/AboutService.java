@@ -50,6 +50,11 @@ public class AboutService {
         return f2CLicenseResponse;
     }
 
+    public Boolean haveLicense() {
+        return defaultLicenseService.haveLicense();
+    }
+
+
     public F2CLicenseResponse validateLicense(String licenseKey) {
         if (StringUtils.isNotBlank(licenseKey)) {
             return defaultLicenseService.validateLicense(product, licenseKey);

@@ -8,6 +8,13 @@ export function validate(data) {
   })
 }
 
+export function haveLicense() {
+  return request({
+    url: '/about/haveLicense',
+    method: 'get'
+  })
+}
+
 export function buildVersion() {
   return request({
     url: '/about/build/version',

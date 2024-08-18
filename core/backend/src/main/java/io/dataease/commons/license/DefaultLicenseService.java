@@ -111,6 +111,16 @@ public class DefaultLicenseService {
         return license;
     }
 
+    //
+    public Boolean haveLicense() {
+        License license = innerLicenseService.getLicense(LICENSE_ID);
+        if (license == null) {
+            return Boolean.FALSE;
+        }
+        return Boolean.TRUE;
+    }
+
+
     // 创建或更新License
     private void writeLicense(String licenseKey, F2CLicenseResponse response) {
         if (StringUtils.isBlank(licenseKey)) {
