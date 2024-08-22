@@ -6,6 +6,7 @@ import io.dataease.controller.request.authModel.VAuthModelRequest;
 import io.dataease.dto.authModel.VAuthModelDTO;
 import io.dataease.ext.ExtVAuthModelMapper;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -36,6 +37,38 @@ public class VAuthModelService {
             return result;
         }
     }
+
+    public List<VAuthModelDTO> listByDatasourceId (String datasourceId) {
+
+        List<VAuthModelDTO> allResource = new ArrayList<>();
+
+        VAuthModelRequest request = new VAuthModelRequest();
+        request.setModelType("dataset");
+        //该用户有权限的
+        List<VAuthModelDTO> vAuthModelDTOS = queryAuthModel(request);
+        //打平
+        findResource(vAuthModelDTOS, allResource , "0");
+
+        List<VAuthModelDTO> collect = allResource.stream().filter(r -> StringUtils.isNotEmpty(r.getDataSourceId()) && r.getDataSourceId().equals(datasourceId)).collect(Collectors.toList());
+
+        return collect;
+    }
+
+    public  void findResource (List<VAuthModelDTO> vAuthModelDTOS , List<VAuthModelDTO> allResource , String parentId) {
+        for (VAuthModelDTO d : vAuthModelDTOS) {
+            d.setPid(parentId);
+            if (d.getNodeType().equals("leaf")) {
+                allResource.add(d);
+            } else {
+                allResource.add(d);
+                if (!org.springframework.util.CollectionUtils.isEmpty(d.getChildren()))
+                    findResource(d.getChildren() , allResource , d.getId());
+            }
+        }
+
+    }
+
+
 
     public List<VAuthModelDTO> queryAuthModel(VAuthModelRequest request) {
         request.setUserId(String.valueOf(AuthUtils.getUser().getUserId()));

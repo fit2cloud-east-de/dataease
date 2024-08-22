@@ -109,7 +109,12 @@ public class ExtTableField implements Serializable {
         text, //长文本
         number, //整型数字
         decimal, //小数数字
-        datetime //日期
+        datetime, //日期
+
+        varchar, //doris 字符串
+        string, // doris 长文本
+        bigint, //doris 整数
+
     }
 
 

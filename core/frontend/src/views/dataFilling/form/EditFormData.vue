@@ -1,15 +1,18 @@
 <script>
-import { forEach, find, concat, cloneDeep, floor, map, filter, includes, split, keys, parseInt } from 'lodash-es'
-import { PHONE_REGEX, EMAIL_REGEX } from '@/utils/validate'
+import {cloneDeep, concat, filter, find, floor, forEach, includes, keys, map, parseInt, split} from 'lodash-es'
+import {EMAIL_REGEX, PHONE_REGEX} from '@/utils/validate'
 import {
   getTableColumnData,
   newFormRowData,
   saveFormRowData,
   userFillFormData
 } from '@/views/dataFilling/form/dataFilling'
+import GridTable from '@/components/gridTable/index.vue'
+import {deepCopy} from "@/components/canvas/utils/utils";
 
 export default {
   name: 'EditFormData',
+  components: { GridTable },
   props: {
     keyName: {
       type: String,
@@ -76,7 +79,15 @@ export default {
       currentPage: 1,
       loading: false,
       asyncOptions: {},
+      drawer: false,
+      modifyRows: false,
+      modifyRowsIndex: "",
+      columns: [],
+      tempRows: [],
       formData: [],
+      formDataList: [],
+      formDataList4Excel: [],
+      _tempForms: [],
       requiredRule: { required: true, message: this.$t('commons.required'), trigger: ['blur', 'change'] },
       dateRangeRequiredRule: { validator: checkDateRangeRequireValidator, message: this.$t('commons.required'), trigger: ['blur', 'change'] },
       inputTypes: [
@@ -113,7 +124,8 @@ export default {
   },
   watch: {},
   mounted() {
-    const _tempForms = []
+    this._tempForms = []
+    this.tempRows = []
     this.formData = []
     this.asyncOptions = {}
     this.currentPage = 1
@@ -133,21 +145,20 @@ export default {
             const _end = _data[f.settings.mapping.columnName2]
             f.value = [_start, _end]
           } else {
-            const _value = _data[f.settings.mapping.columnName]
             // 交给后面处理
-            f.value = _value
+            f.value = _data[f.settings.mapping.columnName]
           }
           _tempFormRow.push(f)
         }
       })
-      _tempForms.push(_tempFormRow)
+      this._tempForms.push(_tempFormRow)
     })
 
     this.loading = true
-    this.initFormOptionsData(_tempForms, () => {
+    this.initFormOptionsData(this._tempForms, () => {
       // 最后处理选项值
-      for (let i = 0; i < _tempForms.length; i++) {
-        const row = _tempForms[i]
+      for (let i = 0; i < this._tempForms.length; i++) {
+        const row = this._tempForms[i]
         row.forEach(f => {
           if (f.type !== 'dateRange') {
             const _value = this.allData[i][f.settings.mapping.columnName]
@@ -184,11 +195,53 @@ export default {
         })
       }
       // 赋值到表单
-      this.formData = _tempForms
+
+      this.formData = cloneDeep(this._tempForms);
       this.loading = false
     })
+
+      forEach(filter(this.forms, f => !f.removed), f => {
+        if (f.type === 'dateRange') {
+          this.columns.push({
+            props: f.settings?.mapping?.columnName1,
+            label: f.settings?.name,
+            date: true,
+            dateType: f.settings?.dateType ? f.settings?.dateType : (f.settings?.enableTime ? 'datetimerange' : 'daterange'),
+            type: f.type,
+            multiple: !!f.settings.multiple,
+            rangeIndex: 0
+          })
+          this.columns.push({
+            props: f.settings?.mapping?.columnName2,
+            label: f.settings?.name,
+            date: true,
+            dateType: f.settings?.dateType ? f.settings?.dateType : (f.settings?.enableTime ? 'datetimerange' : 'daterange'),
+            type: f.type,
+            multiple: !!f.settings.multiple,
+            rangeIndex: 1
+          })
+        } else {
+          this.columns.push({
+            props: f.settings?.mapping?.columnName,
+            label: f.settings?.name,
+            date: f.type === 'date',
+            dateType: f.type === 'date' ? (f.settings?.dateType ? f.settings?.dateType : (f.settings?.enableTime ? 'datetime' : 'date')) : undefined,
+            type: f.type,
+            multiple: !!f.settings.multiple
+          })
+        }
+      })
+
+     map(filter(this.columns, c => c.date), 'props')
+
+    console.log(this.columns);
   },
   methods: {
+
+    handleClose(done) {
+
+    },
+
     initFormOptionsData(forms, callback) {
       const queries = []
       const queryIds = []
@@ -255,81 +308,244 @@ export default {
     onPageChange(page) {
       this.currentPage = page
     },
-    doSave() {
-      this.loading = true
+
+    formatDate(value, dateType) {
+      if (!value) {
+        return value
+      }
+      const value_date = new Date(value);
+      switch (dateType) {
+        case 'year':
+          return value_date.format('yyyy')
+        case 'month':
+        case 'monthrange':
+          return value_date.format('yyyy-MM')
+        case 'datetime':
+        case 'datetimerange':
+          return value_date.format('yyyy-MM-dd hh:mm:ss')
+        default:
+          return value_date.format('yyyy-MM-dd')
+      }
+    },
+
+    openDetails() {
+      this.drawer = true;
+    },
+
+    confirmModify() {
+
       this.$refs['mForm'].validate((valid, invalidFields) => {
         if (valid) {
-          const req = []
-
-          for (let i = 0; i < this.formData.length; i++) {
-            const row = this.formData[i]
-            const _data = {}
-            forEach(row, f => {
-              if (f.type === 'dateRange') {
-                const _start = f.settings.mapping.columnName1
-                const _end = f.settings.mapping.columnName2
-                if (f.value) {
-                  if (f.value[0]) {
-                    _data[_start] = f.value[0].getTime()
-                  }
-                  if (f.value[1]) {
-                    _data[_end] = f.value[1].getTime()
-                  }
-                }
-              } else {
-                const name = f.settings.mapping.columnName
-                if (f.type === 'select' && f.settings.multiple || f.type === 'checkbox') {
-                  if (f.value) {
-                    _data[name] = JSON.stringify(f.value)
-                  }
-                } else if (f.type === 'date' && f.value) {
-                  _data[name] = f.value.getTime()
-                } else {
-                  _data[name] = f.value
-                }
-              }
-            })
-
-            if (this.keyName) {
-              _data[this.keyName] = this.allData[i][this.keyName]
-            }
-
-            req.push(_data)
-          }
-
-          if (this.userTaskId) {
-            userFillFormData(this.userTaskId, req).then(res => {
-              this.$emit('save-success')
-            }).finally(() => {
-              this.loading = false
-            })
-          } else {
-            // 非任务都是针对单条数据进行提交
-            if (this.id !== undefined) {
-              // update
-              saveFormRowData(this.formId, this.id, req[0]).then(res => {
-                this.$emit('save-success')
-              }).finally(() => {
-                this.loading = false
-              })
-            } else {
-              // insert
-              newFormRowData(this.formId, req[0]).then(res => {
-                this.$emit('save-success')
-              }).finally(() => {
-                this.loading = false
-              })
-            }
-          }
+          this.formDataList.splice(this.modifyRowsIndex , 1 ,this.formData);
+          this.dealFormDataList();
+          this.formData = cloneDeep(this._tempForms);
+          this.modifyRows = false;
         } else {
           // 获取第几页，切换到对应的页面
           const _key = keys(invalidFields)[0]
           const index = split(_key, ']')[0].replace('[', '')
           this.currentPage = parseInt(index) + 1
-
           this.loading = false
         }
       })
+
+    },
+
+    cancelModify () {
+      //取消修改，清空现有数据
+      this.modifyRows = false;
+      this.formData = cloneDeep(this._tempForms);
+    },
+
+
+    addAnother(){
+      this.$refs['mForm'].validate((valid, invalidFields) => {
+        if (valid) {
+          this.formDataList.push(cloneDeep(this.formData));
+          this.formData = cloneDeep(this._tempForms);
+          this.dealFormDataList();
+        } else {
+          // 获取第几页，切换到对应的页面
+          const _key = keys(invalidFields)[0]
+          const index = split(_key, ']')[0].replace('[', '')
+          this.currentPage = parseInt(index) + 1
+          this.loading = false
+        }
+      })
+    },
+
+    dealFormData (formData , index) {
+      const _data = {}
+      _data.index = index;
+      for (let i = 0; i < formData.length; i++) {
+        const row = formData[i]
+        forEach(row, f => {
+          if (f.type === 'dateRange') {
+            const _start = f.settings.mapping.columnName1
+            const _end = f.settings.mapping.columnName2
+            if (f.value) {
+              if (f.value[0]) {
+                _data[_start] = f.value[0].getTime()
+              }
+              if (f.value[1]) {
+                _data[_end] = f.value[1].getTime()
+              }
+            }
+          } else {
+            const name = f.settings.mapping.columnName
+            if (f.type === 'select' && f.settings.multiple || f.type === 'checkbox') {
+              if (f.value) {
+                _data[name] = JSON.stringify(f.value)
+              }
+            } else if (f.type === 'date' && f.value) {
+              console.log("date f.value: " + f.value);
+              _data[name] = f.value.getTime()
+            } else {
+              _data[name] = f.value
+            }
+          }
+        })
+      }
+      return _data;
+    },
+
+    dealFormDataList () {
+       this.formDataList4Excel = [];
+       let index = 0;
+       forEach(this.formDataList , f => {
+         this.formDataList4Excel.push(this.dealFormData(f , index));
+         index++ ;
+      })
+    },
+
+    updateRow(index){
+      this.modifyRowsIndex = index,
+      this.formData = this.formDataList[index];
+      this.drawer = false;
+      this.modifyRows = true;
+    },
+
+    deleteRow(index){
+      this.formDataList4Excel.splice(index , 1);
+      this.formDataList.splice(index , 1);
+    },
+
+    needInsertNewData() {
+      let needInsert = false;
+      for (let i = 0; i < this.formData.length; i++) {
+        const row = this.formData[i]
+        forEach(row, f => {
+          if (f.type === 'dateRange') {
+            if (f.value) {
+              if (f.value[0]) {
+                needInsert = true
+              }
+              if (f.value[1]) {
+                needInsert = true;
+              }
+            }
+          } else {
+            if (f.type === 'select' && f.settings.multiple || f.type === 'checkbox') {
+              if (f.value) {
+                needInsert = true;
+              }
+            } else if (f.type === 'date' && f.value) {
+              needInsert = true;
+            } else if ( f.value) {
+              needInsert = true;
+            }
+          }
+        })
+      }
+      return needInsert;
+    },
+
+    save() {
+      if (this.needInsertNewData()) {
+        this.formDataList.push(cloneDeep(this.formData));
+      }
+      const req = []
+      forEach(this.formDataList , formData => {
+        for (let i = 0; i < formData.length; i++) {
+          const row = formData[i]
+          const _data = {}
+          forEach(row, f => {
+            if (f.type === 'dateRange') {
+              const _start = f.settings.mapping.columnName1
+              const _end = f.settings.mapping.columnName2
+              if (f.value) {
+                if (f.value[0]) {
+                  _data[_start] = f.value[0].getTime()
+                }
+                if (f.value[1]) {
+                  _data[_end] = f.value[1].getTime()
+                }
+              }
+            } else {
+              const name = f.settings.mapping.columnName
+              if (f.type === 'select' && f.settings.multiple || f.type === 'checkbox') {
+                if (f.value) {
+                  _data[name] = JSON.stringify(f.value)
+                }
+              } else if (f.type === 'date' && f.value) {
+                _data[name] = f.value.getTime()
+              } else {
+                _data[name] = f.value
+              }
+            }
+          })
+          if (this.keyName) {
+            _data[this.keyName] = this.allData[i][this.keyName]
+          }
+          req.push(_data)
+        }
+      })
+
+      if (this.userTaskId) {
+        userFillFormData(this.userTaskId, req).then(res => {
+          this.$emit('save-success')
+        }).finally(() => {
+          this.loading = false
+        })
+      } else {
+        // 非任务都是针对单条数据进行提交
+        if (this.id !== undefined) {
+          // update
+          saveFormRowData(this.formId, this.id, req[0]).then(res => {
+            this.$emit('save-success')
+          }).finally(() => {
+            this.loading = false
+          })
+        } else {
+          // insert
+          newFormRowData(this.formId, req).then(res => {
+            this.$emit('save-success')
+          }).finally(() => {
+            this.loading = false
+          })
+        }
+      }
+    },
+
+    doSave() {
+      this.loading = true
+      //不需要新增，即所有数据均为空，直接保存。
+      if (!this.needInsertNewData()) {
+        this.save();
+      } else {
+        this.$refs['mForm'].validate((valid, invalidFields) => {
+          if (valid) {
+            this.save();
+          } else {
+            // 获取第几页，切换到对应的页面
+            const _key = keys(invalidFields)[0]
+            const index = split(_key, ']')[0].replace('[', '')
+            this.currentPage = parseInt(index) + 1
+
+            this.loading = false
+          }
+        })
+      }
     }
   }
 
@@ -357,9 +573,10 @@ export default {
       </div>
     </el-header>
     <el-main class="de-main">
-      <div style="width: 80%">
+      <div style="width: 80% ; height: 100%">
         <div class="m-title">{{ formTitle }}</div>
-      </div>
+
+      <div style="width: 100%; overflow: auto">
       <el-form
         ref="mForm"
         class="m-form"
@@ -505,6 +722,98 @@ export default {
           </div>
         </div>
       </el-form>
+      </div>
+
+        <el-drawer
+          title="已添加明细"
+          direction="btt"
+          :append-to-body="true"
+          size="90%"
+          :visible.sync="drawer">
+          <el-container
+            direction="vertical"
+            style="display: flex; flex-direction: column ; width: 90%; margin-left: 5%"
+          >
+            <template>
+              <div style="flex: 1">
+                <grid-table
+                  v-if="columns.length > 0"
+                  ref="dataTable"
+                  style="width: 100%; height: 100%"
+                  border
+                  stripe
+                  :table-data="formDataList4Excel"
+                  :show-pagination = false
+                  :columns="[]"
+                >
+                  <el-table-column
+                    v-for="c in columns"
+                    :key="c.props"
+                    :prop="c.props"
+                  >
+                    <template
+                      slot="header"
+                    >
+                      {{ c.label }}
+                      <span v-if="c.rangeIndex === 0">({{ $t('data_fill.data.start') }})</span>
+                      <span v-if="c.rangeIndex === 1">({{ $t('data_fill.data.end') }})</span>
+                    </template>
+                    <template slot-scope="scope">
+                <span
+                  v-if="c.date && scope.row[c.props]"
+                  style="white-space:nowrap; width: fit-content"
+                  :title="formatDate(scope.row[c.props], c.dateType)"
+                >
+                  {{ formatDate(scope.row[c.props], c.dateType) }}
+                </span>
+                      <template v-else-if="(c.type === 'select' && c.multiple || c.type === 'checkbox') && scope.row[c.props]">
+                        <div
+                          v-for="(x, $index) in JSON.parse(scope.row[c.props])"
+                          :key="$index"
+                          style="white-space:nowrap; width: fit-content"
+                          :title="x"
+                        >
+                          {{ x }}
+                        </div>
+                      </template>
+                      <span
+                        v-else
+                        style="white-space:nowrap; width: fit-content"
+                        :title="scope.row[c.props]"
+                      >
+                  {{ scope.row[c.props] }}
+                </span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column
+                    :label="$t('data_fill.form.operation')"
+                    width="160"
+                    fixed="right"
+                  >
+                    <template slot-scope="scope">
+                      <el-button
+                        type="text"
+                        @click="updateRow(scope.row.index)"
+                      >
+                        {{ $t('data_fill.form.modify') }}
+                      </el-button>
+                      <el-button
+                        type="text"
+                        @click="deleteRow(scope.row.index)"
+                      >
+                        {{ $t('data_fill.form.delete') }}
+                      </el-button>
+                    </template>
+                  </el-table-column>
+                </grid-table>
+              </div>
+            </template>
+          </el-container>
+        </el-drawer>
+
+
+      </div>
+
     </el-main>
     <el-footer
       class="de-footer"
@@ -520,12 +829,45 @@ export default {
           @current-change="onPageChange"
         />
       </div>
-      <el-button @click="closeDrawer">{{ $t("commons.cancel") }}</el-button>
+<!--      <el-button @click="closeDrawer">{{ $t("commons.cancel") }}</el-button>-->
+
+      <el-button
+        v-if="!readonly && !id && modifyRows"
+        type="primary"
+        @click="cancelModify"
+      >取消修改
+      </el-button>
+
+      <el-button
+        v-if="!readonly && !id && modifyRows"
+        type="primary"
+        @click="confirmModify"
+      >确认修改
+      </el-button>
+
+
+      <el-button
+        v-if="!readonly && !id "
+        :disabled="modifyRows"
+        type="primary"
+        @click="addAnother"
+      >{{ $t("commons.continue_add") }}
+      </el-button>
+
+      <el-button
+        v-if="!readonly && !id "
+        type="primary"
+        :disabled="modifyRows"
+        @click="openDetails"
+      >查看 {{formDataList.length}} 条明细
+      </el-button>
+
       <el-button
         v-if="!readonly"
         type="primary"
+        :disabled="modifyRows"
         @click="doSave"
-      >{{ $t("commons.confirm") }}
+      >{{ $t("commons.submit") }}
       </el-button>
     </el-footer>
   </el-container>

@@ -131,7 +131,7 @@ export default {
       }]
       if (dsMap) {
         forEach(keys(dsMap), type => {
-          if (type === 'mysql' || type === 'mariadb') {
+          if (type === 'mysql' || type === 'mariadb' || type === 'ds_doris' ) {
             _types.push({
               name: dsMap[type][0]?.typeDesc,
               type: type,
@@ -239,12 +239,23 @@ export default {
     this.loading = true
     this.formData = this.form
 
-    forEach(this.formData.forms, f => {
-      f.settings.mapping.typeOptions = this.getTypeOptions(f)
-      if (!f.settings.mapping.type) {
-        f.settings.mapping.type = f.settings.mapping.typeOptions[0].value
-      }
-    })
+    console.log(this.formData);
+
+    if (this.formData.datasource) {
+      listDatasource().then(data => {
+        this.allDatasourceList = data.data
+
+        forEach(this.formData.forms, f => {
+          f.settings.mapping.typeOptions = this.getTypeOptions(f)
+          console.log(f.settings.mapping.typeOptions);
+          if (!f.settings.mapping.type) {
+            f.settings.mapping.type = f.settings.mapping.typeOptions[0].value
+          }
+        })
+      })
+
+    }
+
     const p1 = listDatasource()
     const p2 = listForm({ nodeType: 'folder' })
 
@@ -272,31 +283,74 @@ export default {
         return hasDataPermission('manage', item.privileges) || hasChildren
       })
     },
-    getTypeOptions(formOption) {
-      const _options = []
-      if (formOption.type !== 'date' &&
-        formOption.type !== 'dateRange' &&
-        formOption.settings.inputType !== 'number' &&
-        formOption.type !== 'textarea' &&
-        formOption.type !== 'checkbox' &&
-        !(formOption.type === 'select' && formOption.settings.multiple)
-      ) {
-        _options.push({ value: 'nvarchar', label: this.$t('data_fill.database.nvarchar') })
-      }
-      if (formOption.type === 'checkbox' ||
-        formOption.type === 'select' && formOption.settings.multiple ||
-        formOption.type === 'textarea') {
-        _options.push({ value: 'text', label: this.$t('data_fill.database.text') })
-      }
 
-      if (formOption.type === 'input' && formOption.settings.inputType === 'number') {
-        _options.push({ value: 'number', label: this.$t('data_fill.database.number') })
-        _options.push({ value: 'decimal', label: this.$t('data_fill.database.decimal') })
-      }
-      if (formOption.type === 'date' || formOption.type === 'dateRange') {
-        _options.push({ value: 'datetime', label: this.$t('data_fill.database.datetime') })
-      }
-      return _options
+    onTargetDatasourceChange(){
+      forEach(this.formData.forms, f => {
+        f.settings.mapping.typeOptions = this.getTypeOptions(f)
+        if (!f.settings.mapping.type) {
+          f.settings.mapping.type = f.settings.mapping.typeOptions[0].value
+        }
+      })
+
+      console.log(JSON.stringify(this.formData.forms));
+
+    },
+
+    getTypeOptions(formOption) {
+
+      // 获取用户的数据源
+
+        let datasource = find(this.allDatasourceList, d => d.id === this.formData.datasource)
+
+        const _options = []
+        if (formOption.type !== 'date' &&
+          formOption.type !== 'dateRange' &&
+          formOption.settings.inputType !== 'number' &&
+          formOption.type !== 'textarea' &&
+          formOption.type !== 'checkbox' &&
+          !(formOption.type === 'select' && formOption.settings.multiple)
+        ) {
+          if (datasource.type === 'mysql' || datasource.type === 'mariadb'  ) {
+            _options.push({ value: 'nvarchar', label: this.$t('data_fill.database.nvarchar') })
+          } else {
+            _options.push({ value: 'varchar', label: this.$t('data_fill.database.varchar') })
+          }
+        }
+        if (formOption.type === 'checkbox' ||
+          formOption.type === 'select' && formOption.settings.multiple ||
+          formOption.type === 'textarea') {
+
+          if (datasource.type === 'mysql' || datasource.type === 'mariadb'  ) {
+            _options.push({ value: 'text', label: this.$t('data_fill.database.text') })
+          } else {
+            _options.push({ value: 'string', label: this.$t('data_fill.database.string') })
+          }
+
+        }
+
+        if (formOption.type === 'input' && formOption.settings.inputType === 'number') {
+
+          if (datasource.type === 'mysql' || datasource.type === 'mariadb'  ) {
+
+            _options.push({ value: 'number', label: this.$t('data_fill.database.number') })
+            _options.push({ value: 'decimal', label: this.$t('data_fill.database.decimal') })
+
+          } else {
+
+            _options.push({ value: 'bigint', label: this.$t('data_fill.database.bigint') })
+            _options.push({ value: 'decimal', label: this.$t('data_fill.database.decimal') })
+          }
+
+
+        }
+        if (formOption.type === 'date' || formOption.type === 'dateRange') {
+
+          _options.push({ value: 'datetime', label: this.$t('data_fill.database.datetime') })
+
+        }
+        return _options
+
+
     },
     flattenFolder(list, result = []) {
       forEach(list, item => {
@@ -551,6 +605,7 @@ export default {
             filterable
             size="small"
             style="width: 100%"
+            @change="onTargetDatasourceChange"
           >
             <el-option-group
               v-for="(x, $index) in datasourceList"

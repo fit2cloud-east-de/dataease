@@ -261,8 +261,10 @@ export default {
     copy_success: '复制成功',
     modify_success: '修改成功',
     delete_cancel: '已取消删除',
+    submit: '提交',
     confirm: '确定',
     cancel: '取消',
+    continue_add: '继续添加',
     prompt: '提示',
     operating: '操作',
     input_limit: '长度在 {0} 到 {1} 个字符',
@@ -696,7 +698,10 @@ export default {
       text: '长文本',
       number: '整型数字',
       decimal: '小数数字',
-      datetime: '日期'
+      datetime: '日期',
+      varchar: '字符串',
+      string: '长文本',
+      bigint: '整型数字'
     },
     data: {
       confirm_delete: '确认删除?',

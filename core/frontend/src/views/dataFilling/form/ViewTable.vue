@@ -962,6 +962,9 @@ export default {
       })
     },
     formatDate(value, dateType) {
+
+      console.log(value)
+
       if (!value) {
         return value
       }

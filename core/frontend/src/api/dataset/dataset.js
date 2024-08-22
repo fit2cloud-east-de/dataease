@@ -312,4 +312,14 @@ export function getColumnList(datasource, table) {
   })
 }
 
+
+export function getColumnListWithPermission( tableId) {
+  return request({
+    url: 'dataset/field/list/' + tableId ,
+    method: 'post',
+    loading: true,
+    data: {}
+  })
+}
+
 export default { loadTable, getScene, addGroup, delGroup, addTable, delTable, groupTree, checkCustomDs, exportDataset, getColumnList }

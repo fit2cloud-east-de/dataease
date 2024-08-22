@@ -173,4 +173,16 @@ export function getTableList(datasource) {
   })
 }
 
+
+export function getTableListWithPermission(datasource) {
+  return request({
+    url: 'authModel/queryAuthModel/' + datasource,
+    method: 'post',
+    loading: true,
+    data: {}
+  })
+}
+
+
+
 export default { getDatasourceDetail, dsGrid, addDs, editDs, delDs, validateDs, listDatasource, getSchema, getTableList }

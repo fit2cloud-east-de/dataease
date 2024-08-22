@@ -6,8 +6,8 @@ import { filter, cloneDeep, find, concat, forEach, groupBy, keys, map, join } fr
 import { v4 as uuidv4 } from 'uuid'
 import { EMAIL_REGEX, PHONE_REGEX } from '@/utils/validate'
 import { getTableColumnData, getWithPrivileges } from '@/views/dataFilling/form/dataFilling'
-import { getColumnList, listDatasource } from '@/api/dataset/dataset'
-import { getTableList } from '@/api/system/datasource'
+import { getColumnListWithPermission, listDatasource} from '@/api/dataset/dataset'
+import { getTableListWithPermission} from '@/api/system/datasource'
 import GridTable from '@/components/gridTable/index.vue'
 
 export default {
@@ -267,20 +267,27 @@ export default {
       return join(this.ruleUpdateFormList, ', ')
     },
     datasourceList() {
+      console.log("datasourceList")
       const dsMap = groupBy(this.allDatasourceList, d => d.type)
       const _types = []
       if (dsMap) {
         forEach(keys(dsMap), type => {
-          if (type === 'mysql' || type === 'mariadb') {
+          // if (type === 'mysql' || type === 'mariadb') {
             _types.push({
               name: dsMap[type][0]?.typeDesc,
               type: type,
               options: dsMap[type]
             })
-          }
+          // }
         })
       }
+
+      console.log("_types : " + _types);
+
       return _types
+
+
+
     },
     componentList1() {
       return filter(this.componentList, c => c.order % 2 === 0)
@@ -566,8 +573,9 @@ export default {
         optionColumn: settings.optionColumn,
         optionOrder: settings.optionOrder ?? 'asc'
       })
-      const p1 = settings.optionDatasource ? getTableList(settings.optionDatasource) : undefined
-      const p2 = settings.optionDatasource && settings.optionTable ? getColumnList(settings.optionDatasource, settings.optionTable) : undefined
+      console.log("获取数据源")
+      const p1 = settings.optionDatasource ? getTableListWithPermission(settings.optionDatasource) : undefined
+      const p2 = settings.optionDatasource && settings.optionTable ? getColumnListWithPermission( settings.optionTable) : undefined
       const promiseList = []
       if (p1) {
         promiseList.push(p1)
@@ -579,10 +587,10 @@ export default {
         this.loading = true
         Promise.all(promiseList).then((val) => {
           this.tableList = val[0].data
-          if (find(this.tableList, t => t.name === this.optionFormData.optionTable)) {
+          if (find(this.tableList, t => t.id === this.optionFormData.optionTable)) {
             if (promiseList.length > 1) {
               this.columnList = val[1].data
-              if (!find(this.columnList, t => t.fieldName === this.optionFormData.optionColumn)) {
+              if (!find(this.columnList, t => t.id === this.optionFormData.optionColumn)) {
                 this.optionFormData.optionColumn = undefined
               }
             }
@@ -597,15 +605,17 @@ export default {
       this.showEditBindColumn = true
     },
     onDataSourceChange(datasource) {
+      console.log("onDataSourceChange");
+
       this.tableList = []
       this.columnList = []
       if (datasource) {
         this.loading = true
-        getTableList(datasource).then(res => {
+        getTableListWithPermission(datasource).then(res => {
           this.tableList = res.data
 
           if (this.optionFormData.optionTable) {
-            if (find(this.tableList, t => t.name === this.optionFormData.optionTable)) {
+            if (find(this.tableList, t => t.id === this.optionFormData.optionTable)) {
               this.onTableChange(datasource, this.optionFormData.optionTable)
             } else {
               this.optionFormData.optionTable = undefined
@@ -618,14 +628,16 @@ export default {
       }
     },
     onTableChange(datasource, table) {
+
+      console.log("onTableChange");
+
       this.columnList = []
       if (datasource && table) {
         this.loading = true
-        getColumnList(datasource, table).then(res => {
+        getColumnListWithPermission(table).then(res => {
           this.columnList = res.data
-
           if (this.optionFormData.optionColumn) {
-            if (!find(this.columnList, t => t.fieldName === this.optionFormData.optionColumn)) {
+            if (!find(this.columnList, t => t.id === this.optionFormData.optionColumn)) {
               this.optionFormData.optionColumn = undefined
             }
           }
@@ -1334,9 +1346,9 @@ export default {
                     style="display: flex; flex-direction: row; align-items: center; font-size: 14px;"
                   >
                     <div style="width: 28px;" />
-                    <div style="flex:2">{{ selectedComponentItem.settings.optionTable }}
-                      ({{ selectedComponentItem.settings.optionColumn }})
-                    </div>
+<!--                    <div style="flex:2">{{ selectedComponentItem.settings.optionTable }}-->
+<!--                      ({{ selectedComponentItem.settings.optionColumn }})-->
+<!--                    </div>-->
                     <div style="flex:1; color: #8F959E;">{{ $t('data_fill.form.bind_complete') }}</div>
                     <el-button
                       :title="$t('chart.edit')"
@@ -1525,8 +1537,8 @@ export default {
               >
                 <el-option
                   v-for="d in tableList"
-                  :key="d.name"
-                  :value="d.name"
+                  :key="d.id"
+                  :value="d.id"
                   :label="d.name"
                 >{{ d.name }}
                 </el-option>
@@ -1547,10 +1559,10 @@ export default {
               >
                 <el-option
                   v-for="d in columnList"
-                  :key="d.fieldName"
-                  :value="d.fieldName"
-                  :label="d.fieldName"
-                >{{ d.fieldName }}
+                  :key="d.name"
+                  :value="d.id"
+                  :label="d.name"
+                >{{ d.name }}
                 </el-option>
               </el-select>
             </el-form-item>

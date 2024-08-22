@@ -20,12 +20,14 @@ import io.dataease.commons.constants.*;
 import io.dataease.commons.utils.*;
 import io.dataease.controller.ResultHolder;
 import io.dataease.controller.dataset.request.DataSetTaskInstanceGridRequest;
+import io.dataease.controller.request.authModel.VAuthModelRequest;
 import io.dataease.controller.request.dataset.DataSetExportRequest;
 import io.dataease.controller.request.dataset.DataSetGroupRequest;
 import io.dataease.controller.request.dataset.DataSetTableRequest;
 import io.dataease.controller.request.dataset.DataSetTaskRequest;
 import io.dataease.controller.response.DataSetDetail;
 import io.dataease.dto.SysLogDTO;
+import io.dataease.dto.authModel.VAuthModelDTO;
 import io.dataease.dto.dataset.*;
 import io.dataease.plugins.common.dto.dataset.DataTableInfoCustomUnion;
 import io.dataease.plugins.common.dto.dataset.DataTableInfoDTO;
@@ -57,6 +59,7 @@ import io.dataease.plugins.xpack.auth.dto.request.ColumnPermissionItem;
 import io.dataease.plugins.datasource.provider.DDLProvider;
 import io.dataease.plugins.datasource.provider.ProviderFactory;
 import io.dataease.provider.datasource.JdbcProvider;
+import io.dataease.service.authModel.VAuthModelService;
 import io.dataease.service.chart.util.ChartDataBuild;
 import io.dataease.service.datasource.DatasourceService;
 import io.dataease.service.engine.EngineService;
@@ -71,6 +74,7 @@ import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.select.*;
 import net.sf.jsqlparser.util.deparser.ExpressionDeParser;
 import net.sf.jsqlparser.util.deparser.SelectDeParser;
+import org.apache.commons.collections.list.AbstractLinkedList;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -148,6 +152,9 @@ public class DataSetTableService {
     private DatasourceService datasourceService;
     @Resource
     private DatasetSqlLogMapper datasetSqlLogMapper;
+
+    @Resource
+    private VAuthModelService vAuthModelService;
 
     private static boolean isUpdatingDatasetTableStatus = false;
     private static final String lastUpdateTime = "${__last_update_time__}";
@@ -436,6 +443,9 @@ public class DataSetTableService {
         return extDataSetTableMapper.search(dataSetTableRequest);
     }
 
+
+
+
     public List<DatasetTable> list(List<String> datasetIds) {
         DatasetTableExample example = new DatasetTableExample();
         example.createCriteria().andIdIn(datasetIds);
@@ -561,6 +571,8 @@ public class DataSetTableService {
 
         return map;
     }
+
+
 
     public Map<String, Object> getPreviewData(DataSetTableRequest dataSetTableRequest, Integer page, Integer pageSize, List<DatasetTableField> extFields, DatasetRowPermissionsTreeObj extTree) throws Exception {
         Map<String, Object> map = new HashMap<>();

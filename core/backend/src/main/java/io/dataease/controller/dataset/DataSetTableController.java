@@ -113,6 +113,8 @@ public class DataSetTableController {
         return dataSetTableService.list(dataSetTableRequest);
     }
 
+
+
     @DePermission(type = DePermissionType.DATASET, level = ResourceAuthLevel.DATASET_LEVEL_USE, value = "sceneId")
     @ApiOperation("查询组")
     @PostMapping("listAndGroup")

@@ -11,14 +11,18 @@ import com.google.gson.reflect.TypeToken;
 import io.dataease.auth.service.AuthUserService;
 import io.dataease.commons.utils.CommonBeanFactory;
 import io.dataease.controller.request.datafill.DataFillFormTableDataRequest;
+import io.dataease.controller.request.dataset.MultFieldValuesRequest;
 import io.dataease.controller.response.datafill.DataFillFormTableDataResponse;
 import io.dataease.dto.datafill.DataFillCommitLogDTO;
+import io.dataease.dto.dataset.DeSortDTO;
 import io.dataease.dto.datasource.MysqlConfiguration;
 import io.dataease.ext.ExtDataFillFormMapper;
 import io.dataease.i18n.Translator;
 import io.dataease.plugins.common.base.domain.DataFillFormWithBLOBs;
+import io.dataease.plugins.common.base.domain.DatasetTableField;
 import io.dataease.plugins.common.base.domain.Datasource;
 import io.dataease.plugins.common.base.mapper.DataFillFormMapper;
+import io.dataease.plugins.common.base.mapper.DatasetTableFieldMapper;
 import io.dataease.plugins.common.constants.DatasourceTypes;
 import io.dataease.plugins.common.dto.datafill.ExtTableField;
 import io.dataease.plugins.common.dto.datasource.TableField;
@@ -28,6 +32,7 @@ import io.dataease.plugins.datasource.provider.ExtDDLProvider;
 import io.dataease.plugins.datasource.provider.Provider;
 import io.dataease.plugins.datasource.provider.ProviderFactory;
 import io.dataease.provider.datasource.JdbcProvider;
+import io.dataease.service.dataset.DataSetFieldService;
 import io.dataease.service.datasource.DatasourceService;
 import io.dataease.service.sys.SysAuthService;
 import lombok.Data;
@@ -36,6 +41,7 @@ import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.pentaho.di.core.util.UUIDUtil;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,6 +74,12 @@ public class DataFillDataService {
 
     @Resource
     private DataFillLogService dataFillLogService;
+
+    @Autowired
+    private DataSetFieldService dataSetFieldService;
+
+    @Resource
+    private DatasetTableFieldMapper datasetTableFieldMapper;
 
 
     private final static Gson gson = new Gson();
@@ -171,6 +183,15 @@ public class DataFillDataService {
         setLowerCaseRequest(ds, datasourceProvider, extDDLProvider, datasourceRequest);
 
         List<TableField> tableFields = datasourceProvider.getTableFields(datasourceRequest);
+
+        if (ds.getType().equals("ds_doris")) {
+            tableFields.forEach(field->{
+                if (field.getFieldName().equalsIgnoreCase("ID")) {
+                    field.setPrimaryKey(true);
+                }
+            });
+        }
+
         Map<String, ExtTableField.BaseType> extTableFieldTypeMap = new HashMap<>();
         Map<String, TableField> tableFieldMap = new HashMap<>();
         List<TableField> searchFields = new ArrayList<>();
@@ -362,7 +383,17 @@ public class DataFillDataService {
 
         setLowerCaseRequest(ds, datasourceProvider, extDDLProvider, datasourceRequest);
 
-        List<TableField> tableFields = datasourceProvider.getTableFields(datasourceRequest).stream().filter(TableField::isPrimaryKey).collect(Collectors.toList());
+        List<TableField> tableFieldsDS = datasourceProvider.getTableFields(datasourceRequest);
+
+        if (ds.getType().equals("ds_doris")) {
+            tableFieldsDS.forEach(field->{
+                if (field.getFieldName().equalsIgnoreCase("ID")) {
+                    field.setPrimaryKey(true);
+                }
+            });
+        }
+
+        List<TableField> tableFields = tableFieldsDS.stream().filter(TableField::isPrimaryKey).collect(Collectors.toList());
         if (CollectionUtils.isEmpty(tableFields)) {
             throw new RuntimeException(Translator.get("I18N_DATA_FILL_NO_PRIMARY_KEY"));
         }
@@ -384,7 +415,7 @@ public class DataFillDataService {
         datasourceRequest.setTableFieldWithValues(pks);
 
         JdbcProvider jdbcProvider = CommonBeanFactory.getBean(JdbcProvider.class);
-        jdbcProvider.execWithPreparedStatement(datasourceRequest);
+        jdbcProvider.execWithPreparedStatement4Doris(datasourceRequest);
 
         for (String id : ids) {
             dataFillLogService.saveCommitOperation(DataFillLogService.COMMIT_OPERATE_DELETE, dataFillForm.getId(), id);
@@ -414,6 +445,16 @@ public class DataFillDataService {
         setLowerCaseRequest(ds, datasourceProvider, extDDLProvider, datasourceRequest);
 
         List<TableField> tableFields = datasourceProvider.getTableFields(datasourceRequest);
+
+
+        if (ds.getType().equals("ds_doris")) {
+            tableFields.forEach(field->{
+                if (field.getFieldName().equalsIgnoreCase("ID")) {
+                    field.setPrimaryKey(true);
+                }
+            });
+        }
+
 
         //实际的表内字段
         Map<String, TableField> tableFieldMap = new HashMap<>();
@@ -637,7 +678,7 @@ public class DataFillDataService {
         datasourceRequest.setTableFieldWithValues(allSearchFields);
 
 
-        int result = jdbcProvider.execWithPreparedStatement(datasourceRequest);
+        int result = jdbcProvider.execWithPreparedStatement4Doris(datasourceRequest);
 
         dataFillLogService.saveCommitOperations(DataFillLogService.COMMIT_OPERATE_INSERT, dataFillForm.getId(), ids);
 
@@ -704,7 +745,7 @@ public class DataFillDataService {
         datasourceRequest.setTableFieldWithValues(searchFields);
 
         if (!skip) {
-            int result = jdbcProvider.execWithPreparedStatement(datasourceRequest);
+            int result = jdbcProvider.execWithPreparedStatement4Doris(datasourceRequest);
         }
 
         dataFillLogService.saveCommitOperation(DataFillLogService.COMMIT_OPERATE_UPDATE, dataFillForm.getId(), rowId);
@@ -713,33 +754,70 @@ public class DataFillDataService {
     }
 
     public List<ExtTableField.Option> listColumnData(String optionDatasource, String optionTable, String optionColumn, String optionOrder) throws Exception {
-        Datasource ds = datasource.get(optionDatasource);
-        Provider datasourceProvider = ProviderFactory.getProvider(ds.getType());
 
-        DatasourceRequest datasourceRequest = new DatasourceRequest();
-        datasourceRequest.setDatasource(ds);
+        DatasetTableField datasetTableField = datasetTableFieldMapper.selectByPrimaryKey(optionColumn);
 
-        ExtDDLProvider extDDLProvider = ProviderFactory.gerExtDDLProvider(ds.getType());
+        MultFieldValuesRequest multFieldValuesRequest = new MultFieldValuesRequest();
 
-        String sql = extDDLProvider.searchColumnData(optionTable, optionColumn, optionOrder);
+        multFieldValuesRequest.setFieldIds(Arrays.asList(optionColumn));
 
-        datasourceRequest.setQuery(sql);
+        DeSortDTO deSortDTO = new DeSortDTO();
+        deSortDTO.setSort(optionOrder);
+        deSortDTO.setId(optionColumn);
+        deSortDTO.setName(datasetTableField.getOriginName());
+        multFieldValuesRequest.setSort(deSortDTO);
 
-        List<String[]> data = datasourceProvider.getData(datasourceRequest);
+        List<Object> results = new ArrayList<>();
+        for (String fieldId : multFieldValuesRequest.getFieldIds()) {
+            List<Object> fieldValues = dataSetFieldService.fieldValues(fieldId, multFieldValuesRequest.getSort(), multFieldValuesRequest.getUserId(), true, false, multFieldValuesRequest.getKeyword());
+            if (CollectionUtils.isNotEmpty(fieldValues)) {
+                results.addAll(fieldValues);
+            }
+
+        }
+        List<Object> list = results.stream().distinct().collect(Collectors.toList());
+        list = dataSetFieldService.chineseSort(list, multFieldValuesRequest.getSort());
 
         List<ExtTableField.Option> result = new ArrayList<>();
-        for (String[] datum : data) {
+
+        for (Object obj : list) {
             ExtTableField.Option option = new ExtTableField.Option();
-            if (StringUtils.isBlank(datum[0])) {
-                continue;
-            }
-            option.setName(datum[0]);
-            option.setValue(datum[0]);
+            option.setName(String.valueOf(obj));
+            option.setValue(String.valueOf(obj));
             result.add(option);
         }
-
         return result;
     }
+
+
+//    public List<ExtTableField.Option> listColumnData(String optionDatasource, String optionTable, String optionColumn, String optionOrder) throws Exception {
+//        Datasource ds = datasource.get(optionDatasource);
+//        Provider datasourceProvider = ProviderFactory.getProvider(ds.getType());
+//
+//        DatasourceRequest datasourceRequest = new DatasourceRequest();
+//        datasourceRequest.setDatasource(ds);
+//
+//        ExtDDLProvider extDDLProvider = ProviderFactory.gerExtDDLProvider(ds.getType());
+//
+//        String sql = extDDLProvider.searchColumnData(optionTable, optionColumn, optionOrder);
+//
+//        datasourceRequest.setQuery(sql);
+//
+//        List<String[]> data = datasourceProvider.getData(datasourceRequest);
+//
+//        List<ExtTableField.Option> result = new ArrayList<>();
+//        for (String[] datum : data) {
+//            ExtTableField.Option option = new ExtTableField.Option();
+//            if (StringUtils.isBlank(datum[0])) {
+//                continue;
+//            }
+//            option.setName(datum[0]);
+//            option.setValue(datum[0]);
+//            result.add(option);
+//        }
+//
+//        return result;
+//    }
 
     @Data
     public static class ExcelDataListener extends AnalysisEventListener<Map<Integer, String>> {

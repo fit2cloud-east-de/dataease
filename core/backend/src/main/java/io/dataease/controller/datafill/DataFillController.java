@@ -110,8 +110,14 @@ public class DataFillController {
 
     @ApiIgnore
     @PostMapping("/form/{formId}/rowData/save")
-    public String newRowData(@PathVariable String formId, @RequestBody Map<String, Object> data) throws Exception {
-        return dataFillDataService.updateOrInsertRowData(formId, Collections.singletonList(new RowDataDatum().setData(data))).get(0);
+    public String newRowData(@PathVariable String formId, @RequestBody List<Map<String, Object>> data) throws Exception {
+        List<RowDataDatum> datumList = new ArrayList<>();
+        data.forEach(d->{
+            RowDataDatum rowDataDatum = new RowDataDatum();
+            rowDataDatum.setData(d);
+            datumList.add(rowDataDatum);
+        });
+        return dataFillDataService.updateOrInsertRowData(formId, datumList).get(0);
     }
 
     @ApiIgnore

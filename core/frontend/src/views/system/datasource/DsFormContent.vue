@@ -235,7 +235,7 @@
             />
 
             <el-form-item
-              v-if="form.type === 'mysql' || form.type === 'mariadb'"
+              v-if="form.type === 'mysql' || form.type === 'mariadb' || form.type === 'ds_doris'"
               prop="enableDataFill"
               class="data-fill-form-item"
             >
@@ -261,7 +261,7 @@
             </el-form-item>
 
             <el-form-item
-              v-if="(form.type === 'mysql' || form.type === 'mariadb') && form.enableDataFill"
+              v-if="(form.type === 'mysql' || form.type === 'mariadb' || form.type === 'ds_doris') && form.enableDataFill"
               prop="enableDataFill"
               label-position="left"
             >

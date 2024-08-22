@@ -5,10 +5,7 @@ import io.dataease.controller.request.authModel.VAuthModelRequest;
 import io.dataease.dto.authModel.VAuthModelDTO;
 import io.dataease.service.authModel.VAuthModelService;
 import io.swagger.annotations.Api;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import java.util.List;
@@ -31,5 +28,12 @@ public class VAuthModelController {
     public List<VAuthModelDTO> queryAuthModel(@RequestBody VAuthModelRequest request){
         return vAuthModelService.queryAuthModel(request);
     }
+
+    @PostMapping("/queryAuthModel/{datasourceId}")
+    public List<VAuthModelDTO> queryAuthModelByDatasourceId(@PathVariable String datasourceId ){
+        return vAuthModelService.listByDatasourceId(datasourceId);
+    }
+
+
 
 }

@@ -101,6 +101,31 @@ public class JdbcProvider extends DefaultJdbcProvider {
     }
 
 
+
+    public int execWithPreparedStatement4Doris(DatasourceRequest datasourceRequest) throws Exception {
+        JdbcConfiguration jdbcConfiguration = new Gson().fromJson(datasourceRequest.getDatasource().getConfiguration(), JdbcConfiguration.class);
+        int queryTimeout = jdbcConfiguration.getQueryTimeout() > 0 ? jdbcConfiguration.getQueryTimeout() : 0;
+        try (Connection connection = getConnectionFromPool(datasourceRequest); PreparedStatement stat = getPreparedStatement(connection, queryTimeout, datasourceRequest.getQuery())) {
+
+            if (CollectionUtils.isNotEmpty(datasourceRequest.getTableFieldWithValues())) {
+                LogUtil.info("execWithPreparedStatement sql: " + datasourceRequest.getQuery());
+                for (int i = 0; i < datasourceRequest.getTableFieldWithValues().size(); i++) {
+                    stat.setObject(i + 1, datasourceRequest.getTableFieldWithValues().get(i).getValue());
+                    LogUtil.info("execWithPreparedStatement param[" + (i + 1) + "]: " + datasourceRequest.getTableFieldWithValues().get(i).getValue());
+                }
+            }
+
+            return stat.executeUpdate();
+
+        } catch (SQLException e) {
+            DataEaseException.throwException(e);
+        } catch (Exception e) {
+            DataEaseException.throwException(e);
+        }
+        return 0;
+    }
+
+
     @Override
     public List<TableField> getTableFields(DatasourceRequest datasourceRequest) throws Exception {
         String requestTableName = datasourceRequest.getTable();
