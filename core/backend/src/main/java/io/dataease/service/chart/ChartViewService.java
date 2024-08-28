@@ -689,7 +689,7 @@ public class ChartViewService {
                 || StringUtils.containsIgnoreCase(view.getType(), "group")
                 || ("antv".equalsIgnoreCase(view.getRender()) && "line".equalsIgnoreCase(view.getType()))
                 || StringUtils.equalsIgnoreCase(view.getType(), "flow-map")
-                || StringUtils.equalsIgnoreCase(view.getType(), "bar-time-range")
+                || ("antv".equalsIgnoreCase(view.getRender()) && StringUtils.equalsIgnoreCase(view.getType(), "bar-time-range"))
         ) {
             xAxis.addAll(xAxisExt);
         }

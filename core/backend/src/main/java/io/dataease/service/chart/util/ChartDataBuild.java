@@ -1096,6 +1096,7 @@ public class ChartDataBuild {
         List<ChartViewFieldDTO> yfields = new ArrayList<>();
         if (CollectionUtils.isNotEmpty(fieldMap.get("xAxis"))) fields.addAll(fieldMap.get("xAxis"));
         if (CollectionUtils.isNotEmpty(fieldMap.get("xAxisExt"))) fields.addAll(fieldMap.get("xAxisExt"));
+        if (CollectionUtils.isNotEmpty(fieldMap.get("extStack"))) fields.addAll(fieldMap.get("extStack"));
 
         for (Map.Entry<String, List<ChartViewFieldDTO>> entry : fieldMap.entrySet()) {
             if (StringUtils.equalsAny(entry.getKey(), keys)) {
