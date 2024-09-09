@@ -9,6 +9,7 @@ import com.alibaba.excel.read.metadata.ReadSheet;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import io.dataease.auth.service.AuthUserService;
+import io.dataease.commons.model.BaseTreeNode;
 import io.dataease.commons.utils.CommonBeanFactory;
 import io.dataease.controller.request.datafill.DataFillFormTableDataRequest;
 import io.dataease.controller.request.dataset.MultFieldValuesRequest;
@@ -209,6 +210,9 @@ public class DataFillDataService {
             tableFieldMap.put(tableField.getFieldName(), tableField);
         }
 
+
+        Map<String,ExtTableField> extTableFieldMap = new HashMap<>();
+
         //核对一下字段
         for (ExtTableField field : fields) {
             if (field.isRemoved()) {
@@ -240,6 +244,8 @@ public class DataFillDataService {
                     //调整类型，给后面解析字段用
                     f.setFieldType(field.getSettings().getMapping().getType().name());
                     searchFields.add(f);
+                    //塞一下字段名称，以及 field
+                    extTableFieldMap.put(f.getFieldName() ,field);
                 }
             }
         }
@@ -297,6 +303,21 @@ public class DataFillDataService {
             for (int i = 0; i < searchFields.size(); i++) {
                 TableField f = searchFields.get(i);
                 String name = f.getFieldName();
+
+                ExtTableField extTableField = extTableFieldMap.get(name);
+
+                if ( null != extTableField && (extTableField.getType().equals("select") ||
+                        extTableField.getType().equals("checkbox") ||
+                        extTableField.getType().equals("radio")) ) {
+                    List<ExtTableField.Option> options = listColumnData(extTableField.getSettings().getOptionColumnKey(), extTableField.getSettings().getOptionColumnValue(), extTableField.getSettings().getOptionColumnOrder(), extTableField.getSettings().getOptionOrder());
+                    int finalI = i;
+                    Optional<ExtTableField.Option> first = options.stream().filter(op -> op.getValue().equals(strings[finalI])).findFirst();
+                    if (first.isPresent()) {
+                        strings[i] = first.get().getName();
+                    }
+                }
+
+
                 String data = strings[i];
                 if (data == null) {
                     object.put(name, null);
@@ -753,37 +774,29 @@ public class DataFillDataService {
         return rowId;
     }
 
-    public List<ExtTableField.Option> listColumnData(String optionDatasource, String optionTable, String optionColumn, String optionOrder) throws Exception {
-
-        DatasetTableField datasetTableField = datasetTableFieldMapper.selectByPrimaryKey(optionColumn);
+    public List<ExtTableField.Option> listColumnData( String optionColumnKey, String optionColumnValue, String optionColumnOrder,String optionOrder) throws Exception {
 
         MultFieldValuesRequest multFieldValuesRequest = new MultFieldValuesRequest();
 
-        multFieldValuesRequest.setFieldIds(Arrays.asList(optionColumn));
+        multFieldValuesRequest.setFieldIds(Arrays.asList(optionColumnKey , optionColumnValue));
 
-        DeSortDTO deSortDTO = new DeSortDTO();
-        deSortDTO.setSort(optionOrder);
-        deSortDTO.setId(optionColumn);
-        deSortDTO.setName(datasetTableField.getOriginName());
-        multFieldValuesRequest.setSort(deSortDTO);
+        DatasetTableField datasetTableField = datasetTableFieldMapper.selectByPrimaryKey(optionColumnOrder);
 
-        List<Object> results = new ArrayList<>();
-        for (String fieldId : multFieldValuesRequest.getFieldIds()) {
-            List<Object> fieldValues = dataSetFieldService.fieldValues(fieldId, multFieldValuesRequest.getSort(), multFieldValuesRequest.getUserId(), true, false, multFieldValuesRequest.getKeyword());
-            if (CollectionUtils.isNotEmpty(fieldValues)) {
-                results.addAll(fieldValues);
-            }
-
+        if (null !=  datasetTableField) {
+            DeSortDTO deSortDTO = new DeSortDTO();
+            deSortDTO.setSort(optionOrder);
+            deSortDTO.setId(optionColumnOrder);
+            deSortDTO.setName(datasetTableField.getOriginName());
+            multFieldValuesRequest.setSort(deSortDTO);
         }
-        List<Object> list = results.stream().distinct().collect(Collectors.toList());
-        list = dataSetFieldService.chineseSort(list, multFieldValuesRequest.getSort());
 
+        List<Object> results = dataSetFieldService.fieldValues(multFieldValuesRequest.getFieldIds(), multFieldValuesRequest.getSort(), multFieldValuesRequest.getUserId(), true, true, false, multFieldValuesRequest.getKeyword());
         List<ExtTableField.Option> result = new ArrayList<>();
-
-        for (Object obj : list) {
+        for (Object obj : results) {
+            BaseTreeNode treeNode = (BaseTreeNode) obj;
             ExtTableField.Option option = new ExtTableField.Option();
-            option.setName(String.valueOf(obj));
-            option.setValue(String.valueOf(obj));
+            option.setName(treeNode.getText());
+            option.setValue(treeNode.getChildren().get(0).getText());
             result.add(option);
         }
         return result;
@@ -974,21 +987,24 @@ public class DataFillDataService {
                                 if (field.getSettings().getOptionSourceType() == 2
                                         && StringUtils.isNotBlank(field.getSettings().getOptionDatasource())
                                         && StringUtils.isNotBlank(field.getSettings().getOptionTable())
-                                        && StringUtils.isNotBlank(field.getSettings().getOptionColumn())
+                                        && StringUtils.isNotBlank(field.getSettings().getOptionColumnKey())
+                                        && StringUtils.isNotBlank(field.getSettings().getOptionColumnValue())
                                 ) {
-                                    options = listColumnData(field.getSettings().getOptionDatasource(), field.getSettings().getOptionTable(), field.getSettings().getOptionColumn(), field.getSettings().getOptionOrder());
+                                    options = listColumnData(field.getSettings().getOptionColumnKey(),field.getSettings().getOptionColumnValue(), field.getSettings().getOptionColumnOrder(), field.getSettings().getOptionOrder());
                                 }
 
+                                ExtTableField.Option choose = null;
                                 for (ExtTableField.Option option : options) {
-                                    if (StringUtils.equals((String) option.getValue(), excelRowData)) {
+                                    if (StringUtils.equals(option.getName(), excelRowData)) {
                                         has = true;
+                                        choose = option;
                                         break;
                                     }
                                 }
                                 if (!has) {
                                     DataEaseException.throwException("[" + field.getSettings().getName() + "] 值: " + excelRowData + " 不在范围内");
                                 }
-                                rowData.put(field.getSettings().getMapping().getColumnName(), excelRowData);
+                                rowData.put(field.getSettings().getMapping().getColumnName(), choose.getValue());
                             } else if (StringUtils.equalsIgnoreCase(field.getType(), "checkbox") ||
                                     StringUtils.equalsIgnoreCase(field.getType(), "select") && field.getSettings().isMultiple()) {
                                 Set<String> list = new HashSet<>();
@@ -1011,21 +1027,25 @@ public class DataFillDataService {
                                     if (field.getSettings().getOptionSourceType() == 2
                                             && StringUtils.isNotBlank(field.getSettings().getOptionDatasource())
                                             && StringUtils.isNotBlank(field.getSettings().getOptionTable())
-                                            && StringUtils.isNotBlank(field.getSettings().getOptionColumn())
+                                            && StringUtils.isNotBlank(field.getSettings().getOptionColumnKey())
+                                            && StringUtils.isNotBlank(field.getSettings().getOptionColumnValue())
                                     ) {
-                                        options = listColumnData(field.getSettings().getOptionDatasource(), field.getSettings().getOptionTable(), field.getSettings().getOptionColumn(), field.getSettings().getOptionOrder());
+                                        options = listColumnData( field.getSettings().getOptionColumnKey(),field.getSettings().getOptionColumnValue(),
+                                                field.getSettings().getOptionColumnOrder(),field.getSettings().getOptionOrder());
                                     }
 
                                     for (String str : list) {
                                         boolean has = false;
+                                        ExtTableField.Option choose = null;
                                         for (ExtTableField.Option option : options) {
-                                            if (StringUtils.equals((String) option.getValue(), str)) {
+                                            if (StringUtils.equals( option.getName(), str)) {
                                                 has = true;
+                                                choose = option;
                                                 break;
                                             }
                                         }
                                         if (has) {
-                                            result.add(str);
+                                            result.add(String.valueOf(choose.getValue()));
                                         } else {
                                             DataEaseException.throwException("[" + field.getSettings().getName() + "] 输入值[" + str + "]不在范围内");
                                         }

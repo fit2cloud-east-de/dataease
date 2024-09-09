@@ -169,14 +169,16 @@ export function userFillFormData(userTaskId, data) {
   })
 }
 
-export function getTableColumnData(optionDatasource, optionTable, optionColumn, optionOrder) {
+export function getTableColumnData(optionDatasource, optionTable, optionColumnKey ,optionColumnValue  ,optionColumnOrder, optionOrder) {
   return request({
     url: `dataFilling/form/${optionDatasource}/options`,
     method: 'post',
     loading: true,
     data: {
       optionTable: optionTable,
-      optionColumn: optionColumn,
+      optionColumnKey: optionColumnKey,
+      optionColumnValue: optionColumnValue,
+      optionColumnOrder: optionColumnOrder,
       optionOrder: optionOrder
     }
   })

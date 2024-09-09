@@ -1,7 +1,7 @@
 <script>
 import { filter, forEach, find, split, get, groupBy, keys, includes, cloneDeep } from 'lodash-es'
 import { listDatasource } from '@/api/system/datasource'
-import { listForm, saveForm, updateForm } from '@/views/dataFilling/form/dataFilling'
+import {getWithPrivileges, listForm, saveForm, updateForm} from '@/views/dataFilling/form/dataFilling'
 import { hasDataPermission } from '@/utils/permission'
 
 export default {
@@ -120,15 +120,9 @@ export default {
   },
   computed: {
     datasourceList() {
+      console.log("datasourceList")
       const dsMap = groupBy(this.allDatasourceList, d => d.type)
-      const _types = [{
-        name: this.$t('data_fill.form.default'),
-        type: 'default',
-        options: [{
-          id: 'default-built-in',
-          name: this.$t('data_fill.form.default_built_in')
-        }]
-      }]
+      const _types = []
       if (dsMap) {
         forEach(keys(dsMap), type => {
           if (type === 'mysql' || type === 'mariadb' || type === 'ds_doris' ) {
@@ -140,6 +134,7 @@ export default {
           }
         })
       }
+      console.log("_types : " + _types);
       return _types
     },
     selectDatasets() {
@@ -299,8 +294,9 @@ export default {
     getTypeOptions(formOption) {
 
       // 获取用户的数据源
+      let datasource = find(this.allDatasourceList, d => d.id === this.formData.datasource)
 
-        let datasource = find(this.allDatasourceList, d => d.id === this.formData.datasource)
+      console.log("datasurce 1111")
 
         const _options = []
         if (formOption.type !== 'date' &&

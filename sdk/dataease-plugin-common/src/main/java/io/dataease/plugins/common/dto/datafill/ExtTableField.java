@@ -58,7 +58,10 @@ public class ExtTableField implements Serializable {
 
         private String optionDatasource;
         private String optionTable;
-        private String optionColumn;
+        private String optionColumnKey;
+        private String optionColumnValue;
+        private String optionColumnOrder;
+
         private String optionOrder;
 
         private boolean multiple;

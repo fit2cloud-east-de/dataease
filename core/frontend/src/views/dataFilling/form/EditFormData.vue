@@ -168,7 +168,7 @@ export default {
                 if (this.readonly) {
                   f.value = JSON.parse(_value)
                 } else {
-                  const tempId = f.settings.optionDatasource + '_' + f.settings.optionTable + '_' + f.settings.optionColumn + '_' + f.settings.optionOrder
+                  const tempId = f.settings.optionDatasource + '_' + f.settings.optionTable + '_' + f.settings.optionColumnKey + '_' + f.settings.optionColumnValue + '_' + f.settings.optionOrder
                   const options = map(f.settings.optionSourceType === 1 ? f.settings.options : (this.asyncOptions[tempId] ? this.asyncOptions[tempId] : []), f => f.value)
                   f.value = filter(JSON.parse(_value), v => includes(options, v))
                 }
@@ -178,7 +178,7 @@ export default {
             } else if (f.type === 'select' && !f.settings.multiple || f.type === 'radio') {
               if (_value) {
                 if (!this.readonly) {
-                  const tempId = f.settings.optionDatasource + '_' + f.settings.optionTable + '_' + f.settings.optionColumn + '_' + f.settings.optionOrder
+                  const tempId = f.settings.optionDatasource + '_' + f.settings.optionTable + '_' + f.settings.optionColumnKey + '_' + f.settings.optionColumnValue + '_' + f.settings.optionOrder
                   const options = map(f.settings.optionSourceType === 1 ? f.settings.options : (this.asyncOptions[tempId] ? this.asyncOptions[tempId] : []), f => f.value)
                   if (!includes(options, _value)) {
                     f.value = undefined
@@ -191,7 +191,7 @@ export default {
               }
             }
           }
-          f.tempId = f.settings ? f.settings.optionDatasource + '_' + f.settings.optionTable + '_' + f.settings.optionColumn + '_' + f.settings.optionOrder : 'unset'
+          f.tempId = f.settings ? f.settings.optionDatasource + '_' + f.settings.optionTable + '_' + f.settings.optionColumnKey + '_' + f.settings.optionColumnValue + '_' + f.settings.optionOrder : 'unset'
         })
       }
       // 赋值到表单
@@ -248,10 +248,10 @@ export default {
       // 同一个表单多条数据，展示的肯定也是相同的，所以取第一个
       forEach(forms[0], f => {
         if (f.type === 'checkbox' || f.type === 'select' || f.type === 'radio') {
-          if (f.settings && f.settings.optionSourceType === 2 && f.settings.optionDatasource && f.settings.optionTable && f.settings.optionColumn && f.settings.optionOrder) {
-            const id = f.settings.optionDatasource + '_' + f.settings.optionTable + '_' + f.settings.optionColumn + '_' + f.settings.optionOrder
+          if (f.settings && f.settings.optionSourceType === 2 && f.settings.optionDatasource && f.settings.optionTable && f.settings.optionColumnKey && f.settings.optionColumnValue && f.settings.optionOrder) {
+            const id = f.settings.optionDatasource + '_' + f.settings.optionTable + '_' + f.settings.optionColumnKey + '_' + f.settings.optionColumnValue + '_' + f.settings.optionOrder
 
-            const p = getTableColumnData(f.settings.optionDatasource, f.settings.optionTable, f.settings.optionColumn, f.settings.optionOrder)
+            const p = getTableColumnData(f.settings.optionDatasource, f.settings.optionTable, f.settings.optionColumnKey , f.settings.optionColumnValue  , f.settings.optionOrder)
             queries.push(p)
             queryIds.push(id)
           }

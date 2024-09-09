@@ -126,7 +126,10 @@ export default {
             optionSourceType: 1,
             optionDatasource: undefined,
             optionTable: undefined,
-            optionColumn: undefined,
+            optionColumnKey: undefined,
+            optionColumnValue: undefined,
+            optionColumnOrder: undefined,
+
             optionOrder: 'asc',
             placeholder: '',
             multiple: false, required: false,
@@ -150,7 +153,10 @@ export default {
             optionSourceType: 1,
             optionDatasource: undefined,
             optionTable: undefined,
-            optionColumn: undefined,
+            optionColumnKey: undefined,
+            optionColumnValue: undefined,
+            optionColumnOrder: undefined,
+
             optionOrder: 'asc',
             required: false,
             mapping: {
@@ -174,7 +180,9 @@ export default {
             optionSourceType: 1,
             optionDatasource: undefined,
             optionTable: undefined,
-            optionColumn: undefined,
+            optionColumnKey: undefined,
+            optionColumnValue: undefined,
+            optionColumnOrder: undefined,
             optionOrder: 'asc',
             required: false,
             mapping: {
@@ -283,11 +291,7 @@ export default {
       }
 
       console.log("_types : " + _types);
-
       return _types
-
-
-
     },
     componentList1() {
       return filter(this.componentList, c => c.order % 2 === 0)
@@ -399,10 +403,10 @@ export default {
       const queryIds = []
       forEach(forms, f => {
         if (f.type === 'checkbox' || f.type === 'select' || f.type === 'radio') {
-          if (f.settings && f.settings.optionSourceType === 2 && f.settings.optionDatasource && f.settings.optionTable && f.settings.optionColumn && f.settings.optionOrder) {
-            const id = f.settings.optionDatasource + '_' + f.settings.optionTable + '_' + f.settings.optionColumn + '_' + f.settings.optionOrder
+          if (f.settings && f.settings.optionSourceType === 2 && f.settings.optionDatasource && f.settings.optionTable && f.settings.optionColumnKey && f.settings.optionColumnValue && f.settings.optionColumnOrder && f.settings.optionOrder) {
+            const id = f.settings.optionDatasource + '_' + f.settings.optionTable + '_' + f.settings.optionColumnKey + '_' + f.settings.optionColumnValue + '_' + f.settings.optionColumnOrder + '_'+ f.settings.optionOrder
 
-            const p = getTableColumnData(f.settings.optionDatasource, f.settings.optionTable, f.settings.optionColumn, f.settings.optionOrder)
+            const p = getTableColumnData(f.settings.optionDatasource, f.settings.optionTable, f.settings.optionColumnKey,  f.settings.optionColumnValue, f.settings.optionColumnOrder , f.settings.optionOrder)
             queries.push(p)
             queryIds.push(id)
           }
@@ -540,16 +544,19 @@ export default {
           optionSourceType: type,
           optionDatasource: itemSettings.optionDatasource,
           optionTable: itemSettings.optionTable,
-          optionColumn: itemSettings.optionColumn,
+          optionColumnKey: itemSettings.optionColumnKey,
+          optionColumnValue: itemSettings.optionColumnValue,
+          optionColumnOrder: itemSettings.optionColumnOrder,
+
           optionOrder: itemSettings.optionOrder
         })
       }
     },
     getAsyncOption(itemSettings, callback) {
-      if (itemSettings.optionSourceType === 2 && itemSettings.optionDatasource && itemSettings.optionTable && itemSettings.optionColumn && itemSettings.optionOrder) {
-        const id = itemSettings.optionDatasource + '_' + itemSettings.optionTable + '_' + itemSettings.optionColumn + '_' + itemSettings.optionOrder
+      if (itemSettings.optionSourceType === 2 && itemSettings.optionDatasource && itemSettings.optionTable && itemSettings.optionColumnKey && itemSettings.optionColumnValue  && itemSettings.optionColumnOrder && itemSettings.optionOrder) {
+        const id = itemSettings.optionDatasource + '_' + itemSettings.optionTable + '_' + itemSettings.optionColumnKey + '_' + itemSettings.optionColumnValue + '_' +itemSettings.optionColumnOrder + '_' + itemSettings.optionOrder
         if (this.asyncOptions[id] === undefined || this.asyncOptions[id].length === 0) {
-          getTableColumnData(itemSettings.optionDatasource, itemSettings.optionTable, itemSettings.optionColumn, itemSettings.optionOrder).then(data => {
+          getTableColumnData(itemSettings.optionDatasource, itemSettings.optionTable, itemSettings.optionColumnKey, itemSettings.optionColumnValue,  itemSettings.optionColumnOrder,itemSettings.optionOrder).then(data => {
             this.asyncOptions[id] = data.data
           }).finally(() => {
             if (callback) {
@@ -570,7 +577,9 @@ export default {
         optionSourceType: 2,
         optionDatasource: settings.optionDatasource,
         optionTable: settings.optionTable,
-        optionColumn: settings.optionColumn,
+        optionColumnKey: settings.optionColumnKey,
+        optionColumnValue: settings.optionColumnValue,
+        optionColumnOrder: settings.optionColumnOrder,
         optionOrder: settings.optionOrder ?? 'asc'
       })
       console.log("获取数据源")
@@ -590,13 +599,22 @@ export default {
           if (find(this.tableList, t => t.id === this.optionFormData.optionTable)) {
             if (promiseList.length > 1) {
               this.columnList = val[1].data
-              if (!find(this.columnList, t => t.id === this.optionFormData.optionColumn)) {
-                this.optionFormData.optionColumn = undefined
+              if (!find(this.columnList, t => t.id === this.optionFormData.optionColumnKey)) {
+                this.optionFormData.optionColumnKey = undefined
+              }
+              if (!find(this.columnList, t => t.id === this.optionFormData.optionColumnValue)) {
+                this.optionFormData.optionColumnValue = undefined
+              }
+
+              if (!find(this.columnList, t => t.id === this.optionFormData.optionColumnOrder)) {
+                this.optionFormData.optionColumnOrder = undefined
               }
             }
           } else {
             this.optionFormData.optionTable = undefined
-            this.optionFormData.optionColumn = undefined
+            this.optionFormData.optionColumnKey = undefined
+            this.optionFormData.optionColumnValue = undefined
+            this.optionFormData.optionColumnOrder = undefined
           }
         }).finally(() => {
           this.loading = false
@@ -619,7 +637,9 @@ export default {
               this.onTableChange(datasource, this.optionFormData.optionTable)
             } else {
               this.optionFormData.optionTable = undefined
-              this.optionFormData.optionColumn = undefined
+              this.optionFormData.optionColumnKey = undefined
+              this.optionFormData.optionColumnValue = undefined
+              this.optionFormData.optionColumnOrder = undefined
             }
           }
         }).finally(() => {
@@ -636,11 +656,24 @@ export default {
         this.loading = true
         getColumnListWithPermission(table).then(res => {
           this.columnList = res.data
-          if (this.optionFormData.optionColumn) {
-            if (!find(this.columnList, t => t.id === this.optionFormData.optionColumn)) {
-              this.optionFormData.optionColumn = undefined
+          if (this.optionFormData.optionColumnKey) {
+            if (!find(this.columnList, t => t.id === this.optionFormData.optionColumnKey)) {
+              this.optionFormData.optionColumnKey = undefined
             }
           }
+
+          if (this.optionFormData.optionColumnValue) {
+            if (!find(this.columnList, t => t.id === this.optionFormData.optionColumnValue)) {
+              this.optionFormData.optionColumnValue = undefined
+            }
+          }
+
+          if (this.optionFormData.optionColumnOrder) {
+            if (!find(this.columnList, t => t.id === this.optionFormData.optionColumnOrder)) {
+              this.optionFormData.optionColumnOrder = undefined
+            }
+          }
+
         }).finally(() => {
           this.loading = false
         })
@@ -657,7 +690,9 @@ export default {
             this.selectedComponentItem.settings.optionSourceType = this.optionFormData.optionSourceType
             this.selectedComponentItem.settings.optionDatasource = this.optionFormData.optionDatasource
             this.selectedComponentItem.settings.optionTable = this.optionFormData.optionTable
-            this.selectedComponentItem.settings.optionColumn = this.optionFormData.optionColumn
+            this.selectedComponentItem.settings.optionColumnKey = this.optionFormData.optionColumnKey
+            this.selectedComponentItem.settings.optionColumnValue = this.optionFormData.optionColumnValue
+            this.selectedComponentItem.settings.optionColumnOrder = this.optionFormData.optionColumnOrder
             this.selectedComponentItem.settings.optionOrder = this.optionFormData.optionOrder
             this.loading = false
 
@@ -737,7 +772,9 @@ export default {
           } else {
             if (f.settings.optionDatasource === undefined ||
                   f.settings.optionTable === undefined ||
-                  f.settings.optionColumn === undefined) {
+                  f.settings.optionColumnKey === undefined ||
+                  f.settings.optionColumnValue === undefined ||
+                  f.settings.optionColumnOrder === undefined) {
               this.selectItem(f.id)
               this.$message({
                 message: this.$t('data_fill.form.option_list_datasource_cannot_empty'),
@@ -914,7 +951,7 @@ export default {
                   :key="item.id"
                   class="m-item m-form-item"
                   :class="{'selectedClass': item.id === selectedItemId}"
-                  :data-var="tempId = item.settings ? item.settings.optionDatasource + '_' + item.settings.optionTable + '_' + item.settings.optionColumn + '_' + item.settings.optionOrder : 'unset'"
+                  :data-var="tempId = item.settings ? item.settings.optionDatasource + '_' + item.settings.optionTable + '_' + item.settings.optionColumnKey + '_' + item.settings.optionColumnValue + '_' + item.settings.optionColumnOrder + '_' + item.settings.optionOrder : 'unset'"
                   @click.stop="selectItem(item.id)"
                 >
                   <div class="m-label-container">
@@ -1336,7 +1373,7 @@ export default {
                 </template>
                 <template v-else>
                   <el-button
-                    v-if="!selectedComponentItem.settings.optionColumn"
+                    v-if="!selectedComponentItem.settings.optionColumnKey && !selectedComponentItem.settings.optionColumnValue && !selectedComponentItem.settings.optionColumnOrder "
                     type="text"
                     @click="openEditBindColumn({})"
                   >+ {{ $t('data_fill.form.bind_column') }}
@@ -1524,7 +1561,7 @@ export default {
             <el-form-item
               prop="optionTable"
               class="form-item"
-              :label="$t('data_fill.form.table')"
+              :label="$t('data_fill.form.dataset')"
               :rules="[requiredRule]"
             >
               <el-select
@@ -1544,14 +1581,15 @@ export default {
                 </el-option>
               </el-select>
             </el-form-item>
+
             <el-form-item
-              prop="optionColumn"
+              prop="optionColumnKey"
               class="form-item"
-              :label="$t('data_fill.form.column_name')"
+              :label="$t('data_fill.form.column_name_key')"
               :rules="[requiredRule]"
             >
               <el-select
-                v-model="optionFormData.optionColumn"
+                v-model="optionFormData.optionColumnKey"
                 required
                 style="width: 100%"
                 size="small"
@@ -1566,6 +1604,55 @@ export default {
                 </el-option>
               </el-select>
             </el-form-item>
+
+            <el-form-item
+              prop="optionColumnValue"
+              class="form-item"
+              :label="$t('data_fill.form.column_name_value')"
+              :rules="[requiredRule]"
+            >
+              <el-select
+                v-model="optionFormData.optionColumnValue"
+                required
+                style="width: 100%"
+                size="small"
+                filterable
+              >
+                <el-option
+                  v-for="d in columnList"
+                  :key="d.name"
+                  :value="d.id"
+                  :label="d.name"
+                >{{ d.name }}
+                </el-option>
+              </el-select>
+            </el-form-item>
+
+
+
+            <el-form-item
+              prop="optionColumnOrder"
+              class="form-item"
+              :label="$t('data_fill.form.option_column_order')"
+              :rules="[requiredRule]"
+            >
+              <el-select
+                v-model="optionFormData.optionColumnOrder"
+                required
+                style="width: 100%"
+                size="small"
+                filterable
+              >
+                <el-option
+                  v-for="d in columnList"
+                  :key="d.name"
+                  :value="d.id"
+                  :label="d.name"
+                >{{ d.name }}
+                </el-option>
+              </el-select>
+            </el-form-item>
+
             <el-form-item
               prop="optionOrder"
               class="form-item"

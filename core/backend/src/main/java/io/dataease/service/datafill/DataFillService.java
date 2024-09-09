@@ -615,11 +615,14 @@ public class DataFillService {
                 if (field.getSettings().getOptionSourceType() == 2
                         && StringUtils.isNotBlank(field.getSettings().getOptionDatasource())
                         && StringUtils.isNotBlank(field.getSettings().getOptionTable())
-                        && StringUtils.isNotBlank(field.getSettings().getOptionColumn())
+                        && StringUtils.isNotBlank(field.getSettings().getOptionColumnKey())
+                        && StringUtils.isNotBlank(field.getSettings().getOptionColumnValue())
                 ) {
                     List<ExtTableField.Option> columnData = new ArrayList<>();
                     try {
-                        columnData = dataFillDataService.listColumnData(field.getSettings().getOptionDatasource(), field.getSettings().getOptionTable(), field.getSettings().getOptionColumn(), field.getSettings().getOptionOrder());
+                        columnData = dataFillDataService.listColumnData( field.getSettings().getOptionColumnKey(),field.getSettings().getOptionColumnValue(),
+                                field.getSettings().getOptionColumnOrder(),
+                                field.getSettings().getOptionOrder());
                     } catch (Exception e) {
                         e.printStackTrace();
                     }

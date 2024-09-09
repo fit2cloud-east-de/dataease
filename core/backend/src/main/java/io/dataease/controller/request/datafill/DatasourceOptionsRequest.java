@@ -6,6 +6,9 @@ import lombok.Getter;
 public class DatasourceOptionsRequest {
 
     private String optionTable;
-    private String optionColumn;
+    private String optionColumnKey;
+    private String optionColumnValue;
+    private String optionColumnOrder;
+
     private String optionOrder;
 }

@@ -636,6 +636,9 @@ export default {
       folder: '所属文件夹',
       datasource: '数据源',
       table: '数据库表',
+
+      dataset: '数据集',
+
       creator: '创建人',
       createTime: '创建时间',
       operation: '操作',
@@ -676,6 +679,10 @@ export default {
       table_name: '数据库表名',
       form_column: '表单字段',
       column_name: '数据库表字段名称',
+
+      column_name_key: '字段名称（显示值）',
+      column_name_value: '字段名称（实际值）',
+
       column_type: '数据库字段类型',
       create_index: '创建索引',
       add_index: '新增索引',
@@ -683,6 +690,7 @@ export default {
       create_index_hint: 'MySQL 8.0 或 MariaDB 10.8.0 以下版本不支持索引降序排序',
       index_column: '索引字段',
       order: '排序',
+      option_column_order: '排序字段',
       order_asc: '升序',
       order_desc: '降序',
       order_none: '默认排序',
