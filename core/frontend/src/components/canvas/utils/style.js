@@ -116,6 +116,7 @@ export const customAttrTrans = {
     'tableItemFontSize',
     'tableTitleHeight',
     'tableItemHeight',
+    'tableColumnWidth',
     'dimensionFontSize',
     'quotaFontSize',
     'spaceSplit', // 间隔
@@ -124,7 +125,8 @@ export const customAttrTrans = {
     'quotaSuffixFontSize'
   ],
   'label': [
-    'fontSize'
+    'fontSize',
+    'subFontSize'
   ],
   'tooltip': {
     'textStyle': ['fontSize']
@@ -294,14 +296,14 @@ export function getScaleValue(propValue, scale) {
   return propValueTemp > 1 ? propValueTemp : 1
 }
 
-export function recursionTransObj(template, infoObj, scale, terminal) {
+export function recursionTransObj(template, infoObj, scale, terminal, render) {
   for (const templateKey in template) {
     // 如果是数组 进行赋值计算
     if (template[templateKey] instanceof Array) {
       template[templateKey].forEach(templateProp => {
         if (infoObj[templateKey] && infoObj[templateKey][templateProp]) {
           // 移动端特殊属性值设置
-          if (terminal === 'mobile' && mobileSpecialProps[templateProp] !== undefined) {
+          if (terminal === 'mobile' && mobileSpecialProps[templateProp] !== undefined && render !== 'antv') {
             infoObj[templateKey][templateProp] = mobileSpecialProps[templateProp]
           } else {
             infoObj[templateKey][templateProp] = getScaleValue(infoObj[templateKey][templateProp], scale)
@@ -311,7 +313,7 @@ export function recursionTransObj(template, infoObj, scale, terminal) {
     } else {
       // 如果是对象 继续进行递归
       if (infoObj[templateKey]) {
-        recursionTransObj(template[templateKey], infoObj[templateKey], scale, terminal)
+        recursionTransObj(template[templateKey], infoObj[templateKey], scale, terminal, render)
       }
     }
   }

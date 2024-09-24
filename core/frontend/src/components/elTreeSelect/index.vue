@@ -40,19 +40,13 @@
         v-model="keywords"
         size="mini"
         class="input-with-select mb10"
-      >
-        <el-button
-          slot="append"
-          icon="el-icon-search"
-          @click="_searchFun"
-        />
-      </el-input>
+      />
       <p
         v-if="selectParams.multiple"
         class="tree-select-all"
       ><el-checkbox
         v-model="selectAll"
-        v-customStyle="customStyle"
+        class="is-tree-select"
         :indeterminate="isIndeterminate"
         @change="selectAllChange"
       >{{ $t('dataset.check_all') }}</el-checkbox></p>
@@ -90,6 +84,7 @@
 <script>
 import { on, off } from './dom'
 import { each, guid } from './utils'
+import _ from 'lodash'
 export default {
   name: 'ElTreeSelect',
   components: {},
@@ -217,6 +212,9 @@ export default {
     }
   },
   watch: {
+    keywords() {
+      this.searchWithKey()
+    },
     ids: function(val) {
       if (val !== undefined) {
         this.$nextTick(() => {
@@ -312,6 +310,9 @@ export default {
       }
       this.$set(this.selectParams, 'multiple', multiple)
     },
+    searchWithKey: _.debounce(function() {
+      this._searchFun()
+    }, 300),
     _searchFun() {
       this.$emit('searchFun', this.keywords)
     },
@@ -463,13 +464,6 @@ export default {
     _treeCheckFun(data, node, vm) {
       this.ids = []
       const { propsValue } = this
-      const checkKeys = this.$refs.tree.getCheckedKeys()
-      checkKeys.forEach((i, n) => {
-        const node = this.$refs.tree.getNode(i)
-        if (!node.visible && node.checked) {
-          this.$refs.tree.setChecked(i, false)
-        }
-      })
 
       const checkedNodes = this.$refs.tree.getCheckedNodes()
 
@@ -590,11 +584,14 @@ export default {
 </script>
 <style>
 .el-tree-select .de-select-option {
-    display: none !important;
+  display: none !important;
 }
 .tree-select-all {
-    padding: 10px 20px 0 24px;
-  }
+  padding: 10px 20px 0 24px;
+}
+.tree-select-all .el-checkbox__label {
+  color: var(--SelectTreeColor, #606266) !important;
+}
 [aria-disabled='true'] > .el-tree-node__content {
     color: inherit !important;
     background: transparent !important;

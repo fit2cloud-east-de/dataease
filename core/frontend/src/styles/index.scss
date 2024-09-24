@@ -437,8 +437,8 @@ div:focus {
 
 
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 7px;
+  height: 7px;
 }
 
 /* .el-color-dropdown__link-btn {
@@ -836,11 +836,11 @@ div:focus {
 }
 
 
-.el-checkbox__input.is-checked:not(.is-disabled)+.el-checkbox__label {
+.el-checkbox:not(.is-tree-select) .el-checkbox__input.is-checked:not(.is-disabled)+.el-checkbox__label {
   color: #1F2329 !important;
 }
 
-.el-radio__input.is-checked:not(.is-disabled)+.el-radio__label {
+.el-radio:not(.is-custom-select) .el-radio__input.is-checked:not(.is-disabled)+.el-radio__label {
   color: var(--deTextPrimary, #1F2329) !important;
 }
 
@@ -868,7 +868,6 @@ div:focus {
     height: 24px !important;
     line-height: 24px !important;
     margin-bottom: 9px !important;
-    font-size: 16px !important;
   }
 }
 
@@ -920,6 +919,59 @@ div:focus {
     height: 14.666666984558105px;
     width: 14.666669845581055px;
     margin-right: 8.67px;
+  }
+}
+
+.de-message-export {
+  min-width: 20px !important;
+  padding: 16px 20px !important;
+  display: flex;
+  align-items: center;
+  box-shadow: 0px 4px 8px 0px #1f23291a;
+
+  & > p {
+    font-family: AlibabaPuHuiTi;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 22px;
+    letter-spacing: 0px;
+    text-align: left;
+    color: #1f2329;
+  }
+
+  .btn-text {
+    padding: 2px 4px;
+    &:hover {
+      background: var(--primary10, #3370FF1A);
+    }
+  }
+
+  .el-message__closeBtn {
+    margin-left: 28px;
+    height: 16px;
+    width: 16px;
+    position: relative;
+    margin-right: 0;
+    top: 0;
+    right: 0;
+    transform: translateY(0);
+    color: #646A73;
+  }
+
+  .el-icon-success,
+  .el-icon-error,
+  .el-icon-loading {
+    height: 16px;
+    width: 16px;
+    margin-right: 8px;
+  }
+}
+
+.de-message-loading {
+  border: 1px solid var(--primary, #3370FF) !important;
+  background: #F0F4FF !important;
+  .el-icon-loading {
+    color: var(--primary, #3370FF);
   }
 }
 
@@ -1772,4 +1824,8 @@ div:focus {
 
 .el-table__fixed-right::before {
   display: none;
+}
+
+.de-fullscreen-preview-index {
+  z-index: 2000;
 }

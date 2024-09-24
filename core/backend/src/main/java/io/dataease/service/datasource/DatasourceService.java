@@ -10,10 +10,7 @@ import io.dataease.commons.constants.DePermissionType;
 import io.dataease.commons.constants.RedisConstants;
 import io.dataease.commons.constants.SysAuthConstants;
 import io.dataease.commons.model.AuthURD;
-import io.dataease.commons.utils.AuthUtils;
-import io.dataease.commons.utils.BeanUtils;
-import io.dataease.commons.utils.CommonThreadPool;
-import io.dataease.commons.utils.LogUtil;
+import io.dataease.commons.utils.*;
 import io.dataease.controller.ResultHolder;
 import io.dataease.controller.datasource.request.UpdataDsRequest;
 import io.dataease.controller.request.DatasourceUnionRequest;
@@ -43,6 +40,7 @@ import io.dataease.plugins.common.request.datasource.DatasourceRequest;
 import io.dataease.plugins.common.util.SpringContextUtil;
 import io.dataease.plugins.datasource.entity.JdbcConfiguration;
 import io.dataease.plugins.datasource.entity.Status;
+import io.dataease.plugins.datasource.provider.DefaultJdbcProvider;
 import io.dataease.plugins.datasource.provider.Provider;
 import io.dataease.plugins.datasource.provider.ProviderFactory;
 import io.dataease.provider.datasource.ApiProvider;
@@ -183,7 +181,7 @@ public class DatasourceService {
         });
         if (!datasourceDTO.getType().equalsIgnoreCase(DatasourceTypes.api.toString())) {
             JdbcConfiguration configuration = new Gson().fromJson(datasourceDTO.getConfiguration(), JdbcConfiguration.class);
-            if (StringUtils.isNotEmpty(configuration.getCustomDriver()) && !configuration.getCustomDriver().equalsIgnoreCase("default")) {
+            if (StringUtils.isNotEmpty(configuration.getCustomDriver()) && !configuration.getCustomDriver().contains("default")) {
                 datasourceDTO.setCalculationMode(DatasourceCalculationMode.DIRECT);
             }
             JSONObject jsonObject = JSONObject.parseObject(datasourceDTO.getConfiguration());
@@ -278,6 +276,14 @@ public class DatasourceService {
 
 
     public void updateDatasource(String id, Datasource datasource) {
+
+        if (datasource.getEnableDataFill() != null) {
+            Datasource ds = datasourceMapper.selectByPrimaryKey(id);
+            if (ds.getEnableDataFill()) {
+                datasource.setEnableDataFill(true);
+            }
+        }
+
         DatasourceExample example = new DatasourceExample();
         example.createCriteria().andIdEqualTo(id);
         Status status = checkDatasourceStatus(datasource);
@@ -471,7 +477,8 @@ public class DatasourceService {
                     record.setVersion(status.getVersion());
                     record.setStatus(status.getStatus());
                     datasourceMapper.updateByExampleSelective(record, example);
-                }catch (Exception ignore){}
+                } catch (Exception ignore) {
+                }
                 try {
                     handleConnectionPool(datasource, "add");
                 } catch (Exception e) {
@@ -514,7 +521,7 @@ public class DatasourceService {
 
     public void updateDatasourceStatus() {
         List<Datasource> datasources = datasourceMapper.selectByExampleWithBLOBs(new DatasourceExample());
-        datasources.forEach(datasource -> checkAndUpdateDatasourceStatus(datasource, true));
+        datasources.parallelStream().forEach(datasource -> checkAndUpdateDatasourceStatus(datasource, true));
     }
 
     public ApiDefinition checkApiDatasource(ApiDefinition apiDefinition) throws Exception {
@@ -652,6 +659,18 @@ public class DatasourceService {
         mysqlConfiguration.setPassword(env.getProperty("spring.datasource.password"));
         datasource.setConfiguration(new Gson().toJson(mysqlConfiguration));
         datasourceMapper.updateByPrimaryKeyWithBLOBs(datasource);
+    }
+
+    public void releaseDsconnections() {
+        List<DefaultJdbcProvider> providers = (List<DefaultJdbcProvider>) SpringContextUtil.getApplicationContext().getBeansOfType(DefaultJdbcProvider.class).values();
+        providers.forEach(provider -> {
+            provider.getJdbcConnection().values().forEach(druidDataSource -> {
+                try {
+                    druidDataSource.close();
+                } catch (Exception e) {
+                }
+            });
+        });
     }
 
 }

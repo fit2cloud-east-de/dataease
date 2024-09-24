@@ -8,15 +8,13 @@ import {
   getPadding,
   getSlider,
   getAnalyse,
-  getTooltipContainer,
-  TOOLTIP_TPL,
   configPlotTooltipEvent
 } from '@/views/chart/chart/common/common_antv'
 
 import { Scatter } from '@antv/g2plot'
 import { antVCustomColor } from '@/views/chart/chart/util'
 
-export function baseScatterOptionAntV(plot, container, chart, action) {
+export function baseScatterOptionAntV(container, chart, action) {
   // theme
   const theme = getTheme(chart)
   // attr
@@ -87,15 +85,11 @@ export function baseScatterOptionAntV(plot, container, chart, action) {
   // custom color
   options.color = antVCustomColor(chart)
 
-  // 开始渲染
-  if (plot) {
-    plot.destroy()
-  }
-  plot = new Scatter(container, options)
+  const plot = new Scatter(container, options)
 
   plot.off('point:click')
   plot.on('point:click', action)
-// 处理 tooltip 被其他视图遮挡
+  // 处理 tooltip 被其他视图遮挡
   configPlotTooltipEvent(chart, plot)
   return plot
 }

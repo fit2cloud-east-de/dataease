@@ -1,10 +1,14 @@
 package io.dataease.service.dataset.impl.direct;
 
 import com.google.gson.Gson;
+import io.dataease.auth.entity.SysUserEntity;
+import io.dataease.auth.service.AuthUserService;
 import io.dataease.commons.model.BaseTreeNode;
+import io.dataease.commons.utils.AuthUtils;
 import io.dataease.commons.utils.BeanUtils;
 import io.dataease.commons.utils.LogUtil;
 import io.dataease.commons.utils.TreeUtils;
+import io.dataease.dto.dataset.DataSetTableDTO;
 import io.dataease.dto.dataset.DataSetTableUnionDTO;
 import io.dataease.plugins.common.dto.dataset.DataTableInfoDTO;
 import io.dataease.dto.dataset.DeSortDTO;
@@ -53,6 +57,8 @@ public class DirectFieldService implements DataSetFieldService {
     private EngineService engineService;
     @Resource
     private PermissionsTreeService permissionsTreeService;
+    @Resource
+    private AuthUserService authUserService;
 
     @Override
     public List<Object> fieldValues(String fieldId, Long userId, Boolean userPermissions, Boolean rowAndColumnMgm) throws Exception {
@@ -107,7 +113,13 @@ public class DirectFieldService implements DataSetFieldService {
 
         DatasetTable datasetTable = dataSetTableService.get(field.getTableId());
         if (ObjectUtils.isEmpty(datasetTable) || StringUtils.isEmpty(datasetTable.getName())) return null;
-
+        SysUserEntity userEntity = userId != null ? authUserService.getUserById(userId) : AuthUtils.getUser();
+        if (userEntity != null && !userEntity.getIsAdmin()) {
+            DataSetTableDTO withPermission = dataSetTableService.getWithPermission(datasetTable.getId(), userEntity.getUserId());
+            if (ObjectUtils.isEmpty(withPermission.getPrivileges()) || !withPermission.getPrivileges().contains("use")) {
+                DataEaseException.throwException(Translator.get("i18n_dataset_no_permission") + String.format(":table name [%s]", withPermission.getName()));
+            }
+        }
         DatasetTableField datasetTableField = DatasetTableField.builder().tableId(field.getTableId()).checked(Boolean.TRUE).build();
         List<DatasetTableField> fields = dataSetTableFieldsService.list(datasetTableField);
 
@@ -226,10 +238,19 @@ public class DirectFieldService implements DataSetFieldService {
         if (CollectionUtils.isNotEmpty(rows) && existExtSortField && originSize > 0) {
             rows = rows.stream().map(row -> ArrayUtils.subarray(row, 0, originSize)).collect(Collectors.toList());
         }
+        rows = rows.stream().filter(row -> {
+            int length = row.length;
+            boolean allEmpty = true;
+            for (String s : row) {
+                if (StringUtils.isNotBlank(s)) {
+                    allEmpty = false;
+                }
+            }
+            return !allEmpty;
+        }).collect(Collectors.toList());
         List<BaseTreeNode> treeNodes = rows.stream().map(row -> buildTreeNode(row, pkSet)).flatMap(Collection::stream).collect(Collectors.toList());
         List tree = TreeUtils.mergeDuplicateTree(treeNodes, TreeUtils.DEFAULT_ROOT);
         return tree;
-
     }
 
     private List<BaseTreeNode> buildTreeNode(String[] row, Set<String> pkSet) {
@@ -239,12 +260,12 @@ public class DirectFieldService implements DataSetFieldService {
             String text = row[i];
 
             parentPkList.add(text);
-            String val = parentPkList.stream().collect(Collectors.joining(TreeUtils.SEPARATOR));
+            String val = String.join(TreeUtils.SEPARATOR, parentPkList);
             String parentVal = i == 0 ? TreeUtils.DEFAULT_ROOT : row[i - 1];
-            String pk = parentPkList.stream().collect(Collectors.joining(TreeUtils.SEPARATOR));
+            String pk = String.join(TreeUtils.SEPARATOR, parentPkList);
             if (pkSet.contains(pk)) continue;
             pkSet.add(pk);
-            BaseTreeNode node = new BaseTreeNode(val, parentVal, text, pk + TreeUtils.SEPARATOR + i);
+            BaseTreeNode node = new BaseTreeNode(val, parentVal, StringUtils.isNotBlank(text) ? text.trim() : text, pk + TreeUtils.SEPARATOR + i);
             nodes.add(node);
         }
         return nodes;

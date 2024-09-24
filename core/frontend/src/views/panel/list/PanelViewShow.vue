@@ -254,6 +254,8 @@
           :style="imageWrapperStyle"
         >
           <fullscreen
+            teleport
+            fullscreen-class="de-fullscreen-preview-index"
             style="height: 100%;background: #f7f8fa;overflow-y: auto"
             :fullscreen.sync="fullscreen"
           >
@@ -930,7 +932,7 @@ export default {
   height: calc(100% - 56px);
   overflow-x: hidden;
   overflow-y: auto;
-  /*padding: 5px;*/
+  padding: 5px;
 }
 
 .custom-position {
@@ -978,4 +980,3 @@ export default {
   }
 }
 </style>
-

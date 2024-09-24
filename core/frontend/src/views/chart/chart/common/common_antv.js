@@ -1,7 +1,24 @@
 import { hexColorToRGBA } from '@/views/chart/chart/util'
 import { formatterItem, valueFormatter } from '@/views/chart/chart/formatter'
-import { DEFAULT_XAXIS_STYLE, DEFAULT_YAXIS_EXT_STYLE, DEFAULT_YAXIS_STYLE } from '@/views/chart/chart/chart'
+import {
+  DEFAULT_COLOR_CASE,
+  DEFAULT_XAXIS_STYLE,
+  DEFAULT_YAXIS_EXT_STYLE,
+  DEFAULT_YAXIS_STYLE
+} from '@/views/chart/chart/chart'
 import { equalsAny, includesAny } from '@/utils/StringUtils'
+import {
+  regressionExp,
+  regressionPoly,
+  regressionLinear,
+  regressionLoess,
+  regressionLog,
+  regressionPow,
+  regressionQuad
+} from 'd3-regression/dist/d3-regression.esm'
+import substitute from '@antv/util/esm/substitute'
+import createDom from '@antv/dom-util/esm/create-dom'
+import { assign } from 'lodash-es'
 
 export function getPadding(chart) {
   if (chart.drill) {
@@ -89,7 +106,8 @@ export function getTheme(chart) {
             color: tooltipColor,
             fontSize: tooltipFontsize + 'px',
             background: tooltipBackgroundColor,
-            'z-index': 3000
+            'z-index': 3000,
+            position: 'fixed'
           }
         }
       },
@@ -136,7 +154,10 @@ export function getLabel(chart) {
         } else if (chart.type.includes('line') || chart.type.includes('area')) {
           label = {
             position: l.position,
-            offsetY: -8
+            layout: [
+              { type: 'hide-overlap' },
+              { type: 'limit-in-plot' }
+            ]
           }
         } else if (equalsAny(chart.type, 'pie-rose', 'pie-donut-rose')) {
           label = {
@@ -161,6 +182,9 @@ export function getLabel(chart) {
         }
         // label value formatter
         if (chart.type && chart.type !== 'waterfall') {
+          if (chart.type === 'bar-time-range') {
+            label.content = ''
+          }
           label.formatter = function(param) {
             let xAxis, yAxis, extStack, xaxisExt
             let res = param.value
@@ -253,6 +277,12 @@ export function getLabel(chart) {
             } else if (chart.type === 'scatter' && xAxis && xAxis.length > 0 && xAxis[0].groupType === 'q') {
               // 针对散点图
               res = param.field
+            } else if (chart.type === 'bar-time-range') {
+              if (l.showGap) {
+                res = param.gap
+              } else {
+                res = param.values[0] + ' ~ ' + param.values[1]
+              }
             } else {
               for (let i = 0; i < yAxis.length; i++) {
                 const f = yAxis[i]
@@ -321,7 +351,8 @@ export function getTooltip(chart) {
       if (t.show) {
         tooltip = {
           container: getTooltipContainer(`tooltip-${chart.id}`),
-          itemTpl: TOOLTIP_TPL
+          itemTpl: TOOLTIP_TPL,
+          enterable: true
         }
         let xAxis, yAxis, extStack, xAxisExt
 
@@ -350,7 +381,10 @@ export function getTooltip(chart) {
         if (chart.type && chart.type !== 'waterfall') {
           if (chart.type === 'bar-group-stack') {
             tooltip.fields = []
+          } else if (chart.type === 'bar-time-range') {
+            tooltip.fields = ['gap', 'category', 'values', 'group', 'field']
           }
+
           tooltip.formatter = function(param) {
             let res = param.value
 
@@ -479,7 +513,10 @@ export function getTooltip(chart) {
               }
             } else if (chart.type === 'bar-time-range') {
               obj = { values: param.values, name: param.category }
-              res = param.values[0] + ' - ' + param.values[1]
+              res = param.values[0] + ' ~ ' + param.values[1]
+              if (t.showGap) {
+                res = res + ' (' + param.gap + ')'
+              }
             } else {
               res = param.value
             }
@@ -840,7 +877,11 @@ export function getYAxis(chart) {
                   return valueFormatter(value, a.axisLabelFormatter)
                 }
               } else {
-                return value
+                const { lengthLimit } = a.axisLabel
+                if (!lengthLimit || value?.length <= lengthLimit) {
+                  return value
+                }
+                return value?.slice(0, lengthLimit) + '...'
               }
             }
           }
@@ -1171,7 +1212,13 @@ export function getTooltipContainer(id) {
   const g2Tooltip = document.createElement('div')
   g2Tooltip.setAttribute('id', id)
   g2Tooltip.classList.add('g2-tooltip')
-
+  // 最多半屏，鼠标移入可滚动
+  g2Tooltip.style.maxHeight = '50%'
+  g2Tooltip.style.overflowY = 'scroll'
+  g2Tooltip.style.display = 'none'
+  g2Tooltip.style.position = 'fixed'
+  g2Tooltip.style.left = '0px'
+  g2Tooltip.style.top = '0px'
   const g2TooltipTitle = document.createElement('div')
   g2TooltipTitle.classList.add('g2-tooltip-title')
   g2Tooltip.appendChild(g2TooltipTitle)
@@ -1193,6 +1240,15 @@ export function configPlotTooltipEvent(chart, plot) {
   if (!t.show) {
     return
   }
+  // 鼠标可移入, 移入之后保持显示, 移出之后隐藏
+  plot.options.tooltip.container.addEventListener('mouseenter', e => {
+    e.target.style.visibility = 'visible'
+    e.target.style.display = 'block'
+  })
+  plot.options.tooltip.container.addEventListener('mouseleave', e => {
+    e.target.style.visibility = 'hidden'
+    e.target.style.display = 'none'
+  })
   // 手动处理 tooltip 的显示和隐藏事件，需配合源码理解
   // https://github.com/antvis/G2/blob/master/src/chart/controller/tooltip.ts#showTooltip
   plot.on('tooltip:show', () => {
@@ -1200,9 +1256,11 @@ export function configPlotTooltipEvent(chart, plot) {
     if (!tooltipCtl) {
       return
     }
+    const event = plot.chart.interactions.tooltip?.context?.event
     if (tooltipCtl.tooltip) {
       // 处理视图放大后再关闭 tooltip 的 dom 被清除
       const container = tooltipCtl.tooltip.cfg.container
+      container.style.display = 'block'
       const dom = document.getElementById(container.id)
       if (!dom) {
         const full = document.getElementsByClassName('fullscreen')
@@ -1213,7 +1271,6 @@ export function configPlotTooltipEvent(chart, plot) {
         }
       }
     }
-    const event = plot.chart.interactions.tooltip?.context?.event
     plot.chart.getOptions().tooltip.follow = false
     tooltipCtl.title = Math.random().toString()
     plot.chart.getTheme().components.tooltip.x = event.clientX
@@ -1226,6 +1283,10 @@ export function configPlotTooltipEvent(chart, plot) {
       return
     }
     plot.chart.getOptions().tooltip.follow = true
+    const container = tooltipCtl.tooltip?.cfg?.container
+    if (container) {
+      container.style.display = 'none'
+    }
     tooltipCtl.hideTooltip()
   })
 }
@@ -1235,3 +1296,182 @@ export const TOOLTIP_TPL = '<li class="g2-tooltip-list-item" data-index={index}>
                                     '<span class="g2-tooltip-name">{name}</span>:' +
                                     '<span class="g2-tooltip-value">{value}</span>' +
                                   '</li>'
+export const configTopN = (data, chart) => {
+  if (!data?.length) {
+    return
+  }
+  const color = JSON.parse(chart.customAttr).color
+  if (!color.calcTopN || data.length <= color.topN) {
+    return
+  }
+  data.sort((a, b) => b.value - a.value)
+  const otherItems = data.splice(color.topN)
+  const initOtherItem = {
+    ...data[0],
+    field: color.topNLabel ?? DEFAULT_COLOR_CASE.topNLabel,
+    name: color.topNLabel ?? DEFAULT_COLOR_CASE.topNLabel,
+    value: 0
+  }
+  otherItems.reduce((p, n) => {
+    p.value += n.value ?? 0
+    return p
+  }, initOtherItem)
+  data.push(initOtherItem)
+}
+const REGRESSION_ALGO_MAP = {
+  poly: regressionPoly,
+  linear: regressionLinear,
+  exp: regressionExp,
+  log: regressionLog,
+  quad: regressionQuad,
+  pow: regressionPow,
+  loess: regressionLoess
+}
+const AXIS_LABEL_TOOLTIP_STYLE = {
+  transition: 'left 0.4s cubic-bezier(0.23, 1, 0.32, 1) 0s, top 0.4s cubic-bezier(0.23, 1, 0.32, 1) 0s',
+  backgroundColor: 'rgb(255, 255, 255)',
+  boxShadow: 'rgb(174, 174, 174) 0px 0px 10px',
+  borderRadius: '3px',
+  padding: '8px 12px',
+  opacity: '0.95',
+  position: 'absolute',
+  visibility: 'visible'
+}
+const AXIS_LABEL_TOOLTIP_TPL = '<div class="g2-axis-label-tooltip">' +
+  '<div class="g2-tooltip-title">{title}</div>' +
+  '</div>'
+export function configPlotTrendLine(chart, plot) {
+  const senior = JSON.parse(chart.senior)
+  if (!senior?.trendLine?.length || !chart.data?.data?.length) {
+    return
+  }
+  const originData = chart.data.data
+  const originFieldDataMap = {}
+  originData.forEach(item => {
+    if (item.quotaList?.length) {
+      const quota = item.quotaList[0]
+      if (!originFieldDataMap[quota.id]) {
+        originFieldDataMap[quota.id] = []
+      }
+      originFieldDataMap[quota.id].push(item.value)
+    }
+  })
+  const trendResultData = {}
+  const totalData = []
+  const trendLineMap = senior.trendLine.reduce((p, n, i) => {
+    const fieldData = originFieldDataMap[n.fieldId]
+    if (!fieldData?.length) {
+      return p
+    }
+    const regAlgo = REGRESSION_ALGO_MAP[n.algoType]()
+      .x((_, i) => i + 1)
+      .y(d => d)
+    const result = regAlgo(fieldData)
+    const trendId = `${n.fieldId}|${i}`
+    trendResultData[trendId] = result
+    result.forEach(item => {
+      totalData.push({ trendId, index: item[0], value: item[1], color: n.color, field: n.fieldId })
+    })
+    p[trendId] = n
+    return p
+  }, {})
+  if (!totalData.length) {
+    return
+  }
+  const regLine = plot.chart.createView()
+  plot.once('afterrender', () => {
+    for (const trendId in trendResultData) {
+      const trendLine = trendLineMap[trendId]
+      const trendData = trendResultData[trendId]
+      regLine.annotation().text({
+        content: trendLine.name,
+        position: [0, trendData[0][1]],
+        style: {
+          textBaseline: 'bottom',
+          fill: trendLine.color,
+          fontSize: trendLine.fontSize ?? 20,
+          fontWeight: 300
+        },
+        offsetY: 10
+      })
+    }
+    regLine.axis(false)
+    regLine.data(totalData)
+    regLine.line()
+      .position('index*value')
+      .color('color', color => color)
+      .style('trendId', trendId => {
+        const trend = trendLineMap[trendId]
+        return {
+          stroke: trend?.color ?? 'grey',
+          lineDash: trend?.lineType ? getLineDash(trend.lineType) : [0, 0]
+        }
+      })
+      .tooltip(false)
+    regLine.render()
+  })
+}
+export function configAxisLabelLengthLimit(chart, plot) {
+  const customStyle = JSON.parse(chart.customStyle)
+  const { lengthLimit, fontSize, color, show } = customStyle.yAxis.axisLabel
+  if (!lengthLimit || !show) {
+    return
+  }
+  plot.on('axis-label:mouseenter', (e) => {
+    const field = e.target.cfg.delegateObject.component.cfg.field
+    // 先只处理竖轴
+    if (field !== 'field') {
+      return
+    }
+    const realContent = e.target.attrs.text
+    if (realContent.length < lengthLimit || !(realContent?.slice(-3) === '...')) {
+      return
+    }
+    const { x, y } = e
+    const parentNode = e.event.target.parentNode
+    let labelTooltipDom = parentNode.getElementsByClassName('g2-axis-label-tooltip')?.[0]
+    if (!labelTooltipDom) {
+      const title = e.target.cfg.delegateObject.item.name
+      const domStr = substitute(AXIS_LABEL_TOOLTIP_TPL, { title })
+      labelTooltipDom = createDom(domStr)
+      assign(labelTooltipDom.style, AXIS_LABEL_TOOLTIP_STYLE)
+      parentNode.appendChild(labelTooltipDom)
+    } else {
+      labelTooltipDom.getElementsByClassName('g2-tooltip-title')[0].innerHTML = e.target.cfg.delegateObject.item.name
+      labelTooltipDom.style.visibility = 'visible'
+    }
+    const { height, width } = parentNode.getBoundingClientRect()
+    const { offsetHeight, offsetWidth } = labelTooltipDom
+    if (offsetHeight > height || offsetWidth > width) {
+      labelTooltipDom.style.left = labelTooltipDom.style.top = `0px`
+      return
+    }
+    const initPosition = { left: x + 10, top: y + 15 }
+    if (initPosition.left + offsetWidth > width) {
+      initPosition.left = width - offsetWidth - 10
+    }
+    if (initPosition.top + offsetHeight > height) {
+      initPosition.top -= (offsetHeight + 15)
+    }
+    labelTooltipDom.style.left = `${initPosition.left}px`
+    labelTooltipDom.style.top = `${initPosition.top}px`
+    labelTooltipDom.style.color = color
+    labelTooltipDom.style.fontSize = `${fontSize}px`
+  })
+  plot.on('axis-label:mouseleave', (e) => {
+    const field = e.target.cfg.delegateObject.component.cfg.field
+    // 先只处理竖轴
+    if (field !== 'field') {
+      return
+    }
+    const realContent = e.target.attrs.text
+    if (realContent.length < lengthLimit || !(realContent?.slice(-3) === '...')) {
+      return
+    }
+    const parentNode = e.event.target.parentNode
+    const labelTooltipDom = parentNode.getElementsByClassName('g2-axis-label-tooltip')?.[0]
+    if (labelTooltipDom) {
+      labelTooltipDom.style.visibility = 'hidden'
+    }
+  })
+}

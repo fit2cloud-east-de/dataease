@@ -297,9 +297,27 @@ export function exportDataset(data) {
     url: 'dataset/table/exportDataset',
     method: 'post',
     data: data,
+    loading: true
+  })
+}
+
+export function downloadFile(id) {
+  // 初始化仪表板视图缓存
+  return request({
+    url: 'exportCenter/download/' + id,
+    method: 'get',
     loading: true,
     responseType: 'blob'
   })
 }
 
-export default { loadTable, getScene, addGroup, delGroup, addTable, delTable, groupTree, checkCustomDs, exportDataset }
+export function getColumnList(datasource, table) {
+  return request({
+    url: 'dataset/table/getFields',
+    method: 'post',
+    loading: true,
+    data: { dataSourceId: datasource, info: JSON.stringify({ table: table }) }
+  })
+}
+
+export default { loadTable, getScene, addGroup, delGroup, addTable, delTable, groupTree, checkCustomDs, exportDataset, getColumnList }

@@ -435,9 +435,7 @@ public class OracleQueryProvider extends QueryProvider {
         xAxis.add(chartViewFieldDTO);
 
         List<ChartFieldCustomFilterDTO> fieldCustomFilter = new ArrayList<>();
-//        for (ChartFieldCustomFilterDTO chartFieldCustomFilterDTO : OrgFieldCustomFilter) {
-//            fieldCustomFilter.add(chartFieldCustomFilterDTO);
-//        }
+
         ChartFieldCustomFilterDTO chartFieldCustomFilterDTO = new ChartFieldCustomFilterDTO();
         DatasetTableField datasetTableField = new DatasetTableField();
         datasetTableField.setOriginName("ROWNUM");
@@ -476,16 +474,14 @@ public class OracleQueryProvider extends QueryProvider {
                 .tableAlias(String.format(OracleConstants.ALIAS_FIX, String.format(TABLE_ALIAS_PREFIX, 0)))
                 .build();
         setSchema(tableObj, ds);
+        boolean isPage = false;
         List<SQLObj> xFields = new ArrayList<>();
         List<SQLObj> xOrders = new ArrayList<>();
         if (CollectionUtils.isNotEmpty(xAxis)) {
             for (int i = 0; i < xAxis.size(); i++) {
                 ChartViewFieldDTO x = xAxis.get(i);
                 if (x.getOriginName().equalsIgnoreCase("ROWNUM")) {
-                    xFields.add(SQLObj.builder()
-                            .fieldName(x.getOriginName())
-                            .fieldAlias("DE_ROWNUM")
-                            .build());
+                    isPage = true;
                     continue;
                 }
                 String originField;
@@ -526,10 +522,12 @@ public class OracleQueryProvider extends QueryProvider {
         List<SQLObj> fields = new ArrayList<>();
         fields.addAll(xFields);
         List<String> wheres = new ArrayList<>();
+        List<String> pageWheres = new ArrayList<>();
+
         if (customWheres != null) wheres.add(customWheres);
         if (extWheres != null) wheres.add(extWheres);
         if (whereTrees != null) wheres.add(whereTrees);
-        if (oldWhere != null) wheres.add(oldWhere);
+        if (oldWhere != null) pageWheres.add(oldWhere);
         List<SQLObj> groups = new ArrayList<>();
         groups.addAll(xFields);
         // 外层再次套sql
@@ -541,18 +539,42 @@ public class OracleQueryProvider extends QueryProvider {
         st_sql.add("isGroup", false);
         if (CollectionUtils.isNotEmpty(xFields)) st_sql.add("groups", xFields);
         if (CollectionUtils.isNotEmpty(wheres)) st_sql.add("filters", wheres);
+        if (CollectionUtils.isNotEmpty(orders)) st_sql.add("orders", orders);
         if (ObjectUtils.isNotEmpty(tableObj)) st_sql.add("table", tableObj);
         String sql = st_sql.render();
 
         ST st = stg.getInstanceOf("previewSql");
         st.add("isGroup", false);
+        st.add("notUseAs", true);
         SQLObj tableSQL = SQLObj.builder()
                 .tableName(String.format(OracleConstants.BRACKETS, sql))
                 .tableAlias(String.format(TABLE_ALIAS_PREFIX, 1))
                 .build();
-        if (CollectionUtils.isNotEmpty(orders)) st.add("orders", orders);
+        List<SQLObj> xFields2 = new ArrayList<>();
+        xFields2.add(SQLObj.builder()
+                .fieldName(tableSQL.getTableAlias() + ".*")
+                .build());
+        if (isPage) {
+            xFields2.add(SQLObj.builder()
+                    .fieldName("ROWNUM AS DE_ROWNUM")
+                    .fieldAlias("DE_ROWNUM")
+                    .build());
+        }
+
+        if (CollectionUtils.isNotEmpty(xFields)) st.add("groups", xFields2);
         if (ObjectUtils.isNotEmpty(tableSQL)) st.add("table", tableSQL);
-        return st.render();
+        sql = st.render();
+
+        ST st2 = stg.getInstanceOf("previewSql");
+        st2.add("isGroup", false);
+        SQLObj tableSQL2 = SQLObj.builder()
+                .tableName(String.format(OracleConstants.BRACKETS, sql))
+                .tableAlias(String.format(TABLE_ALIAS_PREFIX, 2))
+                .build();
+        if (CollectionUtils.isNotEmpty(pageWheres)) st2.add("filters", pageWheres);
+        if (ObjectUtils.isNotEmpty(tableSQL)) st2.add("table", tableSQL2);
+
+        return st2.render();
     }
 
     @Override
@@ -1542,10 +1564,15 @@ public class OracleQueryProvider extends QueryProvider {
             String whereValue = "";
 
             if (StringUtils.containsIgnoreCase(request.getOperator(), "in")) {
-                whereValue = "('" + StringUtils.join(value, "','") + "')";
+                // 过滤空数据
+                if (value.contains(SQLConstants.EMPTY_SIGN)) {
+                    whereValue = "('" + StringUtils.join(value, "','") + "', '')" + " or " + whereName + " is null ";
+                } else {
+                    whereValue = "('" + StringUtils.join(value, "','") + "')";
+                }
             } else if (StringUtils.containsIgnoreCase(request.getOperator(), "like")) {
                 String keyword = value.get(0).toUpperCase();
-                whereValue = "'%" + keyword + "%'";
+                whereValue = formatLikeValue(keyword);
                 whereName = "upper(" + whereName + ")";
             } else if (StringUtils.containsIgnoreCase(request.getOperator(), "between")) {
                 if (request.getDatasetTableField().getDeType() == 1) {
@@ -1559,7 +1586,12 @@ public class OracleQueryProvider extends QueryProvider {
                     whereValue = String.format(OracleConstants.WHERE_BETWEEN, value.get(0), value.get(1));
                 }
             } else {
-                whereValue = String.format(OracleConstants.WHERE_VALUE_VALUE, value.get(0));
+                // 过滤空数据
+                if (StringUtils.equals(value.get(0), SQLConstants.EMPTY_SIGN)) {
+                    whereValue = String.format(OracleConstants.WHERE_VALUE_VALUE, "") + " or " + whereName + " is null ";
+                } else {
+                    whereValue = String.format(OracleConstants.WHERE_VALUE_VALUE, value.get(0));
+                }
             }
             list.add(SQLObj.builder()
                     .whereField(whereName)
@@ -1567,7 +1599,7 @@ public class OracleQueryProvider extends QueryProvider {
                     .build());
         }
         List<String> strList = new ArrayList<>();
-        list.forEach(ele -> strList.add(ele.getWhereField() + " " + ele.getWhereTermAndValue()));
+        list.forEach(ele -> strList.add("(" + ele.getWhereField() + " " + ele.getWhereTermAndValue() + ")"));
         return CollectionUtils.isNotEmpty(list) ? "(" + String.join(" AND ", strList) + ")" : null;
     }
 
@@ -1595,8 +1627,12 @@ public class OracleQueryProvider extends QueryProvider {
         switch (dateStyle) {
             case "y":
                 return "YYYY";
+            case "y_Q":
+                return "YYYY" + split + "\"Q\"Q";
             case "y_M":
                 return "YYYY" + split + "MM";
+            case "y_W":
+                return "YYYY" + split + "\"W\"IW";
             case "y_M_d":
                 return "YYYY" + split + "MM" + split + "DD";
             case "H_m_s":

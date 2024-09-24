@@ -620,31 +620,35 @@ public class ExtractDataService {
                 script = String.format(streamLoadScript, dorisConfiguration.getUsername(), dorisConfiguration.getPassword(), System.currentTimeMillis(), separator, columns, "APPEND", dataFile, dorisConfiguration.getHost(), dorisConfiguration.getHttpPort(), dorisConfiguration.getDataBase(), TableUtils.tableName(datasetTable.getId()), dataFile);
                 break;
         }
-        BufferedWriter bw = new BufferedWriter(new FileWriter(dataFile));
-        for (String[] strings : dataList) {
-            String content = "";
-            for (int i = 0; i < strings.length; i++) {
-                content = i != strings.length - 1 ? content + strings[i] + separator : content + strings[i];
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(dataFile))) {
+            for (String[] strings : dataList) {
+                String content = "";
+                for (int i = 0; i < strings.length; i++) {
+                    content = i != strings.length - 1 ? content + strings[i] + separator : content + strings[i];
+                }
+                boolean isSetKey = dataTableInfoDTO.isSetKey() && CollectionUtils.isNotEmpty(dataTableInfoDTO.getKeys());
+                if (!isSetKey) {
+                    content = Md5Utils.md5(content) + separator + content;
+                }
+                bw.write(content);
+                bw.newLine();
             }
-            boolean isSetKey = dataTableInfoDTO.isSetKey() && CollectionUtils.isNotEmpty(dataTableInfoDTO.getKeys());
-            if (!isSetKey) {
-                content = Md5Utils.md5(content) + separator + content;
-            }
-            bw.write(content);
-            bw.newLine();
+        } catch (Exception e) {
+            throw e;
         }
-        bw.close();
 
         File scriptFile = new File(root_path + datasetTable.getId() + ".sh");
         scriptFile.createNewFile();
         scriptFile.setExecutable(true);
+        try (BufferedWriter scriptFileBw = new BufferedWriter(new FileWriter(root_path + datasetTable.getId() + ".sh"))) {
+            scriptFileBw.write("#!/bin/sh");
+            scriptFileBw.newLine();
+            scriptFileBw.write(script);
+            scriptFileBw.newLine();
+        } catch (Exception e) {
+            throw e;
+        }
 
-        BufferedWriter scriptFileBw = new BufferedWriter(new FileWriter(root_path + datasetTable.getId() + ".sh"));
-        scriptFileBw.write("#!/bin/sh");
-        scriptFileBw.newLine();
-        scriptFileBw.write(script);
-        scriptFileBw.newLine();
-        scriptFileBw.close();
 
         try {
             Process process = Runtime.getRuntime().exec(root_path + datasetTable.getId() + ".sh");
@@ -665,8 +669,8 @@ public class ExtractDataService {
         } catch (Exception e) {
             throw e;
         } finally {
-//            File deleteFile = new File(root_path + datasetTable.getId() + ".sh");
-//            FileUtils.forceDelete(deleteFile);
+            File deleteFile = new File(root_path + datasetTable.getId() + ".sh");
+            FileUtils.forceDelete(deleteFile);
         }
 
     }
@@ -855,8 +859,6 @@ public class ExtractDataService {
         for (ExcelSheetData excelSheetData : excelSheetDataList) {
             String suffix = excelSheetData.getPath().substring(excelSheetData.getPath().lastIndexOf(".") + 1);
             List<ExcelSheetData> totalSheets = new ArrayList<>();
-            totalSheets = dataSetTableService.excelSheetDataList(new FileInputStream(excelSheetData.getPath()), false);
-
             if (StringUtils.equalsIgnoreCase(suffix, "csv")) {
                 List<TableField> fields = new ArrayList<>();
                 BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(excelSheetData.getPath()), StandardCharsets.UTF_8));
@@ -894,6 +896,8 @@ public class ExtractDataService {
                 csvSheetData.setExcelLabel(excelSheetData.getExcelLabel());
                 csvSheetData.setFieldsMd5(Md5Utils.md5(StringUtils.join(fieldArray, ",")));
                 totalSheets = Arrays.asList(csvSheetData);
+            } else {
+                totalSheets = dataSetTableService.excelSheetDataList(new FileInputStream(excelSheetData.getPath()), false);
             }
 
 
@@ -1120,6 +1124,7 @@ public class ExtractDataService {
             case pg:
                 PgConfiguration pgConfiguration = new Gson().fromJson(datasource.getConfiguration(), PgConfiguration.class);
                 dataMeta = new DatabaseMeta("db", "POSTGRESQL", "Native", pgConfiguration.getHost().trim(), pgConfiguration.getDataBase(), pgConfiguration.getPort().toString(), pgConfiguration.getUsername(), pgConfiguration.getPassword());
+                dataMeta.setPreferredSchemaName(pgConfiguration.getSchema());
                 transMeta.addDatabase(dataMeta);
                 inputSteps = inputStep(transMeta, selectSQL, pgConfiguration);
                 udjcStep = udjc(datasetTableFields, DatasourceTypes.pg, pgConfiguration, isSetKey);
@@ -1336,7 +1341,7 @@ public class ExtractDataService {
                 textFileField.setType("String");
                 outputFields[i] = textFileField;
             }
-            if(!isSetKey){
+            if (!isSetKey) {
                 TextFileField textFileField = new TextFileField();
                 textFileField.setName("dataease_uuid");
                 textFileField.setType("String");
@@ -1357,7 +1362,7 @@ public class ExtractDataService {
 
                 outputFields[i] = textFileField;
             }
-            if(!isSetKey){
+            if (!isSetKey) {
                 TextFileField textFileField = new TextFileField();
                 textFileField.setName("dataease_uuid");
                 textFileField.setType("String");
@@ -1378,7 +1383,7 @@ public class ExtractDataService {
 
                 outputFields[i] = textFileField;
             }
-            if(!isSetKey){
+            if (!isSetKey) {
                 TextFileField textFileField = new TextFileField();
                 textFileField.setName("dataease_uuid");
                 textFileField.setType("String");

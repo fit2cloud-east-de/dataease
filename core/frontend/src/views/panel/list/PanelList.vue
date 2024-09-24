@@ -1,7 +1,10 @@
 <template xmlns:el-col="http://www.w3.org/1999/html">
   <el-col style="padding: 1px 24px 16px 24px">
     <el-col>
-      <el-row style="margin-bottom: 10px">
+      <el-row
+        class="sticky-de-search-panel"
+        style="margin-bottom: 10px"
+      >
         <el-col :span="24">
           <el-input
             v-model="filterText"
@@ -26,9 +29,72 @@
               />
             </el-select>
           </el-input>
+          <el-dropdown
+            trigger="click"
+            @command="sortTypeChange"
+          >
+            <div class="insert-filter filter-icon-span">
+              <svg-icon
+                v-show="curSortType.includes('asc')"
+                class="opt-icon"
+                icon-class="dv-sort-asc"
+              />
+              <svg-icon
+                v-show="curSortType.includes('desc')"
+                class="opt-icon"
+                icon-class="dv-sort-desc"
+              />
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu style="width: 160px">
+                <el-dropdown-item
+                  class="sort-type-normal"
+                  :class="{ 'sort-type-checked': curSortType === 'time_asc' }"
+                  :command="beforeClickItem('time_asc')"
+                >
+                  <span>按创建时间升序</span>
+                  <i
+                    style="margin-left: 4px; line-height: 32px"
+                    class="el-icon-check"
+                  />
+                </el-dropdown-item>
+                <el-dropdown-item
+                  class="sort-type-normal"
+                  :class="{ 'sort-type-checked': curSortType === 'time_desc' }"
+                  :command="beforeClickItem('time_desc')"
+                >
+                  <span>按创建时间降序</span><i
+                    style="margin-left: 4px; line-height: 32px"
+                    class="el-icon-check"
+                  />
+                </el-dropdown-item>
+                <el-divider class="custom-driver" />
+                <el-dropdown-item
+                  class="sort-type-normal"
+                  :class="{ 'sort-type-checked': curSortType === 'name_asc' }"
+                  :command="beforeClickItem('name_asc')"
+                >
+                  <span>按照名称升序</span><i
+                    style="margin-left: 4px; line-height: 32px"
+                    class="el-icon-check"
+                  />
+                </el-dropdown-item>
+                <el-dropdown-item
+                  class="sort-type-normal"
+                  :class="{ 'sort-type-checked': curSortType === 'name_desc' }"
+                  :command="beforeClickItem('name_desc')"
+                >
+                  <span>按照名称降序</span><i
+                    style="margin-left: 4px; line-height: 32px"
+                    class="el-icon-check"
+                  />
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </el-col>
       </el-row>
-      <el-row class="de-tree">
+      <el-row class="de-tree" v-if="hasDataPermission('view', rootDefaultAuth)">
         <span class="header-title">{{ $t('panel.default_panel') }}</span>
         <div class="block">
           <el-tree
@@ -135,7 +201,8 @@
         <span class="header-title">
           {{ $t('panel.panel_list') }}
           <el-button
-            style="float: right; padding-right: 7px; margin-top: -8px"
+            v-if="hasDataPermission('manage', rootAuth)"
+            style="float: right; padding-right: 7px; margin-top: -8px; height: 12px"
             icon="el-icon-plus"
             type="text"
             @click="showEditPanel(newFolder)"
@@ -289,7 +356,7 @@
                         {{ $t('panel.create_public_links') }}
                       </el-dropdown-item>
                       <el-dropdown-item
-                        v-if="data.nodeType === 'panel'"
+                        v-if="data.nodeType === 'panel' && hasDataPermission('manage', rootDefaultAuth)"
                         :disabled="data.isDefault"
                         icon="el-icon-copy-document"
                         :command="beforeClickMore('toDefaultPanel', data, node)"
@@ -375,6 +442,7 @@
         v-dialogDrag
         :title="$t('panel.link_share')"
         :visible.sync="linkVisible"
+        class="link-dialog"
         width="500px"
         @closed="removeLink"
       >
@@ -458,7 +526,8 @@ import { DEFAULT_COMMON_CANVAS_STYLE_STRING } from '@/views/panel/panel'
 import TreeSelector from '@/components/treeSelector'
 import { queryAuthModel } from '@/api/authModel/authModel'
 import msgCfm from '@/components/msgCfm/index'
-import { updateCacheTree } from '@/components/canvas/utils/utils'
+import { deepCopy, updateCacheTree } from '@/components/canvas/utils/utils'
+import treeSort from '@/utils/treeSortUtils'
 
 export default {
   name: 'PanelList',
@@ -466,6 +535,11 @@ export default {
   mixins: [msgCfm],
   data() {
     return {
+      rootAuth: '',
+      rootDefaultAuth: 'view',
+      originResourceTree: [],
+      curSortType: 'time_desc',
+      localSortParams: null,
       lastActiveDefaultPanelId: null, // 激活的节点 在这个节点下面动态放置子节点
       responseSource: 'panelQuery',
       defaultExpansion: false,
@@ -601,18 +675,19 @@ export default {
     },
     filterText(val) {
       this.searchPids = []
-      this.$refs.default_panel_tree.filter(val)
-      this.$refs.panel_list_tree.filter(val)
+      this.$refs.default_panel_tree?.filter(val)
+      this.$refs.panel_list_tree?.filter(val)
     },
     searchType(val) {
       this.searchPids = []
-      this.$refs.default_panel_tree.filter(this.filterText)
-      this.$refs.panel_list_tree.filter(this.filterText)
+      this.$refs.default_panel_tree?.filter(this.filterText)
+      this.$refs.panel_list_tree?.filter(this.filterText)
     }
   },
   beforeDestroy() {
   },
   mounted() {
+    this.loadInit()
     this.clearCanvas()
     this.initCache()
     const routerParam = this.$router.currentRoute.params
@@ -636,6 +711,24 @@ export default {
     }
   },
   methods: {
+    loadInit() {
+      const historyLocalSortType = localStorage.getItem('TreeSort-panel')
+      if (historyLocalSortType) {
+        this.localSortParams = { sortType: historyLocalSortType }
+      } else {
+        this.localSortParams = { sortType: this.curSortType }
+      }
+    },
+    beforeClickItem(type) {
+      return {
+        sortType: type
+      }
+    },
+    sortTypeChange(params) {
+      this.tData = treeSort(this.originResourceTree, this.curSortType, params.sortType)
+      this.curSortType = params.sortType
+      localStorage.setItem('TreeSort-panel', this.curSortType)
+    },
     activeLastNode() {
       this.$nextTick(() => {
         document.querySelector('.is-current').firstChild.click()
@@ -673,9 +766,10 @@ export default {
         updateCacheTree(this.editPanel.optType,
           panelInfo.panelType === 'system' ? 'panel-default-tree' : 'panel-main-tree', panelInfo,
           panelInfo.panelType === 'system' ? this.defaultData : this.tData)
-        if (this.editPanel.optType === 'rename' && panelInfo.id === this.$store.state.panel.panelInfo.id) {
-          this.$store.state.panel.panelInfo.name = panelInfo.name
+        if (this.editPanel.optType === 'rename' && panelInfo.id === this.$store.panel.panelInfo.id) {
+          this.$store.panel.panelInfo.name = panelInfo.name
         }
+        this.originResourceTree = deepCopy(this.tData)
         // 默认展开 同时点击 新增的节点
         if (
           panelInfo &&
@@ -851,7 +945,7 @@ export default {
     },
 
     delete(data) {
-      const title = data.source ? 'commons.cancel_this_dashboard':(data.nodeType === 'folder' ? 'commons.delete_this_folder' : 'commons.delete_this_dashboard')
+      const title = data.source ? 'commons.cancel_this_dashboard' : (data.nodeType === 'folder' ? 'commons.delete_this_folder' : 'commons.delete_this_dashboard')
       const params = {
         title: title,
         type: 'danger',
@@ -864,6 +958,7 @@ export default {
             })
             this.clearCanvas()
             updateCacheTree('delete', 'panel-main-tree', data.id, this.tData)
+            this.originResourceTree = deepCopy(this.tData)
             this.defaultTree(false)
           })
         }
@@ -895,14 +990,26 @@ export default {
     },
     tree(cache = false) {
       const modelInfo = localStorage.getItem('panel-main-tree')
-      const userCache = modelInfo && cache
+      let preParse
+      if (modelInfo) {
+        try {
+          preParse = JSON.parse(modelInfo)
+        } catch (e) {
+          console.warn('panel-main-tree cache error')
+        }
+      }
+      const userCache = preParse && cache
       if (userCache) {
-        this.tData = JSON.parse(modelInfo)
+        this.originResourceTree = preParse
+        this.sortTypeChange(this.localSortParams)
       }
       groupTree(this.groupForm, !userCache).then((res) => {
-        localStorage.setItem('panel-main-tree', JSON.stringify(res.data || []))
+        this.rootAuth = res.data ? res.data[0]?.privileges || '' : ''
+        const resMainData = res.data ? res.data[0]?.children || [] : []
+        localStorage.setItem('panel-main-tree', JSON.stringify(resMainData))
         if (!userCache) {
-          this.tData = res.data || []
+          this.originResourceTree = resMainData
+          this.sortTypeChange(this.localSortParams)
         }
         if (this.responseSource === 'appApply') {
           this.fromAppActive()
@@ -919,41 +1026,53 @@ export default {
         panelType: 'system'
       }
       const modelInfo = localStorage.getItem('panel-default-tree')
-      const userCache = modelInfo && cache
+      let preParse
+      if (modelInfo) {
+        try {
+          preParse = JSON.parse(modelInfo)
+        } catch (e) {
+          console.warn('panel-default-tree cache error')
+        }
+      }
+      const userCache = preParse && cache
 
       if (userCache) {
-        this.defaultData = JSON.parse(modelInfo)
+        this.defaultData = preParse
         if (showFirst && this.defaultData && this.defaultData.length > 0) {
           this.activeDefaultNodeAndClickOnly(this.defaultData[0].id)
         }
       }
-      const currentKey = this.$refs.default_panel_tree.getCurrentKey()
       defaultTree(requestInfo, false).then((res) => {
-        localStorage.setItem('panel-default-tree', JSON.stringify(res.data))
+        this.rootDefaultAuth = res.data ? res.data[0]?.privileges || '' : ''
+        const resDefaultData = res.data ? res.data[0]?.children || [] : []
+        localStorage.setItem('panel-default-tree', JSON.stringify(resDefaultData))
         if (!userCache) {
-          this.defaultData = res.data || []
+          this.defaultData = resDefaultData
           if (showFirst && this.defaultData && this.defaultData.length > 0) {
             this.activeDefaultNodeAndClickOnly(this.defaultData[0].id)
           }
         }
         if (this.filterText) {
           this.$nextTick(() => {
-            this.$refs.default_panel_tree.filter(this.filterText)
+            this.$refs.default_panel_tree?.filter(this.filterText)
           })
         }
-        if (currentKey) {
           this.$nextTick(() => {
-            this.$refs.default_panel_tree.setCurrentKey(currentKey)
+            const currentKey = this.$refs.default_panel_tree?.getCurrentKey()
+            if (currentKey) {
+              this.$nextTick(() =>{
+                this.$refs.default_panel_tree?.setCurrentKey(currentKey)
+              })
+            }
           })
-        }
       })
     },
 
     nodeClick(data, node) {
       if (data.panelType === 'self') {
-        this.$refs.default_panel_tree.setCurrentKey(null)
+        this.$refs.default_panel_tree?.setCurrentKey(null)
       } else {
-        this.$refs.panel_list_tree.setCurrentKey(null)
+        this.$refs.panel_list_tree?.setCurrentKey(null)
       }
       this.lastActiveNode = node
       this.lastActiveNodeData = data
@@ -1044,7 +1163,7 @@ export default {
           // 延迟设置CurrentKey
           _this.$refs.panel_list_tree.setCurrentKey(panelInfo.id)
           // 去除default_tree 的影响
-          _this.$refs.default_panel_tree.setCurrentKey(null)
+          _this.$refs.default_panel_tree?.setCurrentKey(null)
           _this.$nextTick(() => {
             document.querySelector('.is-current').firstChild.click()
             // 如果是仪表板列表的仪表板 直接进入编辑界面
@@ -1061,9 +1180,9 @@ export default {
         const _this = this
         _this.$nextTick(() => {
           // 延迟设置CurrentKey
-          _this.$refs.panel_list_tree.setCurrentKey(panelInfo.id)
+          _this.$refs.panel_list_tree?.setCurrentKey(panelInfo.id)
           // 去除default_tree 的影响
-          _this.$refs.default_panel_tree.setCurrentKey(null)
+          _this.$refs.default_panel_tree?.setCurrentKey(null)
           if (panelInfo.parents) {
             _this.expandedArray = panelInfo.parents
           }
@@ -1078,9 +1197,9 @@ export default {
       if (panelId) {
         const _this = this
         _this.$nextTick(() => {
-          _this.$refs.panel_list_tree.setCurrentKey(null)
+          _this.$refs.panel_list_tree?.setCurrentKey(null)
           // 延迟设置CurrentKey
-          _this.$refs.default_panel_tree.setCurrentKey(panelId)
+          _this.$refs.default_panel_tree?.setCurrentKey(panelId)
           _this.$nextTick(() => {
             document.querySelector('.is-current').firstChild.click()
           })
@@ -1121,6 +1240,7 @@ export default {
       this.moveInfo['optType'] = 'move'
       panelMove(this.moveInfo).then((response) => {
         updateCacheTree('move', 'panel-main-tree', response.data, this.tData)
+        this.originResourceTree = deepCopy(this.tData)
         this.closeMoveGroup()
       })
     },
@@ -1165,6 +1285,21 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+.sticky-de-search-panel {
+  position: sticky;
+  top: 55px;
+  z-index: 10;
+  background: #fff;
+  &::before {
+    content: '';
+    position: absolute;
+    top: -15px;
+    height: 15px;
+    width: 100%;
+    background: #fff;
+  }
+}
+
 .default-expansion {
   height: 40px;
   width: 232px;
@@ -1184,6 +1319,7 @@ export default {
 }
 
 .main-area-input {
+  width: calc(100% - 40px);
   ::v-deep.el-input-group__append {
     width: 70px;
     background: transparent;
@@ -1238,5 +1374,79 @@ export default {
 .father:hover .child {
   /*display: inline;*/
   visibility: visible;
+}
+.link-dialog ::v-deep .el-dialog__title {
+  display: none;
+}
+.link-dialog ::v-deep .el-dialog__body {
+  height: 350px;
+}
+.link-dialog ::v-deep .el-dialog__headerbtn {
+  z-index: 1;
+}
+
+.insert-filter {
+  display: inline-block;
+  font-weight: 400 !important;
+  font-family: '阿里巴巴普惠体 3.0 55 Regular L3';
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--TextPrimary, #1f2329);
+  -webkit-appearance: none;
+  text-align: center;
+  box-sizing: border-box;
+  outline: 0;
+  margin: 0;
+  transition: 0.1s;
+  border-radius: 3px;
+
+  &:active {
+    color: #000;
+    border-color: #3a8ee6;
+    background-color: red;
+    outline: 0;
+  }
+
+  &:hover {
+    background-color: rgba(31, 35, 41, 0.1);
+    color: #3a8ee6;
+  }
+}
+
+.filter-icon-span {
+  border: 1px solid #dcdfe6;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  padding: 7px;
+  margin-left: 8px;
+}
+
+.menu-outer-dv_popper {
+  width: 140px;
+  margin-top: -2px !important;
+
+  .ed-icon {
+    border-radius: 4px;
+  }
+}
+
+.sort-type-normal {
+  display: flex;
+  i {
+    display: none;
+  }
+}
+
+.sort-type-checked {
+  color: #3370ff;
+  i {
+    display: block;
+  }
+}
+
+.custom-driver {
+  margin: 12px 0
 }
 </style>

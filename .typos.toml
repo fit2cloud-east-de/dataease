@@ -10,6 +10,13 @@ SCHEM = "SCHEM"
 wheres = "wheres"
 Wheres = "Wheres"
 Parenthesed = "Parenthesed"
+pogress = "pogress"
+Pogress = "Pogress"
+yoy = "yoy"
+YOY = "YOY"
+Leafs = "Leafs"
+leafs = "leafs"
+hiden = "hiden"
 
 [files]
 extend-exclude = [

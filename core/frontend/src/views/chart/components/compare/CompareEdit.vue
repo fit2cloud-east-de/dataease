@@ -17,8 +17,26 @@
           <el-option
             v-for="field in fieldList"
             :key="field.id"
-            :label="field.name + '(' + $t('chart.' + field.dateStyle) + ')'"
+            :label="fieldFormatter(field)"
             :value="field.id"
+          />
+        </el-select>
+      </el-form-item>
+
+      <el-form-item
+        v-if="isIndicator"
+        :label="$t('chart.datePattern')"
+      >
+        <el-select
+          v-model="dateFormatter"
+          :placeholder="$t('chart.datePattern')"
+          @change="changeDateFormatter"
+        >
+          <el-option
+            v-for="field in dateFormatterList"
+            :key="field.value"
+            :label="field.name"
+            :value="field.value"
           />
         </el-select>
       </el-form-item>
@@ -48,14 +66,20 @@
         <span
           v-else-if="compareItem.compareCalc.resultData === 'percent'"
           class="exp-style"
-        >(本期数据 / 上期数据 - 1) * 100%</span>
+        >(本期数据 / |上期数据| - 1) * 100%</span>
+      </el-form-item>
+
+      <el-form-item :label="$t('chart.tip')">
+        <span
+          class="exp-style"
+        >当对比日期需要过滤时，请使用过滤组件实现过滤；使用视图过滤器，仪表板下钻和联动等功能，会导致结果不一致</span>
       </el-form-item>
     </el-form>
   </div>
 </template>
 
 <script>
-import { compareDayList, compareMonthList, compareYearList } from '@/views/chart/chart/compare'
+import { compareDayList, compareMonthList, compareWeekList, compareYearList } from '@/views/chart/chart/compare'
 
 export default {
   name: 'CompareEdit',
@@ -67,23 +91,40 @@ export default {
     chart: {
       type: Object,
       required: true
+    },
+    dimensionData: {
+      type: Array,
+      required: false
+    },
+    quotaData: {
+      type: Array,
+      required: false
     }
   },
   data() {
     return {
       fieldList: [],
-      compareList: []
+      compareList: [],
+      dateFormatter: 'y_M_d',
+      dateFormatterList: [
+        { name: this.$t('chart.y'), value: 'y' },
+        { name: this.$t('chart.y_W'), value: 'y_W' },
+        { name: this.$t('chart.y_M'), value: 'y_M' },
+        { name: this.$t('chart.y_M_d'), value: 'y_M_d' }
+      ]
     }
   },
   watch: {
     'chart': function() {
       this.initFieldList()
       this.initCompareType()
+      this.initDateFormatter()
     }
   },
   mounted() {
     this.initFieldList()
     this.initCompareType()
+    this.initDateFormatter()
   },
   methods: {
     // 过滤xaxis，extStack所有日期字段
@@ -108,6 +149,12 @@ export default {
         t1.push(...t2)
       }
 
+      if (this.isIndicator) {
+        t1.length = 0
+        t1.push(...this.dimensionData.filter(ele => ele.deType === 1))
+        t1.push(...this.quotaData.filter(ele => ele.deType === 1))
+      }
+
       this.fieldList = t1
       // 如果没有选中字段，则默认选中第一个
       if ((!this.compareItem.compareCalc.field || this.compareItem.compareCalc.field === '') && this.fieldList.length > 0) {
@@ -128,6 +175,9 @@ export default {
           case 'y_M_d':
             this.compareList = compareDayList
             break
+          case 'y_W':
+            this.compareList = compareWeekList
+            break
           default:
             break
         }
@@ -138,6 +188,36 @@ export default {
       if ((!this.compareItem.compareCalc.type || this.compareItem.compareCalc.type === '' || this.compareItem.compareCalc.type === 'none') && this.compareList.length > 0) {
         this.compareItem.compareCalc.type = this.compareList[0].value
       }
+    },
+    changeDateFormatter() {
+      const checkedField = this.fieldList.filter(ele => ele.id === this.compareItem.compareCalc.field)
+      if (checkedField && checkedField.length > 0) {
+        checkedField[0].dateStyle = this.dateFormatter
+        if (!this.compareItem.compareCalc.custom) {
+          this.compareItem.compareCalc.custom = { timeType: 'y_M_d' }
+        }
+        this.compareItem.compareCalc.custom.timeType = this.dateFormatter
+      }
+      this.initCompareType()
+    },
+    initDateFormatter() {
+      const timeType = this.compareItem.compareCalc.custom?.timeType
+      if (this.isIndicator && timeType) {
+        this.dateFormatter = timeType==='0'?'y_M_d':timeType
+        this.changeDateFormatter()
+      }
+    },
+    fieldFormatter(field) {
+      if (this.isIndicator) {
+        return field.name
+      } else {
+        return field.name + '(' + this.$t('chart.' + field.dateStyle) + ')'
+      }
+    }
+  },
+  computed: {
+    isIndicator() {
+      return this.chart.type === 'text'
     }
   }
 }

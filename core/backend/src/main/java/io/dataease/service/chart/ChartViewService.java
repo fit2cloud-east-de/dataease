@@ -11,6 +11,7 @@ import io.dataease.commons.constants.JdbcConstants;
 import io.dataease.commons.model.PluginViewSetImpl;
 import io.dataease.commons.utils.AuthUtils;
 import io.dataease.commons.utils.BeanUtils;
+import io.dataease.commons.utils.DateUtils;
 import io.dataease.commons.utils.LogUtil;
 import io.dataease.controller.request.chart.*;
 import io.dataease.controller.response.ChartDetail;
@@ -52,6 +53,8 @@ import io.dataease.plugins.view.service.ViewPluginService;
 import io.dataease.plugins.xpack.auth.dto.request.ColumnPermissionItem;
 import io.dataease.provider.query.SQLUtils;
 import io.dataease.service.chart.util.ChartDataBuild;
+import io.dataease.service.chart.util.dataForecast.ForecastAlgo;
+import io.dataease.service.chart.util.dataForecast.ForecastAlgoManager;
 import io.dataease.service.dataset.*;
 import io.dataease.service.datasource.DatasourceService;
 import io.dataease.service.engine.EngineService;
@@ -71,8 +74,10 @@ import javax.annotation.Resource;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -333,7 +338,27 @@ public class ChartViewService {
             if (CommonConstants.VIEW_DATA_FROM.TEMPLATE.equals(view.getDataFrom())) {
                 return extendDataService.getChartDataInfo(id, view);
             } else {
-                return calcData(view, request, request.isCache());
+                String[] dsHeader = null;
+                Integer[] dsTypes = null;
+                //downloadType = dataset 为下载原始名字 这里做数据转换模拟 table-info类型图表导出
+                if ("dataset".equals(request.getDownloadType())) {
+                    view.setType("table-info");
+                    view.setIsPlugin(false);
+                    List<DatasetTableField> sourceFields = dataSetTableFieldsService.getFieldsByTableId(view.getTableId());
+                    dsHeader = sourceFields.stream()
+                            .map(DatasetTableField::getName)
+                            .toArray(String[]::new);
+                    dsTypes = sourceFields.stream()
+                            .map(DatasetTableField::getDeType)
+                            .toArray(Integer[]::new);
+                    view.setXAxis(JSONObject.toJSONString(sourceFields));
+                }
+                ChartViewDTO result = calcData(view, request, request.isCache());
+                if ("dataset".equals(request.getDownloadType())) {
+                    result.getData().put("header", dsHeader);
+                    result.getData().put("dsTypes", dsTypes);
+                }
+                return result;
             }
 
         } catch (Exception e) {
@@ -442,9 +467,6 @@ public class ChartViewService {
         }
 
         List<ChartExtFilterRequest> extFilterList = new ArrayList<>();
-        List<ChartExtFilterRequest> filters = new ArrayList<>();
-        List<ChartExtFilterRequest> drillFilters = new ArrayList<>();
-        boolean isDrill = false;
 
         // 判断连接方式，直连或者定时抽取 table.mode
         DatasourceRequest datasourceRequest = new DatasourceRequest();
@@ -498,7 +520,7 @@ public class ChartViewService {
             QueryProvider qp = ProviderFactory.getQueryProvider(ds.getType());
             if (StringUtils.equalsIgnoreCase(table.getType(), DatasetType.DB.name())) {
                 datasourceRequest.setTable(dataTableInfoDTO.getTable());
-                if (StringUtils.equalsIgnoreCase("text", view.getType()) || StringUtils.equalsIgnoreCase("gauge", view.getType()) || StringUtils.equalsIgnoreCase("liquid", view.getType())) {
+                if (StringUtils.equalsIgnoreCase("gauge", view.getType()) || StringUtils.equalsIgnoreCase("liquid", view.getType())) {
                     datasourceRequest.setQuery(qp.getSQLSummary(dataTableInfoDTO.getTable(), yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, view, ds));
                 } else if (StringUtils.containsIgnoreCase(view.getType(), "stack")) {
                     datasourceRequest.setQuery(qp.getSQLStack(dataTableInfoDTO.getTable(), xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, extStack, ds, view));
@@ -517,7 +539,7 @@ public class ChartViewService {
             } else if (StringUtils.equalsIgnoreCase(table.getType(), DatasetType.SQL.name())) {
                 String sql = dataTableInfoDTO.isBase64Encryption() ? new String(java.util.Base64.getDecoder().decode(dataTableInfoDTO.getSql())) : dataTableInfoDTO.getSql();
                 sql = handleVariable(sql, requestList, qp, table, ds);
-                if (StringUtils.equalsIgnoreCase("text", view.getType()) || StringUtils.equalsIgnoreCase("gauge", view.getType()) || StringUtils.equalsIgnoreCase("liquid", view.getType())) {
+                if (StringUtils.equalsIgnoreCase("gauge", view.getType()) || StringUtils.equalsIgnoreCase("liquid", view.getType())) {
                     datasourceRequest.setQuery(qp.getSQLSummaryAsTmp(sql, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, view));
                 } else if (StringUtils.containsIgnoreCase(view.getType(), "stack")) {
                     datasourceRequest.setQuery(qp.getSQLAsTmpStack(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, extStack, view));
@@ -537,7 +559,7 @@ public class ChartViewService {
                 DataTableInfoDTO dt = gson.fromJson(table.getInfo(), DataTableInfoDTO.class);
                 List<DataSetTableUnionDTO> list = dataSetTableUnionService.listByTableId(dt.getList().get(0).getTableId());
                 String sql = dataSetTableService.getCustomSQLDatasource(dt, list, ds);
-                if (StringUtils.equalsIgnoreCase("text", view.getType()) || StringUtils.equalsIgnoreCase("gauge", view.getType()) || StringUtils.equalsIgnoreCase("liquid", view.getType())) {
+                if (StringUtils.equalsIgnoreCase("gauge", view.getType()) || StringUtils.equalsIgnoreCase("liquid", view.getType())) {
                     datasourceRequest.setQuery(qp.getSQLSummaryAsTmp(sql, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, view));
                 } else if (StringUtils.containsIgnoreCase(view.getType(), "stack")) {
                     datasourceRequest.setQuery(qp.getSQLAsTmpStack(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, extStack, view));
@@ -558,7 +580,7 @@ public class ChartViewService {
                 Map<String, Object> sqlMap = dataSetTableService.getUnionSQLDatasource(dt, ds);
                 String sql = (String) sqlMap.get("sql");
 
-                if (StringUtils.equalsIgnoreCase("text", view.getType()) || StringUtils.equalsIgnoreCase("gauge", view.getType()) || StringUtils.equalsIgnoreCase("liquid", view.getType())) {
+                if (StringUtils.equalsIgnoreCase("gauge", view.getType()) || StringUtils.equalsIgnoreCase("liquid", view.getType())) {
                     datasourceRequest.setQuery(qp.getSQLSummaryAsTmp(sql, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, view));
                 } else if (StringUtils.containsIgnoreCase(view.getType(), "stack")) {
                     datasourceRequest.setQuery(qp.getSQLAsTmpStack(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, extStack, view));
@@ -588,7 +610,7 @@ public class ChartViewService {
             String tableName = "ds_" + table.getId().replaceAll("-", "_");
             datasourceRequest.setTable(tableName);
             QueryProvider qp = ProviderFactory.getQueryProvider(ds.getType());
-            if (StringUtils.equalsIgnoreCase("text", view.getType()) || StringUtils.equalsIgnoreCase("gauge", view.getType()) || StringUtils.equalsIgnoreCase("liquid", view.getType())) {
+            if (StringUtils.equalsIgnoreCase("gauge", view.getType()) || StringUtils.equalsIgnoreCase("liquid", view.getType())) {
                 datasourceRequest.setQuery(qp.getSQLSummary(tableName, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, view, ds));
             } else if (StringUtils.containsIgnoreCase(view.getType(), "stack")) {
                 datasourceRequest.setQuery(qp.getSQLStack(tableName, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, extStack, ds, view));
@@ -730,7 +752,11 @@ public class ChartViewService {
                 }
                 if (chartExtRequest.getPageSize() == null) {
                     String pageSize = (String) mapSize.get("tablePageSize");
-                    chartExtRequest.setPageSize(Math.min(Long.parseLong(pageSize), view.getResultCount().longValue()));
+                    if (StringUtils.equalsIgnoreCase(view.getResultMode(), "custom")) {
+                        chartExtRequest.setPageSize(Math.min(Long.parseLong(pageSize), view.getResultCount().longValue()));
+                    } else {
+                        chartExtRequest.setPageSize(Long.parseLong(pageSize));
+                    }
                 }
             } else {
                 if (StringUtils.equalsIgnoreCase(view.getResultMode(), "custom")) {
@@ -755,6 +781,28 @@ public class ChartViewService {
                 }
                 break;
             case "text":
+                xAxis = new ArrayList<>();
+                yAxis = yAxis.stream().filter(item -> chartViewFieldNameList.contains(item.getDataeaseName()) || (!desensitizationList.keySet().contains(item.getDataeaseName()) && dataeaseNames.contains(item.getDataeaseName()))).collect(Collectors.toList());
+                if (CollectionUtils.isEmpty(yAxis)) {
+                    return emptyChartViewDTO(view);
+                }
+                ChartFieldCompareDTO compareCalc = yAxis.get(0).getCompareCalc();
+                boolean isYoy = StringUtils.isNotEmpty(compareCalc.getType()) && !StringUtils.equalsIgnoreCase(compareCalc.getType(),"none");
+                if(isYoy){
+                    List<DatasetTableField> xField = fields.stream().filter(item->StringUtils.equalsIgnoreCase(item.getId(),compareCalc.getField())).collect(Collectors.toList());
+                    if(CollectionUtils.isNotEmpty(xField)){
+                        ChartViewFieldDTO xFieldChartViewFieldDTO = new ChartViewFieldDTO();
+                        org.springframework.beans.BeanUtils.copyProperties(xField.get(0), xFieldChartViewFieldDTO);
+                        xAxis.add(xFieldChartViewFieldDTO);
+                        xAxis.get(0).setSort("desc");
+                        if(Objects.isNull(compareCalc.getCustom())){
+                            xAxis.get(0).setDateStyle("y_M_d");
+                        }else{
+                            xAxis.get(0).setDateStyle(compareCalc.getCustom().getTimeType());
+                        }
+                    }
+                }
+                break;
             case "gauge":
             case "liquid":
                 xAxis = new ArrayList<>();
@@ -831,6 +879,7 @@ public class ChartViewService {
                         ChartExtFilterRequest filterRequest = new ChartExtFilterRequest();
                         BeanUtils.copyBean(filterRequest, request);
                         filterRequest.setDatasetTableFieldList(new ArrayList<>());
+                        filterRequest.setFilterType(0);
                         for (String fId : fieldIds) {
                             DatasetTableField datasetTableField = dataSetTableFieldsService.get(fId);
                             if (datasetTableField == null) {
@@ -856,6 +905,7 @@ public class ChartViewService {
                             ChartExtFilterRequest filterRequest = new ChartExtFilterRequest();
                             BeanUtils.copyBean(filterRequest, request);
                             filterRequest.setFieldId(fId);
+                            filterRequest.setFilterType(0);
 
                             DatasetTableField datasetTableField = dataSetTableFieldsService.get(fId);
                             if (datasetTableField == null) {
@@ -896,6 +946,7 @@ public class ChartViewService {
                 DatasetTableField datasetTableField = dataSetTableFieldsService.get(request.getFieldId());
                 if (!desensitizationList.keySet().contains(datasetTableField.getDataeaseName()) && dataeaseNames.contains(datasetTableField.getDataeaseName())) {
                     request.setDatasetTableField(datasetTableField);
+                    request.setFilterType(2);
                     if (StringUtils.equalsIgnoreCase(datasetTableField.getTableId(), view.getTableId())) {
 //                         设置日期格式，以视图字段设置的格式为准，先不处理组件的条件，因为格式无法统一。
                         if (request.getDatasetTableField() != null) {
@@ -979,7 +1030,6 @@ public class ChartViewService {
                             ChartViewFieldDTO nextDrillField = drill.get(i + 1);
                             if (!checkDrillExist(xAxis, extStack, nextDrillField.getId(), view)) {
                                 // get drill list first element's sort,then assign to nextDrillField
-                                nextDrillField.setSort(getDrillSort(xAxis, drill.get(0)));
                                 nextDrillField.setDrill(true);
 
                                 if (isAntVScatterNumberXAxis) {
@@ -1002,6 +1052,7 @@ public class ChartViewService {
                 tmpFilter.setDatePattern(chartFieldMap.get(tmpField.getId()).getDatePattern());
                 tmpFilter.setFieldId(tmpField.getId());
                 tmpFilter.setValue(Collections.singletonList(dimValMap.get(tmpField.getId())));
+                tmpFilter.setFilterType(1);
                 extFilterList.add(tmpFilter);
                 drillFilters.add(tmpFilter);
             }
@@ -1013,6 +1064,7 @@ public class ChartViewService {
         datasourceRequest.setDatasource(ds);
         Provider datasourceProvider = ProviderFactory.getProvider(ds.getType());
         List<String[]> data = new ArrayList<>();
+        List<String[]> yoyData = new ArrayList<>();
 
         // senior dynamic assist
         DatasourceRequest datasourceAssistRequest = new DatasourceRequest();
@@ -1034,6 +1086,18 @@ public class ChartViewService {
                 || StringUtils.containsIgnoreCase(view.getType(), "table-pivot")) {
             // 动态阈值
             dynamicAssistFields = getDynamicThresholdFields(view);
+            // 明细表非数据列字段要加进来
+            if (StringUtils.containsIgnoreCase(view.getType(), "table-info")) {
+                Set<String> fieldIds = xAxis.stream().map(ChartViewFieldDTO::getId).collect(Collectors.toSet());
+                List<ChartViewFieldDTO> finalXAxis = xAxis;
+                dynamicAssistFields.forEach(i -> {
+                    if (!fieldIds.contains(i.getFieldId())) {
+                        ChartViewFieldDTO fieldDTO = new ChartViewFieldDTO();
+                        BeanUtils.copyBean(fieldDTO, i.getCurField());
+                        finalXAxis.add(fieldDTO);
+                    }
+                });
+            }
             assistFields = getAssistFields(dynamicAssistFields, yAxis, xAxis);
         }
 
@@ -1045,6 +1109,45 @@ public class ChartViewService {
                 ele.setValue(collect);
             }
         }).collect(Collectors.toList());
+
+        // extFilterList，如果参与计算的日期字段有过滤，则多加1年，再请求一次，计算出同环比后，再和正确的过滤结果对比取交集
+        List<ChartViewFieldDTO> tempYAxis = new ArrayList<>();
+        if (CollectionUtils.isNotEmpty(xAxis) && StringUtils.equals(xAxis.get(0).getGroupType(), "q") && StringUtils.equalsIgnoreCase(view.getRender(), "antv")) {
+            //针对散点图scatter处理
+            tempYAxis.add(xAxis.get(0));
+        }
+        tempYAxis.addAll(yAxis);
+        boolean isYOY = false;
+        Gson gson = new Gson();
+        String json = gson.toJson(extFilterList);
+        // 复制一个list，这个是最终正确过滤的结果
+        List<ChartExtFilterRequest> yoyFilterList = gson.fromJson(json, new TypeToken<List<ChartExtFilterRequest>>() {
+        }.getType());
+        for (ChartExtFilterRequest filterDTO : extFilterList) {
+            for (ChartViewFieldDTO chartViewFieldDTO : tempYAxis) {
+                ChartFieldCompareDTO compareCalc = chartViewFieldDTO.getCompareCalc();
+                if (ObjectUtils.isEmpty(compareCalc)) {
+                    continue;
+                }
+                if (StringUtils.isNotEmpty(compareCalc.getType())
+                        && !StringUtils.equalsIgnoreCase(compareCalc.getType(), "none")) {
+                    if (Arrays.asList(ChartConstants.M_Y).contains(compareCalc.getType())) {
+                        if (StringUtils.equalsIgnoreCase(compareCalc.getField() + "", filterDTO.getFieldId()) && filterDTO.getFilterType() == 0) {
+                            // -1 year
+                            try {
+                                Calendar calendar = Calendar.getInstance();
+                                calendar.setTime(new Date(Long.parseLong(filterDTO.getValue().get(0))));
+                                calendar.add(Calendar.YEAR, -1);
+                                filterDTO.getValue().set(0, String.valueOf(calendar.getTime().getTime()));
+                                isYOY = true;
+                            } catch (Exception e) {
+
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // 如果是插件视图 走插件内部的逻辑
         if (ObjectUtils.isNotEmpty(view.getIsPlugin()) && view.getIsPlugin()) {
@@ -1059,7 +1162,9 @@ public class ChartViewService {
                 xAxis.addAll(xAxisExtList);
             }
             fieldMap.put("xAxis", xAxis);
-            fieldMap.put("xAxisExt", xAxisExt);
+            if (!StringUtils.equals(view.getType(), "race-bar")) {
+                fieldMap.put("xAxisExt", xAxisExt);
+            }
             fieldMap.put("extStack", extStack);
             fieldMap.put("extBubble", extBubble);
             fieldMap.put("yAxis", yAxis);
@@ -1068,18 +1173,54 @@ public class ChartViewService {
             if (StringUtils.isBlank(sql)) {
                 return emptyChartViewDTO(view);
             }
+            logger.info("plugin_sql:" + sql);
             datasourceRequest.setQuery(sql);
             data = datasourceProvider.getData(datasourceRequest);
+            data = resultCustomSort(xAxis, data);
 
+            // 插件同环比
+            data = pluginViewYOY(pluginViewParam, view, data);
+
+            // 请求正确的数据，然后取值
+            if (isYOY) {
+                PluginViewParam yoyPluginViewParam = buildPluginParam(fieldMap, fieldCustomFilter, yoyFilterList, ds, table, view, rowPermissionsTree, chartExtRequest);
+                String yoySql = pluginViewSql(yoyPluginViewParam, view);
+                if (StringUtils.isBlank(yoySql)) {
+                    return emptyChartViewDTO(view);
+                }
+                logger.info("plugin_yoy_sql:" + yoySql);
+                datasourceRequest.setQuery(yoySql);
+                yoyData = datasourceProvider.getData(datasourceRequest);
+                List<String[]> resultData = new ArrayList<>();
+                for (String[] res1 : data) {
+                    StringBuilder x1 = new StringBuilder();
+                    for (int i = 0; i < xAxis.size(); i++) {
+                        x1.append(res1[i]);
+                    }
+                    for (String[] res2 : yoyData) {
+                        StringBuilder x2 = new StringBuilder();
+                        for (int i = 0; i < xAxis.size(); i++) {
+                            x2.append(res2[i]);
+                        }
+                        if (StringUtils.equals(x1, x2)) {
+                            resultData.add(res1);
+                            break;
+                        }
+                    }
+                }
+                data.clear();
+                data.addAll(resultData);
+            }
             Map<String, Object> mapChart = pluginViewResult(pluginViewParam, view, data, isDrill);
-            logger.info("plugin_sql:" + sql);
+
             Map<String, Object> mapTableNormal = ChartDataBuild.transTableNormal(fieldMap, view, data, desensitizationList);
 
-            return uniteViewResult(datasourceRequest.getQuery(), mapChart, mapTableNormal, view, isDrill, drillFilters, dynamicAssistFields, assistData);
+            return uniteViewResult(datasourceRequest.getQuery(), mapChart, mapTableNormal, view, isDrill, drillFilters, dynamicAssistFields, assistData, Collections.emptyList());
             // 如果是插件到此结束
         }
 
         String querySql = null;
+        String yoySql = null;
         long totalPage = 0l;
         long totalItems = 0l;
         String totalPageSql = null;
@@ -1110,17 +1251,29 @@ public class ChartViewService {
             QueryProvider qp = ProviderFactory.getQueryProvider(ds.getType());
             if (StringUtils.equalsIgnoreCase(table.getType(), DatasetType.DB.name())) {
                 datasourceRequest.setTable(dataTableInfoDTO.getTable());
-                if (StringUtils.equalsAnyIgnoreCase(view.getType(), "text", "gauge", "liquid")) {
+                if (StringUtils.equalsAnyIgnoreCase(view.getType(), "gauge", "liquid")) {
                     querySql = qp.getSQLSummary(dataTableInfoDTO.getTable(), yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, view, ds);
+                    if (isYOY) {
+                        yoySql = qp.getSQLSummary(dataTableInfoDTO.getTable(), yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, view, ds);
+                    }
                 } else if (StringUtils.containsIgnoreCase(view.getType(), "stack")) {
                     querySql = qp.getSQLStack(dataTableInfoDTO.getTable(), xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, extStack, ds, view);
+                    if (isYOY) {
+                        yoySql = qp.getSQLStack(dataTableInfoDTO.getTable(), xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, extStack, ds, view);
+                    }
                 } else if (StringUtils.containsIgnoreCase(view.getType(), "scatter")) {
                     querySql = qp.getSQLScatter(dataTableInfoDTO.getTable(), xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, extBubble, extStack, ds, view);
+                    if (isYOY) {
+                        yoySql = qp.getSQLScatter(dataTableInfoDTO.getTable(), xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, extBubble, extStack, ds, view);
+                    }
                 } else if (StringUtils.equalsIgnoreCase("table-info", view.getType())) {
                     querySql = qp.getSQLWithPage(true, dataTableInfoDTO.getTable(), xAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, ds, view, pageInfo);
                     totalPageSql = qp.getResultCount(true, dataTableInfoDTO.getTable(), xAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, ds, view);
                 } else if (StringUtils.equalsIgnoreCase("bar-time-range", view.getType())) {
                     querySql = qp.getSQLRangeBar(dataTableInfoDTO.getTable(), xAxisBase, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, extStack, ds, view);
+                    if (isYOY) {
+                        yoySql = qp.getSQLRangeBar(dataTableInfoDTO.getTable(), xAxisBase, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, extStack, ds, view);
+                    }
                 } else {
                     querySql = qp.getSQL(dataTableInfoDTO.getTable(), xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, ds, view);
                     if (containDetailField(view) && CollectionUtils.isNotEmpty(viewFields)) {
@@ -1131,23 +1284,37 @@ public class ChartViewService {
                         detailFieldSql = qp.getSQLWithPage(true, dataTableInfoDTO.getTable(), detailFieldList, fieldCustomFilter, rowPermissionsTree, extFilterList, ds, view, pageInfo);
                         view.setResultMode(resultMode);
                     }
+                    if (isYOY) {
+                        yoySql = qp.getSQL(dataTableInfoDTO.getTable(), xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, ds, view);
+                    }
                 }
             } else if (StringUtils.equalsIgnoreCase(table.getType(), DatasetType.SQL.name())) {
                 String sql = dataTableInfoDTO.isBase64Encryption() ? new String(java.util.Base64.getDecoder().decode(dataTableInfoDTO.getSql())) : dataTableInfoDTO.getSql();
                 sql = handleVariable(sql, chartExtRequest, qp, table, ds);
-                if (StringUtils.equalsAnyIgnoreCase(view.getType(), "text", "gauge", "liquid")) {
+                if (StringUtils.equalsAnyIgnoreCase(view.getType(), "gauge", "liquid")) {
                     querySql = qp.getSQLSummaryAsTmp(sql, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, view);
+                    if (isYOY) {
+                        yoySql = qp.getSQLSummaryAsTmp(sql, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, view);
+                    }
                 } else if (StringUtils.containsIgnoreCase(view.getType(), "stack")) {
                     querySql = qp.getSQLAsTmpStack(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, extStack, view);
+                    if (isYOY) {
+                        yoySql = qp.getSQLAsTmpStack(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, extStack, view);
+                    }
                 } else if (StringUtils.containsIgnoreCase(view.getType(), "scatter")) {
                     querySql = qp.getSQLAsTmpScatter(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, extBubble, extStack, view);
+                    if (isYOY) {
+                        yoySql = qp.getSQLAsTmpScatter(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, extBubble, extStack, view);
+                    }
                 } else if (StringUtils.equalsIgnoreCase("table-info", view.getType())) {
                     querySql = qp.getSQLWithPage(false, sql, xAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, ds, view, pageInfo);
                     totalPageSql = qp.getResultCount(false, sql, xAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, ds, view);
                 } else if (StringUtils.equalsIgnoreCase("bar-time-range", view.getType())) {
 
                     querySql = qp.getSQLAsTmpRangeBar(sql, xAxisBase, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, extStack, view);
-
+                    if (isYOY) {
+                        yoySql = qp.getSQLAsTmpRangeBar(sql, xAxisBase, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, extStack, view);
+                    }
                 } else {
                     querySql = qp.getSQLAsTmp(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, view);
                     if (containDetailField(view) && CollectionUtils.isNotEmpty(viewFields)) {
@@ -1157,24 +1324,38 @@ public class ChartViewService {
                         view.setResultMode(null);
                         detailFieldSql = qp.getSQLWithPage(false, sql, detailFieldList, fieldCustomFilter, rowPermissionsTree, extFilterList, ds, view, pageInfo);
                         view.setResultMode(resultMode);
+                    }
+                    if (isYOY) {
+                        yoySql = qp.getSQLAsTmp(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, view);
                     }
                 }
             } else if (StringUtils.equalsIgnoreCase(table.getType(), DatasetType.CUSTOM.name())) {
                 DataTableInfoDTO dt = gson.fromJson(table.getInfo(), DataTableInfoDTO.class);
                 List<DataSetTableUnionDTO> list = dataSetTableUnionService.listByTableId(dt.getList().get(0).getTableId());
                 String sql = dataSetTableService.getCustomSQLDatasource(dt, list, ds);
-                if (StringUtils.equalsAnyIgnoreCase(view.getType(), "text", "gauge", "liquid")) {
+                if (StringUtils.equalsAnyIgnoreCase(view.getType(), "gauge", "liquid")) {
                     querySql = qp.getSQLSummaryAsTmp(sql, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, view);
+                    if (isYOY) {
+                        yoySql = qp.getSQLSummaryAsTmp(sql, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, view);
+                    }
                 } else if (StringUtils.containsIgnoreCase(view.getType(), "stack")) {
                     querySql = qp.getSQLAsTmpStack(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, extStack, view);
+                    if (isYOY) {
+                        yoySql = qp.getSQLAsTmpStack(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, extStack, view);
+                    }
                 } else if (StringUtils.containsIgnoreCase(view.getType(), "scatter")) {
                     querySql = qp.getSQLAsTmpScatter(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, extBubble, extStack, view);
+                    if (isYOY) {
+                        yoySql = qp.getSQLAsTmpScatter(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, extBubble, extStack, view);
+                    }
                 } else if (StringUtils.equalsIgnoreCase("table-info", view.getType())) {
                     querySql = qp.getSQLWithPage(false, sql, xAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, ds, view, pageInfo);
                     totalPageSql = qp.getResultCount(false, sql, xAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, ds, view);
                 } else if (StringUtils.equalsIgnoreCase("bar-time-range", view.getType())) {
                     querySql = qp.getSQLAsTmpRangeBar(sql, xAxisBase, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, extStack, view);
-
+                    if (isYOY) {
+                        yoySql = qp.getSQLAsTmpRangeBar(sql, xAxisBase, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, extStack, view);
+                    }
                 } else {
                     querySql = qp.getSQLAsTmp(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, view);
                     if (containDetailField(view) && CollectionUtils.isNotEmpty(viewFields)) {
@@ -1185,24 +1366,38 @@ public class ChartViewService {
                         detailFieldSql = qp.getSQLWithPage(false, sql, detailFieldList, fieldCustomFilter, rowPermissionsTree, extFilterList, ds, view, pageInfo);
                         view.setResultMode(resultMode);
                     }
+                    if (isYOY) {
+                        yoySql = qp.getSQLAsTmp(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, view);
+                    }
                 }
             } else if (StringUtils.equalsIgnoreCase(table.getType(), DatasetType.UNION.name())) {
                 DataTableInfoDTO dt = gson.fromJson(table.getInfo(), DataTableInfoDTO.class);
                 Map<String, Object> sqlMap = dataSetTableService.getUnionSQLDatasource(dt, ds);
                 String sql = (String) sqlMap.get("sql");
-                if (StringUtils.equalsAnyIgnoreCase(view.getType(), "text", "gauge", "liquid")) {
+                if (StringUtils.equalsAnyIgnoreCase(view.getType(), "gauge", "liquid")) {
                     querySql = qp.getSQLSummaryAsTmp(sql, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, view);
+                    if (isYOY) {
+                        yoySql = qp.getSQLSummaryAsTmp(sql, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, view);
+                    }
                 } else if (StringUtils.containsIgnoreCase(view.getType(), "stack")) {
                     querySql = qp.getSQLAsTmpStack(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, extStack, view);
+                    if (isYOY) {
+                        yoySql = qp.getSQLAsTmpStack(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, extStack, view);
+                    }
                 } else if (StringUtils.containsIgnoreCase(view.getType(), "scatter")) {
                     querySql = qp.getSQLAsTmpScatter(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, extBubble, extStack, view);
+                    if (isYOY) {
+                        yoySql = qp.getSQLAsTmpScatter(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, extBubble, extStack, view);
+                    }
                 } else if (StringUtils.equalsIgnoreCase("table-info", view.getType())) {
                     querySql = qp.getSQLWithPage(false, sql, xAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, ds, view, pageInfo);
                     totalPageSql = qp.getResultCount(false, sql, xAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, ds, view);
                 } else if (StringUtils.equalsIgnoreCase("bar-time-range", view.getType())) {
 
                     querySql = qp.getSQLAsTmpRangeBar(sql, xAxisBase, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, extStack, view);
-
+                    if (isYOY) {
+                        yoySql = qp.getSQLAsTmpRangeBar(sql, xAxisBase, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, extStack, view);
+                    }
                 } else {
                     querySql = qp.getSQLAsTmp(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, view);
                     if (containDetailField(view) && CollectionUtils.isNotEmpty(viewFields)) {
@@ -1212,6 +1407,9 @@ public class ChartViewService {
                         view.setResultMode(null);
                         detailFieldSql = qp.getSQLWithPage(false, sql, detailFieldList, fieldCustomFilter, rowPermissionsTree, extFilterList, ds, view, pageInfo);
                         view.setResultMode(resultMode);
+                    }
+                    if (isYOY) {
+                        yoySql = qp.getSQLAsTmp(sql, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, view);
                     }
                 }
             }
@@ -1244,25 +1442,43 @@ public class ChartViewService {
                 datasourceRequest.setQuery(detailFieldSql);
                 detailData = datasourceProvider.getData(datasourceRequest);
             }
+
+            // 请求正确过滤的data
+            if (isYOY) {
+                datasourceRequest.setQuery(yoySql);
+                logger.info("calcite chart sql real yoy: " + yoySql);
+                yoyData = datasourceProvider.getData(datasourceRequest);
+            }
         } else if (table.getMode() == 1) {// 抽取
             // 连接doris，构建doris数据源查询
             datasourceRequest.setDatasource(ds);
             String tableName = "ds_" + table.getId().replaceAll("-", "_");
             datasourceRequest.setTable(tableName);
             QueryProvider qp = ProviderFactory.getQueryProvider(ds.getType());
-            if (StringUtils.equalsAnyIgnoreCase(view.getType(), "text", "gauge", "liquid")) {
+            if (StringUtils.equalsAnyIgnoreCase(view.getType(), "gauge", "liquid")) {
                 datasourceRequest.setQuery(qp.getSQLSummary(tableName, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, view, ds));
+                if (isYOY) {
+                    yoySql = qp.getSQLSummary(tableName, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, view, ds);
+                }
             } else if (StringUtils.containsIgnoreCase(view.getType(), "stack")) {
                 datasourceRequest.setQuery(qp.getSQLStack(tableName, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, extStack, ds, view));
+                if (isYOY) {
+                    yoySql = qp.getSQLStack(tableName, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, extStack, ds, view);
+                }
             } else if (StringUtils.containsIgnoreCase(view.getType(), "scatter")) {
                 datasourceRequest.setQuery(qp.getSQLScatter(tableName, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, extBubble, extStack, ds, view));
+                if (isYOY) {
+                    yoySql = qp.getSQLScatter(tableName, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, extBubble, extStack, ds, view);
+                }
             } else if (StringUtils.equalsIgnoreCase("table-info", view.getType())) {
                 querySql = qp.getSQLWithPage(true, tableName, xAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, ds, view, pageInfo);
+                datasourceRequest.setQuery(querySql);
                 totalPageSql = qp.getResultCount(true, tableName, xAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, ds, view);
             } else if (StringUtils.equalsIgnoreCase("bar-time-range", view.getType())) {
-
                 datasourceRequest.setQuery(qp.getSQLRangeBar(tableName, xAxisBase, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, extStack, ds, view));
-
+                if (isYOY) {
+                    yoySql = qp.getSQLRangeBar(tableName, xAxisBase, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, extStack, ds, view);
+                }
             } else {
                 datasourceRequest.setQuery(qp.getSQL(tableName, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, extFilterList, ds, view));
                 if (containDetailField(view) && CollectionUtils.isNotEmpty(viewFields)) {
@@ -1272,6 +1488,9 @@ public class ChartViewService {
                     view.setResultMode(null);
                     detailFieldSql = qp.getSQLTableInfo(tableName, detailFieldList, fieldCustomFilter, rowPermissionsTree, extFilterList, ds, view);
                     view.setResultMode(resultMode);
+                }
+                if (isYOY) {
+                    yoySql = qp.getSQL(tableName, xAxis, yAxis, fieldCustomFilter, rowPermissionsTree, yoyFilterList, ds, view);
                 }
             }
             // 分页
@@ -1285,6 +1504,9 @@ public class ChartViewService {
             }
 
             if (CollectionUtils.isNotEmpty(assistFields)) {
+                if (StringUtils.equalsIgnoreCase("table-info", view.getType())) {
+                    datasourceRequest.setQuery(querySql);
+                }
                 datasourceAssistRequest.setQuery(assistSQL(datasourceRequest.getQuery(), assistFields, ds));
                 logger.info(datasourceAssistRequest.getQuery());
                 assistData = datasourceProvider.getData(datasourceAssistRequest);
@@ -1317,6 +1539,13 @@ public class ChartViewService {
                 datasourceRequest.setQuery(detailFieldSql);
                 detailData = datasourceProvider.getData(datasourceRequest);
             }
+
+            // 请求正确过滤的data
+            if (isYOY) {
+                datasourceRequest.setQuery(yoySql);
+                logger.info("calcite chart sql real yoy: " + yoySql);
+                yoyData = datasourceProvider.getData(datasourceRequest);
+            }
         }
         // 自定义排序
         if (StringUtils.containsIgnoreCase(view.getType(), "stack")) {
@@ -1328,22 +1557,26 @@ public class ChartViewService {
             data = resultCustomSort(xAxis, data);
         }
         // 如果是表格导出查询 则在此处直接就可以返回
-        if(chartExtRequest.getExcelExportFlag()){
-            Map<String,Object> sourceInfo = new HashMap<>();
-            sourceInfo.put("sourceData",data);
-            chartViewDTO.setData(sourceInfo);
-            return chartViewDTO;
+        if (chartExtRequest.getExcelExportFlag()) {
+            Map<String, Object> sourceInfo = ChartDataBuild.transTableNormal(xAxis, yAxis, view, data, extStack, desensitizationList);
+            sourceInfo.put("sourceData", data);
+            view.setData(sourceInfo);
+            return view;
         }
         // 同比/环比计算，通过对比类型和数据设置，计算出对应指标的结果，然后替换结果data数组中的对应元素
         // 如果因维度变化（如时间字段缺失，时间字段的展示格式变化）导致无法计算结果的，则结果data数组中的对应元素全置为null
         // 根据不同图表类型，获得需要替换的指标index array
-        List<ChartViewFieldDTO> tempYAxis = new ArrayList<>();
-        if (CollectionUtils.isNotEmpty(xAxis) && StringUtils.equals(xAxis.get(0).getGroupType(), "q") && StringUtils.equalsIgnoreCase(view.getRender(), "antv")) {
-            //针对散点图scatter处理
-            tempYAxis.add(xAxis.get(0));
-        }
-        tempYAxis.addAll(yAxis);
 
+        // forecast
+        List<? extends ForecastDataVO<?, ?>> forecastData = Collections.emptyList();
+        JSONObject senior = JSONObject.parseObject(view.getSenior());
+        JSONObject forecastObj = senior.getJSONObject("forecastCfg");
+        if (forecastObj != null) {
+            ChartSeniorForecastDTO forecastCfg = forecastObj.toJavaObject(ChartSeniorForecastDTO.class);
+            if (forecastCfg.isEnable()) {
+                forecastData = forecastData(forecastCfg, data, xAxis, yAxis, view);
+            }
+        }
         for (int i = 0; i < tempYAxis.size(); i++) {
             ChartViewFieldDTO chartViewFieldDTO = tempYAxis.get(i);
             ChartFieldCompareDTO compareCalc = chartViewFieldDTO.getCompareCalc();
@@ -1398,7 +1631,7 @@ public class ChartViewService {
                             String cValue = item[dataIndex];
 
                             // 获取计算后的时间，并且与所有维度拼接
-                            String lastTime = calcLastTime(cTime, compareCalc.getType(), timeField.getDateStyle(), timeField.getDatePattern());
+                            String lastTime = calcLastTime(cTime, compareCalc.getType(), timeField.getDateStyle(), timeField.getDatePattern(), ds);
                             String[] dimension = Arrays.copyOfRange(item, 0, checkedField.size());
                             dimension[timeIndex] = lastTime;
 
@@ -1413,7 +1646,7 @@ public class ChartViewService {
                                         item[dataIndex] = null;
                                     } else {
                                         item[dataIndex] = new BigDecimal(cValue)
-                                                .divide(new BigDecimal(lastValue), 8, RoundingMode.HALF_UP)
+                                                .divide(new BigDecimal(lastValue).abs(), 8, RoundingMode.HALF_UP)
                                                 .subtract(new BigDecimal(1))
                                                 .setScale(8, RoundingMode.HALF_UP)
                                                 .toString();
@@ -1447,8 +1680,111 @@ public class ChartViewService {
                                 .divide(sum, 8, RoundingMode.HALF_UP)
                                 .toString();
                     }
+                } else if (StringUtils.equalsIgnoreCase(compareCalc.getType(), "accumulate")) {
+                    // 累加
+                    if (data.isEmpty()) {
+                        break;
+                    }
+                    if (StringUtils.containsAny(view.getType(), "group", "stack")) {
+                        if (xAxisBase.isEmpty()) {
+                            break;
+                        }
+                        if (StringUtils.containsIgnoreCase(view.getType(), "stack") && extStack.isEmpty()) {
+                            break;
+                        }
+                        if (StringUtils.containsIgnoreCase(view.getType(), "group") && xAxisExt.isEmpty()) {
+                            break;
+                        }
+                        final Map<String, Integer> mainIndexMap = new HashMap<>();
+                        final List<List<String[]>> mainMatrix = new ArrayList<>();
+                        List<ChartViewFieldDTO> finalXAxisBase = xAxisBase;
+                        data.forEach(item -> {
+                            String[] mainAxisArr = Arrays.copyOfRange(item, 0, finalXAxisBase.size());
+                            String mainAxis = StringUtils.join(mainAxisArr, '-');
+                            Integer index = mainIndexMap.get(mainAxis);
+                            if (index == null) {
+                                mainIndexMap.put(mainAxis, mainMatrix.size());
+                                List<String[]> tmp = new ArrayList<>();
+                                tmp.add(item);
+                                mainMatrix.add(tmp);
+                            } else {
+                                List<String[]> tmp = mainMatrix.get(index);
+                                tmp.add(item);
+                            }
+                        });
+                        int finalDataIndex = dataIndex;
+                        int subEndIndex = finalXAxisBase.size();
+                        if (StringUtils.containsIgnoreCase(view.getType(), "group")) {
+                            subEndIndex += xAxisExt.size();
+                        }
+                        if (StringUtils.containsIgnoreCase(view.getType(), "stack")) {
+                            subEndIndex += extStack.size();
+                        }
+                        int finalSubEndIndex = subEndIndex;
+                        //滑动累加
+                        for (int k = 1; k < mainMatrix.size(); k++) {
+                            List<String[]> preDataItems = mainMatrix.get(k - 1);
+                            List<String[]> curDataItems = mainMatrix.get(k);
+                            Map<String, BigDecimal> preDataMap = new HashMap<>();
+                            preDataItems.forEach(preDataItem -> {
+                                String[] groupStackAxisArr = Arrays.copyOfRange(preDataItem, finalXAxisBase.size(), finalSubEndIndex);
+                                String groupStackAxis = StringUtils.join(groupStackAxisArr, '-');
+                                String preVal = preDataItem[finalDataIndex];
+                                if (StringUtils.isBlank(preVal)) {
+                                    preVal = "0";
+                                }
+                                preDataMap.put(groupStackAxis, new BigDecimal(preVal));
+                            });
+                            curDataItems.forEach(curDataItem -> {
+                                String[] groupStackAxisArr = Arrays.copyOfRange(curDataItem, finalXAxisBase.size(), finalSubEndIndex);
+                                String groupStackAxis = StringUtils.join(groupStackAxisArr, '-');
+                                BigDecimal preValue = preDataMap.get(groupStackAxis);
+                                if (preValue != null) {
+                                    curDataItem[finalDataIndex] = new BigDecimal(curDataItem[finalDataIndex])
+                                            .add(preValue)
+                                            .toString();
+                                }
+                            });
+                        }
+                    } else {
+                        final int index = dataIndex;
+                        final AtomicReference<BigDecimal> accumValue = new AtomicReference<>(new BigDecimal(0));
+                        data.forEach(item -> {
+                            String val = item[index];
+                            BigDecimal curAccumValue = accumValue.get();
+                            if (!StringUtils.isBlank(val)) {
+                                BigDecimal curVal = new BigDecimal(val);
+                                curAccumValue = curAccumValue.add(curVal);
+                                accumValue.set(curAccumValue);
+                            }
+                            item[index] = curAccumValue.toString();
+                        });
+                    }
                 }
             }
+        }
+
+        // 如果同环比有横轴日期过滤，过滤掉不要的数据
+        if (isYOY) {
+            List<String[]> resultData = new ArrayList<>();
+            for (String[] res1 : data) {
+                StringBuilder x1 = new StringBuilder();
+                for (int i = 0; i < xAxis.size(); i++) {
+                    x1.append(res1[i]);
+                }
+                for (String[] res2 : yoyData) {
+                    StringBuilder x2 = new StringBuilder();
+                    for (int i = 0; i < xAxis.size(); i++) {
+                        x2.append(res2[i]);
+                    }
+                    if (StringUtils.equals(x1, x2)) {
+                        resultData.add(res1);
+                        break;
+                    }
+                }
+            }
+            data.clear();
+            data.addAll(resultData);
         }
 
         // 构建结果
@@ -1525,10 +1861,41 @@ public class ChartViewService {
 
             mapTableNormal = ChartDataBuild.transTableNormal(xAxis, yAxis, view, data, extStack, desensitizationList);
         }
-        chartViewDTO = uniteViewResult(datasourceRequest.getQuery(), mapChart, mapTableNormal, view, isDrill, drillFilters, dynamicAssistFields, assistData);
+        chartViewDTO = uniteViewResult(datasourceRequest.getQuery(), mapChart, mapTableNormal, view, isDrill, drillFilters, dynamicAssistFields, assistData, forecastData);
         chartViewDTO.setTotalPage(totalPage);
         chartViewDTO.setTotalItems(totalItems);
         return chartViewDTO;
+    }
+
+    private List<? extends ForecastDataVO<?, ?>> forecastData(ChartSeniorForecastDTO forecastCfg, List<String[]> data, List<ChartViewFieldDTO> xAxis, List<ChartViewFieldDTO> yAxis, ChartViewDTO view) throws ParseException {
+        List<String[]> trainingData = data;
+        if (!forecastCfg.isAllPeriod() && data.size() > forecastCfg.getTrainingPeriod()) {
+            trainingData = data.subList(data.size() - forecastCfg.getTrainingPeriod(), data.size() - 1);
+        }
+        if (xAxis.size() == 1 && xAxis.get(0).getDeType() == 1) {
+            // 先处理时间类型, 默认数据是有序递增的
+            String lastTime = data.get(data.size() - 1)[0];
+            ChartViewFieldDTO timeAxis = xAxis.get(0);
+            List<String> forecastPeriod = DateUtils.getForecastPeriod(lastTime, forecastCfg.getPeriod(), timeAxis.getDateStyle(), timeAxis.getDatePattern());
+            if (!forecastPeriod.isEmpty()) {
+                ForecastAlgo algo = ForecastAlgoManager.getAlgo(forecastCfg.getAlgorithm());
+                List<ForecastDataDTO> forecastData = algo.forecast(forecastCfg, trainingData, view);
+                if (forecastPeriod.size() == forecastData.size()) {
+                    List<ForecastDataVO<String, Double>> result = new ArrayList<>();
+                    for (int i = 0; i < forecastPeriod.size(); i++) {
+                        String period = forecastPeriod.get(i);
+                        ForecastDataDTO forecastDataItem = forecastData.get(i);
+                        ForecastDataVO<String, Double> tmp = new ForecastDataVO<>();
+                        BeanUtils.copyBean(tmp, forecastDataItem);
+                        tmp.setDimension(period);
+                        tmp.setQuota(forecastDataItem.getYVal());
+                        result.add(tmp);
+                    }
+                    return result;
+                }
+            }
+        }
+        return List.of();
     }
 
     // 对结果排序
@@ -1587,11 +1954,12 @@ public class ChartViewService {
         return "SELECT " + stringBuilder + " FROM (" + sql + ") tmp";
     }
 
-    public ChartViewDTO uniteViewResult(String sql, Map<String, Object> chartData, Map<String, Object> tableData, ChartViewDTO view, Boolean isDrill, List<ChartExtFilterRequest> drillFilters, List<ChartSeniorAssistDTO> dynamicAssistFields, List<String[]> assistData) {
+    public ChartViewDTO uniteViewResult(String sql, Map<String, Object> chartData, Map<String, Object> tableData, ChartViewDTO view, Boolean isDrill, List<ChartExtFilterRequest> drillFilters, List<ChartSeniorAssistDTO> dynamicAssistFields, List<String[]> assistData, List<? extends ForecastDataVO<?, ?>> forecastData) {
 
         Map<String, Object> map = new HashMap<>();
         map.putAll(chartData);
         map.putAll(tableData);
+        map.put("forecastData", forecastData);
 
         List<DatasetTableField> sourceFields = dataSetTableFieldsService.getFieldsByTableId(view.getTableId());
         map.put("sourceFields", sourceFields);
@@ -1667,6 +2035,11 @@ public class ChartViewService {
         return result;
     }
 
+    private List<String[]> pluginViewYOY(PluginViewParam param, ChartViewDTO view, List<String[]> args) {
+        ViewPluginService viewPluginService = getPluginService(view.getType());
+        return viewPluginService.yoy(param, args);
+    }
+
     private ChartViewDTO emptyChartViewDTO(ChartViewDTO view) {
         ChartViewDTO dto = new ChartViewDTO();
         BeanUtils.copyBean(dto, view);
@@ -1684,11 +2057,14 @@ public class ChartViewService {
                 return StringUtils.equalsIgnoreCase(calcType, "day_mom")
                         || StringUtils.equalsIgnoreCase(calcType, "month_yoy")
                         || StringUtils.equalsIgnoreCase(calcType, "year_yoy");
+            case "y_W":
+                return StringUtils.equalsIgnoreCase(calcType, "week_mom")
+                        || StringUtils.equalsIgnoreCase(calcType, "year_yoy");
         }
         return false;
     }
 
-    private String calcLastTime(String cTime, String type, String dateStyle, String datePattern) {
+    private String calcLastTime(String cTime, String type, String dateStyle, String datePattern, Datasource ds) {
         try {
             String lastTime = null;
             Calendar calendar = Calendar.getInstance();
@@ -1722,6 +2098,12 @@ public class ChartViewService {
                         simpleDateFormat = new SimpleDateFormat("yyyy/MM/dd");
                     } else {
                         simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
+                    }
+                } else if (StringUtils.equalsIgnoreCase(dateStyle, "y_W")) {
+                    if (StringUtils.equalsIgnoreCase(datePattern, "date_split")) {
+                        simpleDateFormat = new SimpleDateFormat("yyyy/'W'w");
+                    } else {
+                        simpleDateFormat = new SimpleDateFormat("yyyy-'W'w");
                     }
                 }
                 Date date = simpleDateFormat.parse(cTime);
@@ -1757,6 +2139,26 @@ public class ChartViewService {
                 Date date = simpleDateFormat.parse(cTime);
                 calendar.setTime(date);
                 calendar.add(Calendar.MONTH, -1);
+                lastTime = simpleDateFormat.format(calendar.getTime());
+            } else if (StringUtils.equalsIgnoreCase(type, ChartConstants.WEEK_MOM)) {
+                SimpleDateFormat simpleDateFormat = null;
+                if (StringUtils.equalsIgnoreCase(datePattern, "date_split")) {
+                    if (StringUtils.equalsIgnoreCase(ds.getType(), "ck")) {
+                        simpleDateFormat = new SimpleDateFormat("yyyy/'W'w");
+                    } else {
+                        simpleDateFormat = new SimpleDateFormat("yyyy/'W'ww");
+                    }
+                } else {
+                    if (StringUtils.equalsIgnoreCase(ds.getType(), "ck")) {
+                        simpleDateFormat = new SimpleDateFormat("yyyy-'W'w");
+                    } else {
+                        simpleDateFormat = new SimpleDateFormat("yyyy-'W'ww");
+                    }
+                }
+                Date date = simpleDateFormat.parse(cTime);
+                calendar.setTime(date);
+                calendar.add(Calendar.DAY_OF_YEAR, 6);// 加6天用一周最后一天计算周，可避免跨年的问题
+                calendar.add(Calendar.WEEK_OF_YEAR, -1);
                 lastTime = simpleDateFormat.format(calendar.getTime());
             }
             return lastTime;
@@ -2071,7 +2473,13 @@ public class ChartViewService {
         List<SqlVariableDetails> sqlVariables = gson.fromJson(table.getSqlVariableDetails(), new TypeToken<List<SqlVariableDetails>>() {
         }.getType());
         if (requestList != null && CollectionUtils.isNotEmpty(requestList.getFilter())) {
+
+
             for (ChartExtFilterRequest chartExtFilterRequest : requestList.getFilter()) {
+                if (CollectionUtils.isNotEmpty(chartExtFilterRequest.getValue())) {
+                    List<String> collect = chartExtFilterRequest.getValue().stream().map(SQLUtils::transKeyword).collect(Collectors.toList());
+                    chartExtFilterRequest.setValue(collect);
+                }
                 if (CollectionUtils.isEmpty(chartExtFilterRequest.getValue())) {
                     continue;
                 }
@@ -2302,7 +2710,7 @@ public class ChartViewService {
             List<ChartSeniorThresholdDTO> conditions = gson.fromJson(itemConditions.toJSONString(), new TypeToken<List<ChartSeniorThresholdDTO>>() {
             }.getType());
             for (ChartSeniorThresholdDTO condition : conditions) {
-                if (StringUtils.equalsIgnoreCase(condition.getField(), "0")) {
+                if (StringUtils.equalsAnyIgnoreCase(condition.getField(), "0", "2")) {
                     continue;
                 }
 
@@ -2393,5 +2801,28 @@ public class ChartViewService {
         } else {
             result.setDatasourceType(null);
         }
+    }
+
+    public List<String> getDrillFieldData(String id, ChartExtRequest requestList, boolean cache, String fieldId) throws Exception {
+        ChartViewDTO view = getOne(id, requestList.getQueryFrom());
+        Type tokenType = new TypeToken<List<ChartViewFieldDTO>>() {
+        }.getType();
+        List<ChartViewFieldDTO> drillField = gson.fromJson(view.getDrillFields(), tokenType);
+        ChartViewFieldDTO targetField = null;
+        for (int i = 0; i < drillField.size(); i++) {
+            ChartViewFieldDTO tmp = drillField.get(i);
+            if (tmp.getId().equalsIgnoreCase(fieldId)) {
+                targetField = tmp;
+                break;
+            }
+        }
+        if (targetField == null) {
+            return Collections.emptyList();
+        }
+        view.setXAxis(gson.toJson(Collections.singleton(targetField)));
+
+        List<String[]> sqlData = sqlData(view, requestList, cache, fieldId);
+        List<String[]> result = customSort(Optional.ofNullable(targetField.getCustomSort()).orElse(new ArrayList<>()), sqlData, 0);
+        return result.stream().map(i -> i[0]).distinct().collect(Collectors.toList());
     }
 }

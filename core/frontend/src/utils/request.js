@@ -1,7 +1,7 @@
 import axios from 'axios'
 import store from '@/store'
 import { $alert, $error } from './message'
-import { getToken, getIdToken, setToken } from '@/utils/auth'
+import { getToken, getIdToken, setToken, tokenExp } from '@/utils/auth'
 import Config from '@/settings'
 import i18n from '@/lang'
 import { tryShowLoading, tryHideLoading } from './loading'
@@ -56,7 +56,6 @@ service.interceptors.request.use(
     if (idToken) {
       config.headers[Config.IdTokenKey] = idToken
     }
-
     if (store.getters.token) {
       config.headers[TokenKey] = getToken()
     }
@@ -74,7 +73,26 @@ service.interceptors.request.use(
       config.headers['Accept-Language'] = lang
     }
     config.loading && tryShowLoading(store.getters.currentPath)
-
+    if (config.headers[TokenKey]) {
+      const logoutApiList = ['/api/auth/deLogout', '/api/auth/logout']
+      if (tokenExp() && !logoutApiList.includes(config.url)) {
+        config['expCancel'] = null
+        config.cancelToken = new CancelToken(function executor(c) {
+          config['expCancel'] = c
+        })
+        const message = i18n.t('login.expires')
+        $alert(message, () => {
+          store.dispatch('user/logout').then(() => {
+            location.reload()
+          })
+        }, {
+          confirmButtonText: i18n.t('login.re_login'),
+          showClose: false
+        })
+        config.expCancel('login.expires')
+        return config
+      }
+    }
     config.cancelToken = new CancelToken(function executor(c) {
       Vue.prototype.$currentHttpRequestList.set(config.url, c)
     })
@@ -96,6 +114,7 @@ service.setTimeOut = time => {
 
 // 请根据实际需求修改
 service.interceptors.response.use(response => {
+  checkCasRedirect(response)
   response.config.loading && tryHideLoading(store.getters.currentPath)
   checkAuth(response)
   Vue.prototype.$currentHttpRequestList.delete(response.config.url)
@@ -104,22 +123,27 @@ service.interceptors.response.use(response => {
   }
   return response.data
 }, error => {
-  const config = error.response && error.response.config || error.config
+  let config = error.response && error.response.config || error.config
   const headers = error.response && error.response.headers || error.response || config && config.headers
-  config.loading && tryHideLoading(store.getters.currentPath)
-
+  config?.loading && tryHideLoading(store.getters.currentPath)
+  if (!config && !headers && error.code === 'ERR_CANCELED' && error.message === 'login.expires') {
+    config = { hideMsg: true }
+  }
   let msg = ''
 
   if (error.response) {
     checkAuth(error.response)
     msg = error.response.data.message || error.response.data
+    if (msg?.startsWith('pwdValidityPeriod')) {
+      config['hideMsg'] = true
+    }
   } else {
     msg = error.message
   }
   if (msg.length > 600) {
     msg = msg.slice(0, 600)
   }
-  !config.hideMsg && (!headers['authentication-status']) && !msg?.startsWith('MultiLoginError') && $error(msg)
+  !config?.hideMsg && (!headers['authentication-status']) && !msg?.startsWith('MultiLoginError') && $error(msg)
   return Promise.reject(config.url === '/dataset/table/sqlPreview' ? msg : error)
 })
 const checkDownError = response => {
@@ -166,6 +190,19 @@ const checkAuth = response => {
     const linkToken = response.headers[LinkTokenKey.toLocaleLowerCase()] || response.config.headers[LinkTokenKey.toLocaleLowerCase()]
     setLinkToken(linkToken)
     store.dispatch('user/setLinkToken', linkToken)
+  }
+}
+const checkCasRedirect = (response) => {
+  if (!response || !response.data) {
+    return
+  }
+  const resData = response.data
+  const routine = resData.hasOwnProperty('success')
+  const redirectUrl = response?.request?.responseURL
+  if (resData && !routine && resData.startsWith('<!') && redirectUrl?.includes('cas/login')) {
+    store.dispatch('user/logout').finally(() => {
+      location.reload()
+    })
   }
 }
 export default service

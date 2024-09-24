@@ -179,6 +179,10 @@
                   :disabled="quotaViews.indexOf(chart.type) > -1"
                   :command="beforeQuickCalc('percent')"
                 >{{ $t('chart.percent') }}</el-dropdown-item>
+                <el-dropdown-item
+                  :disabled="quotaViews.indexOf(chart.type) > -1"
+                  :command="beforeQuickCalc('accumulate')"
+                >{{ $t('chart.accumulate') }}</el-dropdown-item>
               </el-dropdown-menu>
             </el-dropdown>
           </el-dropdown-item>
@@ -212,7 +216,7 @@
             <span>{{ $t('chart.filter') }}...</span>
           </el-dropdown-item>
           <el-dropdown-item
-            v-if="chart.render === 'antv' && chart.type !== 'gauge' && chart.type !== 'liquid' && chart.type !== 'bar-time-range'"
+            v-if="chart.render === 'antv' && chart.type !== 'liquid' && chart.type !== 'bar-time-range'"
             icon="el-icon-notebook-2"
             divided
             :command="beforeClickItem('formatter')"
@@ -319,6 +323,11 @@ export default {
       }
     },
     isEnableCompare() {
+      // 指标卡直接放行同环比配置
+      if (this.chart.type === 'text') {
+        this.disableEditCompare = false
+        return
+      }
       let xAxis = null
       if (Object.prototype.toString.call(this.chart.xaxis) === '[object Array]') {
         xAxis = JSON.parse(JSON.stringify(this.chart.xaxis))
@@ -416,6 +425,10 @@ export default {
           this.item.formatterCfg.decimalCount = 2
 
           this.item.compareCalc.type = 'percent'
+          this.$emit('onQuotaItemChange', this.item)
+          break
+        case 'accumulate':
+          this.item.compareCalc.type = 'accumulate'
           this.$emit('onQuotaItemChange', this.item)
           break
         default:

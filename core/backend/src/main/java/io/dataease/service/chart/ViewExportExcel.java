@@ -48,9 +48,13 @@ public class ViewExportExcel {
         Map<String, ChartExtRequest> stringChartExtRequestMap = buildViewRequest(panelDto, justView);
         List<File> results = new ArrayList<>();
         List<ExcelSheetModel> sheets = viewIds.stream().map(viewId -> viewFiles(viewId, stringChartExtRequestMap.get(viewId))).collect(Collectors.toList());
-        File excelFile = ExcelUtils.exportExcel(sheets, panelDto.getName(), panelDto.getId() + "_" + taskId);
+        File excelFile = ExcelUtils.exportExcel(sheets, getSafeFileName(panelDto.getName()), panelDto.getId() + "_" + taskId);
         results.add(excelFile);
         return results;
+    }
+
+    private String getSafeFileName(String fileName) {
+        return fileName.replace("/", "_");
     }
 
 
@@ -89,7 +93,7 @@ public class ViewExportExcel {
     private List<String> findTableInfoViewIds(List<Map<String, Object>> components) {
         List<String> tableInfoViewIds = new ArrayList<>();
         components.forEach(element -> {
-            if (StringUtils.equals(element.get("type").toString(), "view") && StringUtils.equals(((Map<String, Object>) element.get("propValue")).get("innerType").toString(), "table-info")) {
+            if (StringUtils.equals(String.valueOf(element.get("type")), "view") && StringUtils.equals(String.valueOf(((Map<String, Object>) element.get("propValue")).get("innerType")), "table-info")) {
                 tableInfoViewIds.add(((Map<String, Object>) element.get("propValue")).get("viewId").toString());
             }
         });
@@ -113,25 +117,37 @@ public class ViewExportExcel {
         List<ChartViewFieldDTO> fields = gson.fromJson(gson.toJson(objectFields), fieldTokenType);
         List<String> heads = new ArrayList<>();
         List<String> headKeys = new ArrayList<>();
+        List<Integer> fieldTypes = new ArrayList<>();
         if (CollectionUtils.isNotEmpty(fields)) {
             fields.forEach(field -> {
                 if (ObjectUtils.isNotEmpty(field.getName()) && ObjectUtils.isNotEmpty(field.getDataeaseName())) {
                     heads.add(field.getName());
                     headKeys.add(field.getDataeaseName());
+                    fieldTypes.add(field.getDeType());
                 }
             });
         }
         Object objectTableRow = chart.get("tableRow");
         List<Map<String, Object>> tableRow = (List<Map<String, Object>>) objectTableRow;
 
-        List<List<String>> details = tableRow.stream().map(row -> headKeys.stream().map(key -> {
-            Object val = row.get(key);
-            if (ObjectUtils.isEmpty(val))
-                return StringUtils.EMPTY;
-            return filterInvalidDecimal(val.toString());
-        }).collect(Collectors.toList())).collect(Collectors.toList());
+        List<List<String>> details = tableRow.stream().map(row -> {
+            List<String> tempList = new ArrayList<>();
+            for (int i = 0; i < headKeys.size(); i++) {
+                String key = headKeys.get(i);
+                Object val = row.get(key);
+                if (ObjectUtils.isEmpty(val))
+                    tempList.add(StringUtils.EMPTY);
+                if (fieldTypes.get(i) == 3) {
+                    tempList.add(filterInvalidDecimal(val.toString()));
+                } else {
+                    tempList.add(val.toString());
+                }
+            }
+            return tempList;
+        }).collect(Collectors.toList());
         result.setHeads(heads);
         result.setData(details);
+        result.setFiledTypes(fieldTypes);
 
         result.setSheetName(title);
         return result;

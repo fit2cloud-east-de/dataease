@@ -20,4 +20,9 @@ public class TableField {
 
     private Field field;
 
+    //java.sql.Types
+    private Integer type;
+
+    private int inCount;
+
 }

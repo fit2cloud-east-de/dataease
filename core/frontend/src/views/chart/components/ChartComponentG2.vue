@@ -33,6 +33,7 @@
     </span>
     <div
       :id="chartId"
+      ref="chart"
       style="width: 100%;overflow: hidden;"
       :style="{height:chartHeight}"
     />
@@ -43,8 +44,14 @@
 import { baseLiquid } from '@/views/chart/chart/liquid/liquid'
 import { uuid } from 'vue-uuid'
 import ViewTrackBar from '@/components/canvas/components/editor/ViewTrackBar'
-import { getRemark, hexColorToRGBA } from '@/views/chart/chart/util'
-import { baseBarOptionAntV, hBaseBarOptionAntV, baseBidirectionalBarOptionAntV, timeRangeBarOptionAntV } from '@/views/chart/chart/bar/bar_antv'
+import { adjustPosition, getRemark, hexColorToRGBA } from '@/views/chart/chart/util'
+import {
+  baseBarOptionAntV,
+  hBaseBarOptionAntV,
+  baseBidirectionalBarOptionAntV,
+  timeRangeBarOptionAntV,
+  stockLineOptionAntV
+} from '@/views/chart/chart/bar/bar_antv'
 import { baseAreaOptionAntV, baseLineOptionAntV } from '@/views/chart/chart/line/line_antv'
 import { basePieOptionAntV, basePieRoseOptionAntV } from '@/views/chart/chart/pie/pie_antv'
 import { baseScatterOptionAntV } from '@/views/chart/chart/scatter/scatter_antv'
@@ -62,6 +69,9 @@ import { equalsAny } from '@/utils/StringUtils'
 import { mapState } from 'vuex'
 import { baseFlowMapOption } from '@/views/chart/chart/map/map_antv'
 import { clear } from 'size-sensor'
+import { getRange } from '@/utils/timeUitils'
+import { deepCopy } from '@/components/canvas/utils/utils'
+
 export default {
   name: 'ChartComponentG2',
   components: { TitleRemark, ViewTrackBar, ChartTitleUpdate },
@@ -97,7 +107,6 @@ export default {
   },
   data() {
     return {
-      myChart: null,
       chartId: uuid.v1(),
       showTrackBar: true,
       trackBarStyle: {
@@ -120,7 +129,6 @@ export default {
         background: ''
       },
       title_show: true,
-      antVRenderStatus: false,
       linkageActiveParam: null,
       linkageActiveHistory: false,
       remarkCfg: {
@@ -161,7 +169,7 @@ export default {
     }
   },
   beforeDestroy() {
-    if (this.myChart.container) {
+    if (this.myChart?.container) {
       if (typeof this.myChart.container.getAttribute === 'function') {
         clear(this.myChart.container)
       }
@@ -192,7 +200,7 @@ export default {
   methods: {
     reDrawView() {
       this.linkageActiveHistory = false
-      this.myChart.render()
+      this.myChart?.render()
     },
     linkageActivePre() {
       if (this.linkageActiveHistory) {
@@ -239,7 +247,6 @@ export default {
     },
     async drawView() {
       const chart = JSON.parse(JSON.stringify(this.chart))
-      this.antVRenderStatus = true
       if (!chart.data || (!chart.data.data && !chart.data.series)) {
         chart.data = {
           data: [{}],
@@ -250,57 +257,55 @@ export default {
           ]
         }
       }
+      this.myChart?.destroy()
       if (chart.type === 'bar') {
-        this.myChart = baseBarOptionAntV(this.myChart, this.chartId, chart, this.antVAction, true, false)
+        this.myChart = baseBarOptionAntV(this.chartId, chart, this.antVAction, true, false)
       } else if (chart.type === 'bar-group') {
-        this.myChart = baseBarOptionAntV(this.myChart, this.chartId, chart, this.antVAction, true, false)
+        this.myChart = baseBarOptionAntV(this.chartId, chart, this.antVAction, true, false)
       } else if (equalsAny(chart.type, 'bar-stack', 'percentage-bar-stack')) {
-        this.myChart = baseBarOptionAntV(this.myChart, this.chartId, chart, this.antVAction, false, true)
+        this.myChart = baseBarOptionAntV(this.chartId, chart, this.antVAction, false, true)
       } else if (chart.type === 'bar-group-stack') {
-        this.myChart = baseBarOptionAntV(this.myChart, this.chartId, chart, this.antVAction, true, true)
+        this.myChart = baseBarOptionAntV(this.chartId, chart, this.antVAction, true, true)
       } else if (chart.type === 'bar-horizontal') {
-        this.myChart = hBaseBarOptionAntV(this.myChart, this.chartId, chart, this.antVAction, true, false)
+        this.myChart = hBaseBarOptionAntV(this.chartId, chart, this.antVAction, true, false)
       } else if (equalsAny(chart.type, 'bar-stack-horizontal', 'percentage-bar-stack-horizontal')) {
-        this.myChart = hBaseBarOptionAntV(this.myChart, this.chartId, chart, this.antVAction, false, true)
+        this.myChart = hBaseBarOptionAntV(this.chartId, chart, this.antVAction, false, true)
       } else if (equalsAny(chart.type, 'bar-time-range')) {
-        this.myChart = timeRangeBarOptionAntV(this.myChart, this.chartId, chart, this.antVAction)
+        this.myChart = timeRangeBarOptionAntV(this.chartId, chart, this.antVAction)
       } else if (chart.type === 'line') {
-        this.myChart = baseLineOptionAntV(this.myChart, this.chartId, chart, this.antVAction)
+        this.myChart = baseLineOptionAntV(this.chartId, chart, this.antVAction)
       } else if (chart.type === 'area') {
-        this.myChart = baseAreaOptionAntV(this.myChart, this.chartId, chart, this.antVAction, false)
+        this.myChart = baseAreaOptionAntV(this.chartId, chart, this.antVAction, false)
       } else if (chart.type === 'line-stack') {
-        this.myChart = baseAreaOptionAntV(this.myChart, this.chartId, chart, this.antVAction, true)
+        this.myChart = baseAreaOptionAntV(this.chartId, chart, this.antVAction, true)
       } else if (chart.type === 'scatter') {
-        this.myChart = baseScatterOptionAntV(this.myChart, this.chartId, chart, this.antVAction)
+        this.myChart = baseScatterOptionAntV(this.chartId, chart, this.antVAction)
       } else if (chart.type === 'radar') {
-        this.myChart = baseRadarOptionAntV(this.myChart, this.chartId, chart, this.antVAction)
+        this.myChart = baseRadarOptionAntV(this.chartId, chart, this.antVAction)
       } else if (chart.type === 'gauge') {
-        this.myChart = baseGaugeOptionAntV(this.myChart, this.chartId, chart, this.antVAction, this.scale)
+        this.myChart = baseGaugeOptionAntV(this.chartId, chart, this.antVAction, this.scale)
       } else if (chart.type === 'pie' || chart.type === 'pie-donut') {
-        this.myChart = basePieOptionAntV(this.myChart, this.chartId, chart, this.antVAction)
+        this.myChart = basePieOptionAntV(this.chartId, chart, this.antVAction)
       } else if (chart.type === 'pie-rose' || chart.type === 'pie-donut-rose') {
-        this.myChart = basePieRoseOptionAntV(this.myChart, this.chartId, chart, this.antVAction)
+        this.myChart = basePieRoseOptionAntV(this.chartId, chart, this.antVAction)
       } else if (chart.type === 'funnel') {
-        this.myChart = baseFunnelOptionAntV(this.myChart, this.chartId, chart, this.antVAction)
+        this.myChart = baseFunnelOptionAntV(this.chartId, chart, this.antVAction)
       } else if (chart.type === 'treemap') {
-        this.myChart = baseTreemapOptionAntV(this.myChart, this.chartId, chart, this.antVAction)
+        this.myChart = baseTreemapOptionAntV(this.chartId, chart, this.antVAction)
       } else if (chart.type === 'liquid') {
-        this.myChart = baseLiquid(this.myChart, this.chartId, chart)
+        this.myChart = baseLiquid(this.chartId, chart)
       } else if (chart.type === 'waterfall') {
-        this.myChart = baseWaterfallOptionAntV(this.myChart, this.chartId, chart, this.antVAction)
+        this.myChart = baseWaterfallOptionAntV(this.chartId, chart, this.antVAction)
       } else if (chart.type === 'word-cloud') {
-        this.myChart = baseWordCloudOptionAntV(this.myChart, this.chartId, chart, this.antVAction)
+        this.myChart = baseWordCloudOptionAntV(this.chartId, chart, this.antVAction)
       } else if (chart.type === 'chart-mix') {
-        this.myChart = baseMixOptionAntV(this.myChart, this.chartId, chart, this.antVAction)
+        this.myChart = baseMixOptionAntV(this.chartId, chart, this.antVAction)
       } else if (chart.type === 'flow-map') {
-        this.myChart = await baseFlowMapOption(this.myChart, this.chartId, chart, this.antVAction)
+        this.myChart = await baseFlowMapOption(this.chartId, chart, this.antVAction)
       } else if (chart.type === 'bidirectional-bar') {
-        this.myChart = baseBidirectionalBarOptionAntV(this.myChart, this.chartId, chart, this.antVAction)
-      } else {
-        if (this.myChart) {
-          this.antVRenderStatus = false
-          this.myChart.destroy()
-        }
+        this.myChart = baseBidirectionalBarOptionAntV(this.chartId, chart, this.antVAction)
+      } else if (chart.type === 'stock-line'){
+        this.myChart = stockLineOptionAntV(this.chartId, chart, this.antVAction)
       }
 
       if (this.myChart && !equalsAny(chart.type, 'liquid', 'flow-map') && this.searchCount > 0) {
@@ -325,11 +330,9 @@ export default {
         }
       }
 
-      if (this.antVRenderStatus) {
-        this.myChart.render()
-        if (this.linkageActiveHistory) {
-          this.linkageActive()
-        }
+      this.myChart?.render()
+      if (this.linkageActiveHistory) {
+        this.linkageActive()
       }
       this.setBackGroundBorder()
     },
@@ -354,9 +357,27 @@ export default {
       }
       if (this.trackMenu.length < 2) { // 只有一个事件直接调用
         this.trackClick(this.trackMenu[0])
-      } else { // 视图关联多个事件
-        this.trackBarStyle.left = param.x + 'px'
-        this.trackBarStyle.top = (param.y + 10) + 'px'
+      } else {
+        // 视图关联多个事件
+        const menuDom = this.$refs.viewTrack.$el.getElementsByClassName('track-menu')?.[0]
+        const chartDom = this.$refs.chart
+        let position = {
+          x: param.x,
+          y: param.y
+        }
+        const offset = {
+          x: 0,
+          y: 10
+        }
+        const initSize = {
+          width: 80,
+          height: 76
+        }
+        if (menuDom && chartDom) {
+          position = adjustPosition(menuDom, chartDom, param, offset, initSize)
+        }
+        this.trackBarStyle.left = position.x + 'px'
+        this.trackBarStyle.top = position.y + 'px'
         this.$refs.viewTrack.trackButtonClick()
       }
     },
@@ -375,6 +396,23 @@ export default {
       }, 100)
     },
     trackClick(trackAction) {
+      const idTypeMap = this.chart.data.fields.reduce((pre, next) => {
+        pre[next['id']] = next['deType']
+        return pre
+      }, {})
+
+      const idDateStyleMap = this.chart.data.fields.reduce((pre, next) => {
+        pre[next['id']] = next['dateStyle']
+        return pre
+      }, {})
+
+      const dimensionListAdaptor = deepCopy(this.pointParam.data.dimensionList)
+      dimensionListAdaptor.forEach(dimension => {
+        // deType === 1 表示是时间类型
+        if (idTypeMap[dimension.id] === 1) {
+          dimension.value = getRange(dimension.value, idDateStyleMap[dimension.id])
+        }
+      })
       const param = this.pointParam
       if (!param || !param.data || !param.data.dimensionList) {
         // 地图提示没有关联字段 其他没有维度信息的 直接返回
@@ -393,7 +431,7 @@ export default {
         option: 'linkage',
         name: this.pointParam.data.name,
         viewId: this.chart.id,
-        dimensionList: this.pointParam.data.dimensionList,
+        dimensionList: dimensionListAdaptor,
         quotaList: quotaList,
         category: this.pointParam.data.category,
         group: this.pointParam.data.group
@@ -402,7 +440,7 @@ export default {
         option: 'jump',
         name: this.pointParam.data.name,
         viewId: this.chart.id,
-        dimensionList: this.pointParam.data.dimensionList,
+        dimensionList: dimensionListAdaptor,
         quotaList: quotaList,
         category: this.pointParam.data.category,
         group: this.pointParam.data.group

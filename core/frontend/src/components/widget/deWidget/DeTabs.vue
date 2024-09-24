@@ -84,6 +84,8 @@
             :panel-info="panelInfo"
             :in-screen="inScreen"
             :show-position="showPosition"
+            :screen-shot="screenShot"
+            :user-id="userId"
           />
         </div>
 
@@ -240,6 +242,10 @@ export default {
       required: false,
       default: true
     },
+    screenShot: {
+      type: Boolean,
+      default: false
+    },
     canvasId: {
       type: String,
       default: 'canvas-main'
@@ -280,6 +286,10 @@ export default {
     terminal: {
       type: String,
       default: 'pc'
+    },
+    userId: {
+      type: String,
+      require: false
     }
   },
   data() {
@@ -510,7 +520,7 @@ export default {
       }
     },
     setTabLayout: _.debounce(function() {
-      this.headClassScroll = !!this.$refs?.deTabsConstom?.$refs?.tabsConstom?.$refs?.nav?.scrollable ? 'head-class-scroll' : ''
+      this.headClassScroll = this.$refs?.deTabsConstom?.$refs?.tabsConstom?.$refs?.nav?.scrollable ? 'head-class-scroll' : ''
     }, 100),
     calcTabLength() {
       this.$nextTick(() => {

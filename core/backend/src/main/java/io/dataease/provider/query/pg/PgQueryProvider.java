@@ -988,13 +988,7 @@ public class PgQueryProvider extends QueryProvider {
     }
 
     public String getTotalCount(boolean isTable, String sql, Datasource ds) {
-        if (isTable) {
-            String schema = new Gson().fromJson(ds.getConfiguration(), JdbcConfiguration.class).getSchema();
-            String tableWithSchema = String.format(PgConstants.KEYWORD_TABLE, schema) + "." + String.format(PgConstants.KEYWORD_TABLE, sql);
-            return "SELECT COUNT(*) from " + tableWithSchema;
-        } else {
-            return null;
-        }
+        return null;
     }
 
     @Override
@@ -1007,9 +1001,9 @@ public class PgQueryProvider extends QueryProvider {
         if (ds != null) {
             String schema = new Gson().fromJson(ds.getConfiguration(), JdbcConfiguration.class).getSchema();
             String tableWithSchema = String.format(SqlServerSQLConstants.KEYWORD_TABLE, schema) + "." + String.format(SqlServerSQLConstants.KEYWORD_TABLE, table);
-            return MessageFormat.format("SELECT {0} FROM {1}  LIMIT DE_PAGE_SIZE OFFSET DE_OFFSET ", StringUtils.join(array, ","), tableWithSchema);
+            return MessageFormat.format("SELECT {0} FROM {1}  ", StringUtils.join(array, ","), tableWithSchema);
         } else {
-            return MessageFormat.format("SELECT {0} FROM {1}  LIMIT DE_PAGE_SIZE OFFSET DE_OFFSET ", StringUtils.join(array, ","), table);
+            return MessageFormat.format("SELECT {0} FROM {1} ", StringUtils.join(array, ","), table);
         }
     }
 
@@ -1392,10 +1386,15 @@ public class PgQueryProvider extends QueryProvider {
             String whereValue = "";
 
             if (StringUtils.containsIgnoreCase(request.getOperator(), "in")) {
-                whereValue = "('" + StringUtils.join(value, "','") + "')";
+                // 过滤空数据
+                if (value.contains(SQLConstants.EMPTY_SIGN)) {
+                    whereValue = "('" + StringUtils.join(value, "','") + "', '')" + " or " + whereName + " is null ";
+                } else {
+                    whereValue = "('" + StringUtils.join(value, "','") + "')";
+                }
             } else if (StringUtils.containsIgnoreCase(request.getOperator(), "like")) {
                 String keyword = value.get(0).toUpperCase();
-                whereValue = "'%" + keyword + "%'";
+                whereValue = formatLikeValue(keyword);
                 whereName = "upper(" + whereName + ")";
             } else if (StringUtils.containsIgnoreCase(request.getOperator(), "between")) {
                 if (request.getDatasetTableField().getDeType() == 1) {
@@ -1407,7 +1406,12 @@ public class PgQueryProvider extends QueryProvider {
                     whereValue = String.format(PgConstants.WHERE_BETWEEN, value.get(0), value.get(1));
                 }
             } else {
-                whereValue = String.format(PgConstants.WHERE_VALUE_VALUE, value.get(0));
+                // 过滤空数据
+                if (StringUtils.equals(value.get(0), SQLConstants.EMPTY_SIGN)) {
+                    whereValue = String.format(PgConstants.WHERE_VALUE_VALUE, "") + " or " + whereName + " is null ";
+                } else {
+                    whereValue = String.format(PgConstants.WHERE_VALUE_VALUE, value.get(0));
+                }
             }
             list.add(SQLObj.builder()
                     .whereField(whereName)
@@ -1415,7 +1419,7 @@ public class PgQueryProvider extends QueryProvider {
                     .build());
         }
         List<String> strList = new ArrayList<>();
-        list.forEach(ele -> strList.add(ele.getWhereField() + " " + ele.getWhereTermAndValue()));
+        list.forEach(ele -> strList.add("(" + ele.getWhereField() + " " + ele.getWhereTermAndValue() + ")"));
         return CollectionUtils.isNotEmpty(list) ? "(" + String.join(" AND ", strList) + ")" : null;
     }
 

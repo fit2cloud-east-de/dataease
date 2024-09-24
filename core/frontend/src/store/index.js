@@ -154,6 +154,7 @@ const data = {
     },
     previewVisible: false,
     previewComponentData: [],
+    sourceComponentData: [],
     currentCanvasNewId: [],
     lastViewRequestInfo: {},
     multiplexingStyleAdapt: true, // 复用样式跟随主题
@@ -191,6 +192,7 @@ const data = {
       if (style) {
         style['selfAdaption'] = true
       }
+      style.panel['alpha'] = style.panel['alpha'] === undefined ? 100 : style.panel['alpha']
       state.canvasStyleData = style
     },
 
@@ -260,6 +262,9 @@ const data = {
     },
     setPreviewComponentData(state, previewComponentData = []) {
       Vue.set(state, 'previewComponentData', previewComponentData)
+    },
+    setSourceComponentData(state, sourceComponentData = []) {
+      Vue.set(state, 'sourceComponentData', sourceComponentData)
     },
     setComponentViewsData(state, componentViewsData = {}) {
       Vue.set(state, 'componentViewsData', componentViewsData)
@@ -405,7 +410,13 @@ const data = {
                 const targetViewId = targetInfoArray[0] // 目标视图
                 if (ele.propValue.viewId === targetViewId) { // 如果目标视图 和 当前循环组件id相等 则进行条件增减
                   const targetFieldId = targetInfoArray[1] // 目标视图列ID
-                  const condition = new Condition('', targetFieldId, 'eq', [dimension.value], [targetViewId])
+                  let condition
+                  if (Array.isArray(dimension.value)) {
+                    // 如果dimension.value是数组 目前判断为是时间组件
+                    condition = new Condition('', targetFieldId, 'between', dimension.value, [targetViewId])
+                  } else {
+                    condition = new Condition('', targetFieldId, 'eq', [dimension.value], [targetViewId])
+                  }
                   condition.sourceViewId = viewId
                   let j = currentFilters.length
                   while (j--) {
@@ -440,7 +451,13 @@ const data = {
             const targetViewId = targetInfoArray[0] // 目标视图
             if (element.type === 'view' && element.propValue.viewId === targetViewId) { // 如果目标视图 和 当前循环组件id相等 则进行条件增减
               const targetFieldId = targetInfoArray[1] // 目标视图列ID
-              const condition = new Condition('', targetFieldId, 'eq', [dimension.value], [targetViewId])
+              let condition
+              if (Array.isArray(dimension.value)) {
+                // 如果dimension.value是数组 目前判断为是时间组件
+                condition = new Condition('', targetFieldId, 'between', dimension.value, [targetViewId])
+              } else {
+                condition = new Condition('', targetFieldId, 'eq', [dimension.value], [targetViewId])
+              }
               condition.sourceViewId = viewId
               let j = currentFilters.length
               while (j--) {
@@ -463,6 +480,10 @@ const data = {
               // 去掉动态时间
               if (element.options.manualModify) {
                 element.options.manualModify = false
+              }
+              // 去掉动态时间
+              if (element.options.attrs?.default?.isDynamic) {
+                element.options.attrs.default.isDynamic = false
               }
               // 去掉首选项
               if (element.options?.attrs?.selectFirst) {
@@ -538,6 +559,10 @@ const data = {
                 // 去掉动态时间
                 if (element.options.manualModify) {
                   element.options.manualModify = false
+                }
+                // 去掉动态时间
+                if (element.options.attrs?.default?.isDynamic) {
+                  element.options.attrs.default.isDynamic = false
                 }
                 // 去掉首选项
                 if (element.options?.attrs?.selectFirst) {
@@ -937,6 +962,15 @@ const data = {
     delLastValidFilterWithId(state, id) {
       if (state.lastValidFilters[id]) {
         delete state.lastValidFilters[id]
+      }
+    },
+    setViewInitFilter(state, viewInfo) {
+      if (viewInfo) {
+        state.componentData.forEach(component => {
+          if (viewInfo.id === component.id) {
+            component.filters = viewInfo.filters
+          }
+        })
       }
     }
   },

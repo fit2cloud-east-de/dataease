@@ -1094,7 +1094,7 @@ public class DorisQueryProvider extends QueryProvider {
                 whereValue = "''";
             } else if (StringUtils.equalsIgnoreCase(item.getTerm(), "in")) {
                 whereValue = "('" + StringUtils.join(value, "','") + "')";
-            } else if (StringUtils.equalsIgnoreCase(item.getTerm(), "like")) {
+            } else if (StringUtils.containsIgnoreCase(item.getTerm(), "like")) {
                 whereValue = "'%" + value + "%'";
             } else if (StringUtils.equalsIgnoreCase(item.getTerm(), "begin_with")) {
                 whereValue = "'" + value + "%'";
@@ -1173,7 +1173,7 @@ public class DorisQueryProvider extends QueryProvider {
                 whereValue = "''";
             } else if (StringUtils.equalsIgnoreCase(item.getTerm(), "in")) {
                 whereValue = "('" + StringUtils.join(value, "','") + "')";
-            } else if (StringUtils.equalsIgnoreCase(item.getTerm(), "like")) {
+            } else if (StringUtils.containsIgnoreCase(item.getTerm(), "like")) {
                 whereValue = "'%" + value + "%'";
             } else if (StringUtils.equalsIgnoreCase(item.getTerm(), "begin_with")) {
                 whereValue = "'" + value + "%'";
@@ -1429,10 +1429,15 @@ public class DorisQueryProvider extends QueryProvider {
             String whereValue = "";
 
             if (StringUtils.containsIgnoreCase(request.getOperator(), "in")) {
-                whereValue = "('" + StringUtils.join(value, "','") + "')";
+                // 过滤空数据
+                if (value.contains(SQLConstants.EMPTY_SIGN)) {
+                    whereValue = "('" + StringUtils.join(value, "','") + "', '')" + " or " + whereName + " is null ";
+                } else {
+                    whereValue = "('" + StringUtils.join(value, "','") + "')";
+                }
             } else if (StringUtils.containsIgnoreCase(request.getOperator(), "like")) {
                 String keyword = value.get(0).toUpperCase();
-                whereValue = "'%" + keyword + "%'";
+                whereValue = formatLikeValue(keyword);
                 whereName = "upper(" + whereName + ")";
             } else if (StringUtils.containsIgnoreCase(request.getOperator(), "between")) {
                 if (request.getDatasetTableField().getDeType() == 1) {
@@ -1448,13 +1453,12 @@ public class DorisQueryProvider extends QueryProvider {
                     whereValue = String.format(DorisConstants.WHERE_BETWEEN, value.get(0), value.get(1));
                 }
             } else {
-                // doris field type test
-                /*if (field.getDeExtractType() == 2 || field.getDeExtractType() == 3 || field.getDeExtractType() == 4) {
-                    whereValue = String.format(DorisConstants.WHERE_NUMBER_VALUE, value.get(0));
+                // 过滤空数据
+                if (StringUtils.equals(value.get(0), SQLConstants.EMPTY_SIGN)) {
+                    whereValue = String.format(DorisConstants.WHERE_VALUE_VALUE, "") + " or " + whereName + " is null ";
                 } else {
                     whereValue = String.format(DorisConstants.WHERE_VALUE_VALUE, value.get(0));
-                }*/
-                whereValue = String.format(DorisConstants.WHERE_VALUE_VALUE, value.get(0));
+                }
             }
             list.add(SQLObj.builder()
                     .whereField(whereName)
@@ -1462,7 +1466,7 @@ public class DorisQueryProvider extends QueryProvider {
                     .build());
         }
         List<String> strList = new ArrayList<>();
-        list.forEach(ele -> strList.add(ele.getWhereField() + " " + ele.getWhereTermAndValue()));
+        list.forEach(ele -> strList.add("(" + ele.getWhereField() + " " + ele.getWhereTermAndValue() + ")"));
         return CollectionUtils.isNotEmpty(list) ? "(" + String.join(" AND ", strList) + ")" : null;
     }
 

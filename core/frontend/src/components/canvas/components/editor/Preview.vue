@@ -16,7 +16,7 @@
       @back-to-top="backToTop"
     />
     <link-opt-bar
-      v-if="canvasId==='canvas-main'"
+      v-if="linkOptBarShow"
       ref="link-opt-bar"
       :terminal="terminal"
       :canvas-style-data="canvasStyleData"
@@ -118,7 +118,7 @@
       class="dialog-css"
       :destroy-on-close="true"
       :show-close="true"
-      :append-to-body="false"
+      append-to-body
       top="5vh"
     >
       <span
@@ -127,7 +127,7 @@
       >
         <span v-if="showChartInfoType==='enlarge' && hasDataPermission('export',panelInfo.privileges)&& showChartInfo && showChartInfo.type !== 'symbol-map'">
           <span style="font-size: 12px">
-            导出分辨率
+            {{ $t('panel.export_pixel') }}
           </span>
           <el-select
             v-model="pixel"
@@ -159,7 +159,7 @@
         </span>
 
         <el-button
-          v-if="showChartInfoType==='details'&& hasDataPermission('export',panelInfo.privileges)"
+          v-if="showChartInfoType==='details'&& showChartInfo.dataFrom !== 'template' && hasDataPermission('export',panelInfo.privileges)"
           size="mini"
           :disabled="$store.getters.loadingMap[$store.getters.currentPath]"
           @click="exportExcel"
@@ -168,6 +168,17 @@
             icon-class="ds-excel"
             class="ds-icon-excel"
           />{{ $t('chart.export') }}Excel
+        </el-button>
+        <el-button
+          v-if="showChartInfoType==='details' && showChartInfo.dataFrom !== 'template' && !userId && hasDataPermission('export',panelInfo.privileges)"
+          size="mini"
+          :disabled="$store.getters.loadingMap[$store.getters.currentPath]"
+          @click="exportSourceDetails"
+        >
+          <svg-icon
+            icon-class="ds-excel"
+            class="ds-icon-excel"
+          />{{ $t('chart.export_source') }}
         </el-button>
       </span>
       <user-view-dialog
@@ -184,6 +195,7 @@
 </template>
 
 <script>
+import { Button } from 'element-ui'
 import { getStyle } from '@/components/canvas/utils/style'
 import { mapState } from 'vuex'
 import ComponentWrapper from './ComponentWrapper'
@@ -260,7 +272,7 @@ export default {
     showPosition: {
       type: String,
       required: false,
-      default: 'NotProvided'
+      default: 'preview'
     },
     panelInfo: {
       type: Object,
@@ -311,9 +323,10 @@ export default {
         'letterSpacing'
       ],
       scaleWidth: '100',
+      scaleWidthLay: '100',
       scaleHeight: '100',
       timer: null,
-      componentDataShow: null,
+      componentDataShow: [],
       mainWidth: '100%',
       mainHeight: '100%',
       searchCount: 0,
@@ -369,6 +382,9 @@ export default {
     }
   },
   computed: {
+    linkOptBarShow() {
+      return this.canvasId==='canvas-main' && this.canvasStyleData.showPublicLinkButton
+    },
     screenShotStatues() {
       return this.exporting || this.screenShot || this.backScreenShot
     },
@@ -440,7 +456,7 @@ export default {
       if (this.backScreenShot) {
         style.height = this.mainHeight
       } else {
-        style.padding = '5px'
+        style.padding = '0px'
       }
       return style
     },
@@ -452,6 +468,7 @@ export default {
       return this.componentDataShow || []
     },
     ...mapState([
+      'sourceComponentData',
       'previewCanvasScale',
       'isClickComponent'
     ]),
@@ -794,7 +811,7 @@ export default {
     restore() {
       const canvasHeight = document.getElementById(this.previewDomId).offsetHeight
       const canvasWidth = document.getElementById(this.previewDomId).offsetWidth
-      this.scaleWidth = (canvasWidth) * 100 / this.canvasStyleData.width // 获取宽度比
+      this.scaleWidth = (canvasWidth) * 100 / (this.canvasStyleData.width - 8) // 获取宽度比
       // 如果是后端截图方式使用 的高度伸缩比例和宽度比例相同
       if (this.backScreenShot) {
         this.scaleHeight = this.scaleWidth
@@ -824,34 +841,34 @@ export default {
     formatPoint(value, pointScale) {
       return value * pointScale
     },
+    findSourceComponent(id) {
+      return this.sourceComponentData.filter(element => element.id === id)[0]
+    },
     handleScaleChange() {
       if (this.componentData) {
         const componentData = deepCopy(this.componentData)
         componentData.forEach(component => {
-          if (!this.isMainCanvas() && component.type === 'custom' && component.options?.attrs?.selectFirst && this.format(component.style.width, this.scaleWidth) < 80) {
-            // do continue
-          } else {
-            Object.keys(component.style).forEach(key => {
-              if (this.needToChangeHeight.includes(key)) {
-                component.style[key] = this.format(component.style[key], this.scaleHeight)
-              }
-              if (this.needToChangeWidth.includes(key)) {
-                component.style[key] = this.format(component.style[key], this.scaleWidth)
-              }
-              if (this.needToChangeInnerWidth.includes(key)) {
-                if ((key === 'fontSize' || key === 'activeFontSize') && (this.terminal === 'mobile' || ['custom'].includes(component.type))) {
-                  // do nothing 移动端字符大小无需按照比例缩放，当前保持不变(包括 v-text 和 过滤组件)
-                } else {
-                  if (key === 'fontSize' && component.component !== 'de-tabs') {
-                    component.style[key] = this.formatPoint(component.style[key], this.previewCanvasScale.scalePointWidth * 1.4)
-                  } else {
-                    component.style[key] = this.formatPoint(component.style[key], this.previewCanvasScale.scalePointWidth)
-                  }
-                }
-              }
-            })
+          if (component.type === 'custom' && !this._isMobile) {
+            const sourceComponent = this.findSourceComponent(component.id)
+            if (sourceComponent?.style) {
+              component.style = deepCopy(this.findSourceComponent(component.id).style)
+            }
           }
-
+          Object.keys(component.style).forEach(key => {
+            if (this.needToChangeHeight.includes(key)) {
+              component.style[key] = this.format(component.style[key], this.scaleHeight)
+            }
+            if (this.needToChangeWidth.includes(key)) {
+              component.style[key] = this.format(component.style[key], this.scaleWidth)
+            }
+            if (this.needToChangeInnerWidth.includes(key)) {
+              if ((key === 'fontSize' || key === 'activeFontSize') && (this.terminal === 'mobile' || ['custom'].includes(component.type))) {
+                // do nothing 移动端字符大小无需按照比例缩放，当前保持不变(包括 v-text 和 过滤组件)
+              } else {
+                component.style[key] = this.formatPoint(component.style[key], this.previewCanvasScale.scalePointWidth)
+              }
+            }
+          })
           const maxWidth = this.canvasStyleData.width * this.scaleWidth / 100
           if (component.style['width'] > maxWidth) {
             component.style['width'] = maxWidth
@@ -861,8 +878,89 @@ export default {
         this.$nextTick(() => (eventBus.$emit('resizing', '')))
       }
     },
+    openMessageLoading(cb) {
+      const h = this.$createElement
+      const iconClass = `el-icon-loading`
+      const customClass = `de-message-loading de-message-export`
+      this.$message({
+        message: h('p', null, [
+          this.$t('data_export.exporting'),
+          h(
+              Button,
+              {
+                props: {
+                  type: 'text',
+                },
+                class: 'btn-text',
+                on: {
+                  click: () => {
+                    cb()
+                  }
+                }
+              },
+              this.$t('data_export.export_center')
+            ),
+          this.$t('data_export.export_info')
+        ]),
+        iconClass,
+        showClose: true,
+        customClass
+      })
+    },
+    openMessageSuccess(text, type, cb) {
+      const h = this.$createElement
+      const iconClass = `el-icon-${type || 'success'}`
+      const customClass = `de-message-${type || 'success'} de-message-export`
+      this.$message({
+        message: h('p', null, [
+          h('span', null, text),
+          h(
+            Button,
+            {
+              props: {
+                type: 'text',
+              },
+              class: 'btn-text',
+              on: {
+                click: () => {
+                  cb()
+                }
+              }
+            },
+            this.$t('data_export.export_center')
+          )
+        ]),
+        iconClass,
+        showClose: true,
+        customClass
+      })
+    },
+    exportData() {
+      bus.$emit('data-export-center')
+    },
     exportExcel() {
-      this.$refs['userViewDialog-canvas-main'].exportExcel()
+      this.$refs['userViewDialog-canvas-main'].exportExcel((val) => {
+        if (val && val.success) {
+          this.openMessageLoading(this.exportData)
+        }
+
+        if (val && val.success === false) {
+          this.openMessageSuccess(`${this.showChartTableInfo.title ? this.showChartTableInfo.title : this.showChartTableInfo.name} 导出失败，前往`, 'error', this.exportData)
+        }
+        this.dialogLoading = false
+      })
+    },
+    exportSourceDetails() {
+      this.$refs['userViewDialog-canvas-main'].exportExcel((val) => {
+        if (val && val.success) {
+          this.openMessageLoading(this.exportData)
+        }
+
+        if (val && val.success === false) {
+          this.openMessageSuccess(`${this.showChartTableInfo.title ? this.showChartTableInfo.title : this.showChartTableInfo.name} 导出失败，前往`, 'error', this.exportData)
+        }
+        this.dialogLoading = false
+      })
     },
     exportViewImg() {
       this.imageDownloading = true
