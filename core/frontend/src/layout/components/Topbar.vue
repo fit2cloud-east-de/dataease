@@ -51,18 +51,18 @@
           @click="downloadClick"
         />
       </div>
-      <div
-        v-if="aiBaseUrl"
-        style="height: 100%;padding: 0 8px;"
-        class="right-menu-item hover-effect"
-      >
-        <a style="font-size:24px;display: flex;height: 100%;width: 100%;justify-content: center;align-items: center;">
-          <svg-icon
-            icon-class="dv-ai"
-            @click="handleAiClick"
-          />
-        </a>
-      </div>
+<!--      <div-->
+<!--        v-if="aiBaseUrl"-->
+<!--        style="height: 100%;padding: 0 8px;"-->
+<!--        class="right-menu-item hover-effect"-->
+<!--      >-->
+<!--        <a style="font-size:24px;display: flex;height: 100%;width: 100%;justify-content: center;align-items: center;">-->
+<!--          <svg-icon-->
+<!--            icon-class="dv-ai"-->
+<!--            @click="handleAiClick"-->
+<!--          />-->
+<!--        </a>-->
+<!--      </div>-->
       <notification class="right-menu-item hover-effect" />
       <lang-select class="right-menu-item hover-effect" />
       <div
@@ -125,20 +125,20 @@
       </el-dropdown>
     </div>
 
-    <ai-tips
-      v-if="showOverlay"
-      class="ai-icon-tips"
-      @confirm="aiTipsConfirm"
-    />
-    <div
-      v-if="showOverlay"
-      class="overlay"
-    />
+<!--    <ai-tips-->
+<!--      v-if="showOverlay"-->
+<!--      class="ai-icon-tips"-->
+<!--      @confirm="aiTipsConfirm"-->
+<!--    />-->
+<!--    <div-->
+<!--      v-if="showOverlay"-->
+<!--      class="overlay"-->
+<!--    />-->
 
-    <ai-component
-      v-if="aiBaseUrl"
-      :base-url="aiBaseUrl"
-    />
+<!--    <ai-component-->
+<!--      v-if="aiBaseUrl"-->
+<!--      :base-url="aiBaseUrl"-->
+<!--    />-->
 
     <!--模板市场全屏显示框-->
     <el-dialog
