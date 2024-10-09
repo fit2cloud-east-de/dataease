@@ -60,8 +60,14 @@ public class OpcUaProvider extends Provider {
         Gson gson = new Gson();
         OpcUaDefinitionRequest opcUaDefinitionRequest = gson.fromJson(datasourceRequest.getDatasource().getConfiguration(), OpcUaDefinitionRequest.class);
         OpcUaClient client = createClient(opcUaDefinitionRequest);
-        CompletableFuture<UaClient> connect = client.connect();
-        status.setStatus("Success");
+        try {
+            CompletableFuture<UaClient> connect = client.connect();
+            status.setStatus("Success");
+        } catch ( Exception e ) {
+            status.setStatus("Failed");
+        } finally {
+            client.disconnect();
+        }
         return status;
     }
 
@@ -115,23 +121,35 @@ public class OpcUaProvider extends Provider {
 
         Gson gson = new Gson();
         OpcUaDefinitionRequest opcUaDefinitionRequest = gson.fromJson(datasourceRequest.getDatasource().getConfiguration(), OpcUaDefinitionRequest.class);
-        OpcUaClient client = createClient(opcUaDefinitionRequest);
 
-        List<TableField> tableFields = getTableFields(OpcUaData.class);
+        OpcUaClient client = null;
 
-        List<String> tables = datasourceRequest.getTables();
+        try {
 
-        List<String[]> dataList = new ArrayList<>();
+            client = createClient(opcUaDefinitionRequest);
 
-        for (String table: tables  ) {
-            OpcUaData opcUaData = readNode(client, table);
-            String[] str = fetchResult(opcUaData, tableFields);
-            dataList.add(str);
+            List<TableField> tableFields = getTableFields(OpcUaData.class);
+
+            List<String> tables = datasourceRequest.getTables();
+
+            List<String[]> dataList = new ArrayList<>();
+
+            for (String table: tables  ) {
+                OpcUaData opcUaData = readNode(client, table);
+                String[] str = fetchResult(opcUaData, tableFields);
+                dataList.add(str);
+            }
+
+            result.put("fieldList", tableFields);
+            result.put("dataList", dataList);
+
+        } catch ( Exception e ) {
+            e.printStackTrace();
+        }  finally {
+            if (null != client) {
+                client.disconnect();
+            }
         }
-
-        result.put("fieldList", tableFields);
-        result.put("dataList", dataList);
-
         return result;
     }
 
