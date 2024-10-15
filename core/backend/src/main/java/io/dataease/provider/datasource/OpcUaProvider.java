@@ -14,8 +14,10 @@ import io.dataease.plugins.datasource.provider.Provider;
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
 import org.eclipse.milo.opcua.sdk.client.api.UaClient;
+import org.eclipse.milo.opcua.sdk.client.api.config.OpcUaClientConfigBuilder;
 import org.eclipse.milo.opcua.sdk.client.api.identity.AnonymousProvider;
 import org.eclipse.milo.opcua.sdk.client.api.identity.UsernameProvider;
+import org.eclipse.milo.opcua.stack.client.DiscoveryClient;
 import org.eclipse.milo.opcua.stack.core.UaException;
 import org.eclipse.milo.opcua.stack.core.security.SecurityPolicy;
 import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
@@ -24,12 +26,15 @@ import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
 import org.eclipse.milo.opcua.stack.core.types.builtin.Variant;
 import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.UInteger;
 import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn;
+import org.eclipse.milo.opcua.stack.core.types.structured.EndpointDescription;
+import org.eclipse.milo.opcua.stack.core.util.EndpointUtil;
 import org.springframework.stereotype.Service;
 
 import java.lang.reflect.Field;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 /**
  * @program: dataease
@@ -59,52 +64,53 @@ public class OpcUaProvider extends Provider {
         Status status = new Status();
         Gson gson = new Gson();
         OpcUaDefinitionRequest opcUaDefinitionRequest = gson.fromJson(datasourceRequest.getDatasource().getConfiguration(), OpcUaDefinitionRequest.class);
-        OpcUaClient client = createClient(opcUaDefinitionRequest);
+        OpcUaClient client = null;
         try {
-            CompletableFuture<UaClient> connect = client.connect();
+            client = createClient(opcUaDefinitionRequest);
+            client.connect();
             status.setStatus("Success");
         } catch ( Exception e ) {
             status.setStatus("Failed");
         } finally {
-            client.disconnect();
+            if (null != client) {
+                client.disconnect();
+            }
         }
         return status;
     }
 
 
-    public OpcUaClient createClient(OpcUaDefinitionRequest opcUaDefinitionRequest) throws UaException {
+    public OpcUaClient createClient(OpcUaDefinitionRequest opcUaDefinitionRequest) throws UaException, ExecutionException, InterruptedException {
 
+        String endPoint = opcUaDefinitionRequest.getEndpoint();
 
-        if (StringUtils.isEmpty(opcUaDefinitionRequest.getOpcUaUsername())) {
-            return OpcUaClient.create(opcUaDefinitionRequest.getEndpoint(),
-                    endpoints ->
-                            endpoints.stream()
-                                    .filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.None.getUri()))
-                                    .findFirst(),
-                    configBuilder ->
-                            configBuilder
-                                    .setApplicationName(LocalizedText.english("eclipse milo opc-ua client"))
-                                    .setApplicationUri("urn:eclipse:milo:examples:client")
-                                    .setIdentityProvider(new AnonymousProvider())
-                                    .setRequestTimeout(UInteger.valueOf(5000))
-                                    .build()
-            );
+        List<EndpointDescription> endpoints = DiscoveryClient.getEndpoints(endPoint).get();
+
+        Optional<EndpointDescription> first = endpoints.stream().filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.None.getUri())).findFirst();
+
+        EndpointDescription endpointDescription = null;
+
+        if (first.isPresent()) {
+            endpointDescription = first.get();
         } else {
-            return OpcUaClient.create(opcUaDefinitionRequest.getEndpoint(),
-                    endpoints ->
-                            endpoints.stream()
-                                    .filter(e -> e.getSecurityPolicyUri().equals(SecurityPolicy.None.getUri()))
-                                    .findFirst(),
-                    configBuilder ->
-                            configBuilder
-                                    .setApplicationName(LocalizedText.english("eclipse milo opc-ua client"))
-                                    .setApplicationUri("urn:eclipse:milo:examples:client")
-                                    .setIdentityProvider(new UsernameProvider("admin", "password"))
-                                    .setRequestTimeout(UInteger.valueOf(5000))
-                                    .build()
-            );
+            throw new RuntimeException("can not find endpoint");
         }
 
+        EndpointDescription configPoint = EndpointUtil.updateUrl(endpointDescription, endPoint.substring(endPoint.indexOf("//")+2 , endPoint.lastIndexOf(":")), Integer.parseInt(endPoint.substring( endPoint.lastIndexOf(":")+1)));
+
+        OpcUaClientConfigBuilder cfg = new OpcUaClientConfigBuilder();
+        cfg.setEndpoint(configPoint);
+        cfg.setApplicationName(LocalizedText.english("eclipse milo opc-ua client"));
+        cfg.setApplicationUri("urn:eclipse:milo:examples:client");
+        cfg.setRequestTimeout(UInteger.valueOf(5000));
+
+        if (StringUtils.isEmpty(opcUaDefinitionRequest.getOpcUaUsername())) {
+            cfg.setIdentityProvider(new AnonymousProvider());
+        } else {
+            cfg.setIdentityProvider(new UsernameProvider(opcUaDefinitionRequest.getOpcUaUsername(), opcUaDefinitionRequest.getOpcUaPassword()));
+        }
+
+        return OpcUaClient.create(cfg.build());
 
     }
 
