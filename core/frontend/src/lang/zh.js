@@ -699,7 +699,8 @@ export default {
       please_insert_end: '请输入结束时间',
       save_form: '保存表单',
       default: '默认',
-      default_built_in: '内建数据库'
+      default_built_in: '内建数据库',
+      width: "组件宽度（%）"
     },
     database: {
       nvarchar: '字符串',

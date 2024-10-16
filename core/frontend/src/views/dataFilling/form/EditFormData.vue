@@ -576,10 +576,11 @@ export default {
       <div style="width: 80% ; height: 100%">
         <div class="m-title">{{ formTitle }}</div>
 
-      <div style="width: 100%; overflow: auto">
+      <div style="width: 100%; overflow: auto ; " :style="{height: !readonly && !id ? '55%' : '100%'}">
       <el-form
         ref="mForm"
         class="m-form"
+        style="width: 100%"
         label-position="top"
         hide-required-asterisk
         :model="formData"
@@ -593,10 +594,12 @@ export default {
           <div
             v-for="(item, $index2) in row"
             :key="item.id"
+            style="float: left"
+            :style="{width: item.settings.width + '%'}"
             class="m-item m-form-item"
           >
 
-            <div class="m-label-container">
+            <div class="m-label-container" >
               <span style="width: unset">
                 {{ item.settings.name }}
                 <span
@@ -608,6 +611,7 @@ export default {
             <el-form-item
               :prop="'['+ $index1 +']['+ $index2 +'].value'"
               class="form-item"
+              style="margin-bottom: 5px"
               :readonly="readonly"
               :rules="getRules(item)"
             >
@@ -723,42 +727,30 @@ export default {
         </div>
       </el-form>
       </div>
-
-        <el-drawer
-          title="已添加明细"
-          direction="btt"
-          :append-to-body="true"
-          size="90%"
-          :visible.sync="drawer">
-          <el-container
-            direction="vertical"
-            style="display: flex; flex-direction: column ; width: 90%; margin-left: 5%"
+      <div style="width: 100%; height: 30%; margin-top: 40px" v-if="!readonly && !id ">
+          <div class="m-title">已添加明细</div>
+          <grid-table
+            v-if="columns.length > 0"
+            ref="dataTable"
+            style="width: 100%; height: 100%; padding: 8px 20px"
+            stripe
+            :table-data="formDataList4Excel"
+            :show-pagination = false
+            :columns="[]"
           >
-            <template>
-              <div style="flex: 1">
-                <grid-table
-                  v-if="columns.length > 0"
-                  ref="dataTable"
-                  style="width: 100%; height: 100%"
-                  border
-                  stripe
-                  :table-data="formDataList4Excel"
-                  :show-pagination = false
-                  :columns="[]"
-                >
-                  <el-table-column
-                    v-for="c in columns"
-                    :key="c.props"
-                    :prop="c.props"
-                  >
-                    <template
-                      slot="header"
-                    >
-                      {{ c.label }}
-                      <span v-if="c.rangeIndex === 0">({{ $t('data_fill.data.start') }})</span>
-                      <span v-if="c.rangeIndex === 1">({{ $t('data_fill.data.end') }})</span>
-                    </template>
-                    <template slot-scope="scope">
+            <el-table-column
+              v-for="c in columns"
+              :key="c.props"
+              :prop="c.props"
+            >
+              <template
+                slot="header"
+              >
+                {{ c.label }}
+                <span v-if="c.rangeIndex === 0">({{ $t('data_fill.data.start') }})</span>
+                <span v-if="c.rangeIndex === 1">({{ $t('data_fill.data.end') }})</span>
+              </template>
+              <template slot-scope="scope">
                 <span
                   v-if="c.date && scope.row[c.props]"
                   style="white-space:nowrap; width: fit-content"
@@ -766,50 +758,134 @@ export default {
                 >
                   {{ formatDate(scope.row[c.props], c.dateType) }}
                 </span>
-                      <template v-else-if="(c.type === 'select' && c.multiple || c.type === 'checkbox') && scope.row[c.props]">
-                        <div
-                          v-for="(x, $index) in JSON.parse(scope.row[c.props])"
-                          :key="$index"
-                          style="white-space:nowrap; width: fit-content"
-                          :title="x"
-                        >
-                          {{ x }}
-                        </div>
-                      </template>
-                      <span
-                        v-else
-                        style="white-space:nowrap; width: fit-content"
-                        :title="scope.row[c.props]"
-                      >
+                <template v-else-if="(c.type === 'select' && c.multiple || c.type === 'checkbox') && scope.row[c.props]">
+                  <div
+                    v-for="(x, $index) in JSON.parse(scope.row[c.props])"
+                    :key="$index"
+                    style="white-space:nowrap; width: fit-content"
+                    :title="x"
+                  >
+                    {{ x }}
+                  </div>
+                </template>
+                <span
+                  v-else
+                  style="white-space:nowrap; width: fit-content"
+                  :title="scope.row[c.props]"
+                >
                   {{ scope.row[c.props] }}
                 </span>
-                    </template>
-                  </el-table-column>
-                  <el-table-column
-                    :label="$t('data_fill.form.operation')"
-                    width="160"
-                    fixed="right"
-                  >
-                    <template slot-scope="scope">
-                      <el-button
-                        type="text"
-                        @click="updateRow(scope.row.index)"
-                      >
-                        {{ $t('data_fill.form.modify') }}
-                      </el-button>
-                      <el-button
-                        type="text"
-                        @click="deleteRow(scope.row.index)"
-                      >
-                        {{ $t('data_fill.form.delete') }}
-                      </el-button>
-                    </template>
-                  </el-table-column>
-                </grid-table>
-              </div>
-            </template>
-          </el-container>
-        </el-drawer>
+              </template>
+            </el-table-column>
+            <el-table-column
+              :label="$t('data_fill.form.operation')"
+              width="160"
+              fixed="right"
+            >
+              <template slot-scope="scope">
+                <el-button
+                  type="text"
+                  @click="updateRow(scope.row.index)"
+                >
+                  {{ $t('data_fill.form.modify') }}
+                </el-button>
+                <el-button
+                  type="text"
+                  @click="deleteRow(scope.row.index)"
+                >
+                  {{ $t('data_fill.form.delete') }}
+                </el-button>
+              </template>
+            </el-table-column>
+          </grid-table>
+        </div>
+
+<!--        <el-drawer-->
+<!--          title="已添加明细"-->
+<!--          direction="btt"-->
+<!--          :append-to-body="true"-->
+<!--          size="90%"-->
+<!--          :visible.sync="drawer">-->
+<!--          <el-container-->
+<!--            direction="vertical"-->
+<!--            style="display: flex; flex-direction: column ; width: 90%; margin-left: 5%"-->
+<!--          >-->
+<!--            <template>-->
+<!--              <div style="flex: 1">-->
+<!--                <grid-table-->
+<!--                  v-if="columns.length > 0"-->
+<!--                  ref="dataTable"-->
+<!--                  style="width: 100%; height: 100%"-->
+<!--                  border-->
+<!--                  stripe-->
+<!--                  :table-data="formDataList4Excel"-->
+<!--                  :show-pagination = false-->
+<!--                  :columns="[]"-->
+<!--                >-->
+<!--                  <el-table-column-->
+<!--                    v-for="c in columns"-->
+<!--                    :key="c.props"-->
+<!--                    :prop="c.props"-->
+<!--                  >-->
+<!--                    <template-->
+<!--                      slot="header"-->
+<!--                    >-->
+<!--                      {{ c.label }}-->
+<!--                      <span v-if="c.rangeIndex === 0">({{ $t('data_fill.data.start') }})</span>-->
+<!--                      <span v-if="c.rangeIndex === 1">({{ $t('data_fill.data.end') }})</span>-->
+<!--                    </template>-->
+<!--                    <template slot-scope="scope">-->
+<!--                <span-->
+<!--                  v-if="c.date && scope.row[c.props]"-->
+<!--                  style="white-space:nowrap; width: fit-content"-->
+<!--                  :title="formatDate(scope.row[c.props], c.dateType)"-->
+<!--                >-->
+<!--                  {{ formatDate(scope.row[c.props], c.dateType) }}-->
+<!--                </span>-->
+<!--                      <template v-else-if="(c.type === 'select' && c.multiple || c.type === 'checkbox') && scope.row[c.props]">-->
+<!--                        <div-->
+<!--                          v-for="(x, $index) in JSON.parse(scope.row[c.props])"-->
+<!--                          :key="$index"-->
+<!--                          style="white-space:nowrap; width: fit-content"-->
+<!--                          :title="x"-->
+<!--                        >-->
+<!--                          {{ x }}-->
+<!--                        </div>-->
+<!--                      </template>-->
+<!--                      <span-->
+<!--                        v-else-->
+<!--                        style="white-space:nowrap; width: fit-content"-->
+<!--                        :title="scope.row[c.props]"-->
+<!--                      >-->
+<!--                  {{ scope.row[c.props] }}-->
+<!--                </span>-->
+<!--                    </template>-->
+<!--                  </el-table-column>-->
+<!--                  <el-table-column-->
+<!--                    :label="$t('data_fill.form.operation')"-->
+<!--                    width="160"-->
+<!--                    fixed="right"-->
+<!--                  >-->
+<!--                    <template slot-scope="scope">-->
+<!--                      <el-button-->
+<!--                        type="text"-->
+<!--                        @click="updateRow(scope.row.index)"-->
+<!--                      >-->
+<!--                        {{ $t('data_fill.form.modify') }}-->
+<!--                      </el-button>-->
+<!--                      <el-button-->
+<!--                        type="text"-->
+<!--                        @click="deleteRow(scope.row.index)"-->
+<!--                      >-->
+<!--                        {{ $t('data_fill.form.delete') }}-->
+<!--                      </el-button>-->
+<!--                    </template>-->
+<!--                  </el-table-column>-->
+<!--                </grid-table>-->
+<!--              </div>-->
+<!--            </template>-->
+<!--          </el-container>-->
+<!--        </el-drawer>-->
 
 
       </div>
@@ -854,13 +930,13 @@ export default {
       >{{ $t("commons.continue_add") }}
       </el-button>
 
-      <el-button
-        v-if="!readonly && !id "
-        type="primary"
-        :disabled="modifyRows"
-        @click="openDetails"
-      >查看 {{formDataList.length}} 条明细
-      </el-button>
+<!--      <el-button-->
+<!--        v-if="!readonly && !id "-->
+<!--        type="primary"-->
+<!--        :disabled="modifyRows"-->
+<!--        @click="openDetails"-->
+<!--      >查看 {{formDataList.length}} 条明细-->
+<!--      </el-button>-->
 
       <el-button
         v-if="!readonly"
@@ -920,7 +996,7 @@ export default {
   }
 
   .m-title {
-    margin: 40px 20px 20px;
+    margin: 15px 20px 10px;
 
     height: 28px;
 
@@ -940,13 +1016,13 @@ export default {
   }
 
   .m-form-item {
-    margin-bottom: 10px;
+    margin-bottom: 5px;
     border-radius: 4px;
 
     border: solid 1px transparent;
     background-color: unset;
 
-    padding: 8px 20px;
+    padding: 2px 20px;
   }
 
   .m-label-container {

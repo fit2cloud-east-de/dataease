@@ -89,6 +89,7 @@ export default {
             required: false,
             unique: false,
             inputType: 'text',
+            width: 100,
             mapping: {
 
               columnName: undefined,
@@ -105,6 +106,7 @@ export default {
           id: undefined,
           settings: {
             name: this.$t('commons.component.textarea'), placeholder: '', required: false,
+            width: 100,
             mapping: {
 
               columnName: undefined,
@@ -120,6 +122,7 @@ export default {
           value: undefined,
           id: undefined,
           settings: {
+            width: 100,
             name: this.$t('commons.component.select'),
             options: [{ name: this.$t('data_fill.form.option') + ' 1', value: this.$t('data_fill.form.option') + ' 1' },
               { name: this.$t('data_fill.form.option') + ' 2', value: this.$t('data_fill.form.option') + ' 2' }],
@@ -147,6 +150,7 @@ export default {
           value: undefined,
           id: undefined,
           settings: {
+            width: 100,
             name: this.$t('commons.component.radio'),
             options: [{ name: this.$t('data_fill.form.option') + ' 1', value: this.$t('data_fill.form.option') + ' 1' },
               { name: this.$t('data_fill.form.option') + ' 2', value: this.$t('data_fill.form.option') + ' 2' }],
@@ -174,6 +178,7 @@ export default {
           value: [],
           id: undefined,
           settings: {
+            width: 100,
             name: this.$t('commons.component.checkbox'),
             options: [{ name: this.$t('data_fill.form.option') + ' 1', value: this.$t('data_fill.form.option') + ' 1' },
               { name: this.$t('data_fill.form.option') + ' 2', value: this.$t('data_fill.form.option') + ' 2' }],
@@ -200,6 +205,7 @@ export default {
           value: undefined,
           id: undefined,
           settings: {
+            width: 100,
             name: this.$t('commons.component.date'),
             enableTime: false, // 弃用
             dateType: 'date',
@@ -220,6 +226,7 @@ export default {
           value: [],
           id: undefined,
           settings: {
+            width: 100,
             name: this.$t('commons.component.dateRange'),
             enableTime: false, // 弃用
             dateType: 'daterange',
@@ -951,6 +958,8 @@ export default {
                   :key="item.id"
                   class="m-item m-form-item"
                   :class="{'selectedClass': item.id === selectedItemId}"
+                  style="float: left"
+                  :style="{width: item.settings.width + '%'}"
                   :data-var="tempId = item.settings ? item.settings.optionDatasource + '_' + item.settings.optionTable + '_' + item.settings.optionColumnKey + '_' + item.settings.optionColumnValue + '_' + item.settings.optionColumnOrder + '_' + item.settings.optionOrder : 'unset'"
                   @click.stop="selectItem(item.id)"
                 >
@@ -992,6 +1001,7 @@ export default {
                   <el-form-item
                     prop="value"
                     class="form-item"
+
                   >
                     <el-input
                       v-if="item.type === 'input' && item.settings.inputType !== 'number'"
@@ -1398,6 +1408,24 @@ export default {
                 </template>
 
               </div>
+
+              <div class="m-splitter" />
+
+              <el-form-item
+                prop="width"
+                class="form-item"
+                :rules="[requiredRule]"
+              >
+                <template #label>
+                  {{ $t('data_fill.form.width') }}
+                  <span
+                    style="color: red"
+                  >*</span>
+                </template>
+
+                <el-slider v-model.trim="selectedComponentItem.settings.width"></el-slider>
+
+              </el-form-item>
 
             </el-form>
           </el-main>
