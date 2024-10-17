@@ -130,12 +130,21 @@ public class ViewExportExcel {
         Object objectTableRow = chart.get("tableRow");
         List<Map<String, Object>> tableRow = (List<Map<String, Object>>) objectTableRow;
 
-        List<List<String>> details = tableRow.stream().map(row -> headKeys.stream().map(key -> {
-            Object val = row.get(key);
-            if (ObjectUtils.isEmpty(val))
-                return StringUtils.EMPTY;
-            return filterInvalidDecimal(val.toString());
-        }).collect(Collectors.toList())).collect(Collectors.toList());
+        List<List<String>> details = tableRow.stream().map(row -> {
+            List<String> tempList = new ArrayList<>();
+            for (int i = 0; i < headKeys.size(); i++) {
+                String key = headKeys.get(i);
+                Object val = row.get(key);
+                if (ObjectUtils.isEmpty(val)) {
+                    tempList.add(StringUtils.EMPTY);
+                } else if (fieldTypes.get(i) == 3) {
+                    tempList.add(filterInvalidDecimal(val.toString()));
+                } else {
+                    tempList.add(val.toString());
+                }
+            }
+            return tempList;
+        }).collect(Collectors.toList());
         result.setHeads(heads);
         result.setData(details);
         result.setFiledTypes(fieldTypes);
@@ -150,5 +159,11 @@ public class ViewExportExcel {
             sourceNumberStr = sourceNumberStr.replaceAll("[.]$", "");
         }
         return sourceNumberStr;
+    }
+
+    public static void main(String[] args) {
+        List<String> list = new ArrayList<>();
+        list.add(null);
+        System.out.println(111);
     }
 }

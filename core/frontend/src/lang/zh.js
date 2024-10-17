@@ -1422,6 +1422,7 @@ export default {
     chart_bar_stack_horizontal: '横向堆叠柱状图',
     chart_percentage_bar_stack_horizontal: '横向百分比柱状图',
     chart_bidirectional_bar: '对称柱状图',
+    chart_stock_line: 'K 线图',
     chart_line: '基础折线图',
     chart_line_stack: '堆叠折线图',
     chart_pie: '饼图',
@@ -1625,6 +1626,9 @@ export default {
     table_freeze: '表格冻结',
     table_config: '表格配置',
     table_column_width_config: '列宽调整',
+    table_layout_mode: '展示形式',
+    table_layout_grid: '平铺展示',
+    table_layout_tree: '树形模式',
     table_column_adapt: '自适应',
     table_column_custom: '自定义',
     table_column_fixed: '固定列宽',
@@ -1859,7 +1863,9 @@ export default {
     polynomial_regression: '多项式拟合',
     show_summary: '显示总计',
     summary_label: '总计标签',
-    tip: '提示'
+    tip: '提示',
+    pivot_export_empty_fields: '行维度或指标维度为空不可导出',
+    export_formatted_excel: '导出 Excel (带格式)'
   },
   dataset: {
     goto: ', 前往 ',
@@ -2404,7 +2410,9 @@ export default {
     theme_color_light: '浅色',
     refresh_frequency: '刷新频率',
     refresh_browser_frequency: '浏览器刷新',
+    public_link_button_show: '显示公共链接操作按钮',
     refresh_browser_tips: '仅公共链接生效',
+    public_link_button_tips: '仅公共链接生效',
     card_color_matching: '卡片配色',
     table_color_matching: '表格配色',
     background_color: '背景颜色',

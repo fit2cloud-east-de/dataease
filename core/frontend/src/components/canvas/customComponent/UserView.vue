@@ -601,6 +601,7 @@ export default {
     'cfilters': {
       handler: function(val1, val2) {
         if (isChange(val1, val2) && !this.isFirstLoad) {
+          this.currentPage.page = 1
           this.getData(this.element.propValue.viewId)
           this.getDataLoading = true
         }
@@ -778,22 +779,21 @@ export default {
       this.$message({
         message: h('p', null, [
           this.$t('data_export.exporting'),
-          this.editMode === 'preview'
-            ? h(
-              Button,
-              {
-                props: {
-                  type: 'text',
-                },
-                class: 'btn-text',
-                on: {
-                  click: () => {
-                    cb()
-                  }
-                }
+          h(
+            Button,
+            {
+              props: {
+                type: 'text'
               },
-              this.$t('data_export.export_center')
-            ) : this.$t('data_export.export_center'),
+              class: 'btn-text',
+              on: {
+                click: () => {
+                  cb()
+                }
+              }
+            },
+            this.$t('data_export.export_center')
+          ),
           this.$t('data_export.export_info')
         ]),
         iconClass,
@@ -812,7 +812,7 @@ export default {
             Button,
             {
               props: {
-                type: 'text',
+                type: 'text'
               },
               class: 'btn-text',
               on: {
@@ -878,7 +878,7 @@ export default {
         if (!sourceCustomAttr[param.property]) {
           this.$set(sourceCustomAttr, param.property, {})
         }
-        sourceCustomAttr[param.property][param.value.modifyName] = param.value[param.value.modifyName]
+        Vue.set(sourceCustomAttr[param.property], param.value.modifyName, param.value[param.value.modifyName])
         this.sourceCustomAttrStr = JSON.stringify(sourceCustomAttr)
         this.chart.customAttr = this.sourceCustomAttrStr
         this.$store.commit('updateComponentViewsData', {
@@ -892,7 +892,7 @@ export default {
         if (param.property === 'margin') {
           sourceCustomStyle[param.property] = param.value
         }
-        sourceCustomStyle[param.property][param.value.modifyName] = param.value[param.value.modifyName]
+        Vue.set(sourceCustomStyle[param.property], param.value.modifyName, param.value[param.value.modifyName])
         this.sourceCustomStyleStr = JSON.stringify(sourceCustomStyle)
         this.chart.customStyle = this.sourceCustomStyleStr
         this.$store.commit('updateComponentViewsData', {
@@ -986,8 +986,8 @@ export default {
       this.scale = Math.min(this.previewCanvasScale.scalePointWidth, this.previewCanvasScale.scalePointHeight) * this.scaleCoefficient
       const customAttrChart = JSON.parse(this.sourceCustomAttrStr)
       const customStyleChart = JSON.parse(this.sourceCustomStyleStr)
-      recursionTransObj(customAttrTrans, customAttrChart, this.scale, this.scaleCoefficientType)
-      recursionTransObj(customStyleTrans, customStyleChart, this.scale, this.scaleCoefficientType)
+      recursionTransObj(customAttrTrans, customAttrChart, this.scale, this.scaleCoefficientType, this.chart?.render)
+      recursionTransObj(customStyleTrans, customStyleChart, this.scale, this.scaleCoefficientType, this.chart?.render)
       // 移动端地图标签不显示
       if (this.chart.type === 'map' && this.scaleCoefficientType === 'mobile') {
         customAttrChart.label.show = false
@@ -1000,7 +1000,7 @@ export default {
     },
     getData(id, cache = true, dataBroadcast = false) {
       // Err1001 已删除的不在重复请求
-      if (this.requestStatus === 'waiting' || (this.message && this.message.indexOf('Err1001')> -1)) {
+      if (this.requestStatus === 'waiting' || (this.message && this.message.indexOf('Err1001') > -1)) {
         return
       }
       if (id) {

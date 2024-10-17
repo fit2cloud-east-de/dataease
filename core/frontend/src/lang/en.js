@@ -1412,6 +1412,7 @@ export default {
     chart_bar_stack_horizontal: 'Stack Horizontal Bar',
     chart_percentage_bar_stack_horizontal: 'Horizontal Percentage Stack Bar',
     chart_bidirectional_bar: 'Bidirectional Bar',
+    chart_stock_line: 'Stock Line',
     chart_line: 'Base Line',
     chart_line_stack: 'Stack Line',
     chart_pie: 'Pie',
@@ -1615,6 +1616,9 @@ export default {
     table_freeze: 'Table Freeze',
     table_config: 'Table Config',
     table_column_width_config: 'Column Width',
+    table_layout_mode: 'Layout Mode',
+    table_layout_grid: 'Grid',
+    table_layout_tree: 'Tree',
     table_column_adapt: 'Adapt',
     table_column_custom: 'Custom',
     table_column_fixed: 'Fixed',
@@ -1855,7 +1859,9 @@ export default {
     polynomial_regression: 'Polynomial regression',
     show_summary: 'Show summary',
     summary_label: 'Summary label',
-    tip: 'Tip'
+    tip: 'Tip',
+    pivot_export_empty_fields: 'Can not export without row dimension or quota',
+    export_formatted_excel: 'Export formatted excel'
   },
   dataset: {
     scope_edit: 'Effective only when editing',
@@ -2396,7 +2402,9 @@ export default {
     theme_color_light: 'Light',
     refresh_frequency: 'Refresh Frequency',
     refresh_browser_frequency: 'Refresh Browser',
+    public_link_button_show: 'Show Public Link Button',
     refresh_browser_tips: 'Only public links are effective',
+    public_link_button_tips: 'Only public links are effective',
     card_color_matching: 'Card Color Matching',
     table_color_matching: 'Table Color Matching',
     background_color: 'Background Color',

@@ -1411,6 +1411,7 @@ export default {
     chart_bar_stack_horizontal: '橫嚮堆疊柱狀圖',
     chart_percentage_bar_stack_horizontal: '橫嚮百分比柱狀圖',
     chart_bidirectional_bar: '對稱柱狀圖',
+    chart_stock_line: 'K 線圖',
     chart_line: '基礎摺線圖',
     chart_line_stack: '堆疊摺線圖',
     chart_pie: '餅圖',
@@ -1613,6 +1614,9 @@ export default {
     column: '列',
     table_config: '表格配置',
     table_column_width_config: '列寬調整',
+    table_layout_mode: '展示形式',
+    table_layout_grid: '平鋪展示',
+    table_layout_tree: '樹形模式',
     table_freeze: '表格凍結',
     table_column_adapt: '自適應',
     table_column_custom: '自定義',
@@ -1848,7 +1852,9 @@ export default {
     polynomial_regression: '多項式擬合',
     show_summary: '顯示總計',
     summary_label: '總計標籤',
-    tip: '提示'
+    tip: '提示',
+    pivot_export_empty_fields: '行維度或指標維度為空不可導出',
+    export_formatted_excel: '導出 Excel (帶格式)'
   },
   dataset: {
     scope_edit: '僅編輯時生效',
@@ -2389,7 +2395,9 @@ export default {
     theme_color_light: '淺色',
     refresh_frequency: '刷新頻率',
     refresh_browser_frequency: '瀏覽器刷新',
+    public_link_button_show: '顯示公共鏈接操作按鈕',
     refresh_browser_tips: '僅公共鏈接生效',
+    public_link_button_tips: '僅公共鏈接生效',
     card_color_matching: '卡片配色',
     table_color_matching: '表格配色',
     background_color: '背景顏色',

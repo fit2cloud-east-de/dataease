@@ -164,6 +164,22 @@
         <!--radar-end-->
         <!--table-begin-->
         <el-form-item
+          v-if="showProperty('tableLayoutMode')"
+          :label="$t('chart.table_layout_mode')"
+          class="form-item"
+        >
+          <el-radio-group
+            v-model="sizeForm.tableLayoutMode"
+            class="column-radio"
+            @change="changeBarSizeCase('tableLayoutMode')"
+          >
+            <el-radio label="grid"><span>{{ $t('chart.table_layout_grid') }}</span></el-radio>
+            <el-radio label="tree">
+              <span>{{ $t('chart.table_layout_tree') }}</span>
+            </el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item
           v-if="showProperty('tableItemFontSize')"
           :label="$t('chart.table_item_fontsize')"
           class="form-item"
@@ -1833,6 +1849,7 @@ export default {
           this.sizeForm.tableColumnFreezeTail = this.sizeForm.tableColumnFreezeTail ?? DEFAULT_SIZE.tableColumnFreezeTail
           this.sizeForm.tableRowFreezeHead = this.sizeForm.tableRowFreezeHead ?? DEFAULT_SIZE.tableRowFreezeHead
           this.sizeForm.summaryLabel = this.sizeForm.summaryLabel ?? DEFAULT_SIZE.summaryLabel
+          this.sizeForm.tableLayoutMode = this.sizeForm.tableLayoutMode ?? DEFAULT_SIZE.tableLayoutMode
 
           this.sizeForm.showIndex = this.sizeForm.showIndex ? this.sizeForm.showIndex : DEFAULT_SIZE.showIndex
           this.sizeForm.showTableHeader = this.sizeForm.showTableHeader !== false
@@ -1892,23 +1909,23 @@ export default {
           this.sizeForm.gaugePercentLabel = this.sizeForm.gaugePercentLabel === false ? false : DEFAULT_SIZE.gaugePercentLabel
           if (this.chart.type !== 'table-pivot') {
             let { xaxis, yaxis } = this.chart
-            if (!(xaxis instanceof Object)) {
+            if (!(xaxis instanceof Object) && xaxis) {
               xaxis = JSON.parse(xaxis)
             }
-            if (!(yaxis instanceof Object)) {
+            if (!(yaxis instanceof Object) && yaxis) {
               yaxis = JSON.parse(yaxis)
             }
             let allAxis = xaxis
             if (this.chart.type === 'table-normal') {
               allAxis = allAxis.concat(yaxis)
             }
-            if (allAxis.length && this.sizeForm.showIndex) {
+            if (allAxis?.length && this.sizeForm.showIndex) {
               allAxis.unshift({
                 dataeaseName: SERIES_NUMBER_FIELD,
                 name: this.sizeForm.indexLabel
               })
             }
-            if (!allAxis.length) {
+            if (!allAxis?.length) {
               this.sizeForm.tableFieldWidth?.splice(0)
               this.fieldColumnWidth.fieldId = ''
               this.fieldColumnWidth.width = ''
@@ -1965,7 +1982,10 @@ export default {
     },
     changeBarSizeCase(modifyName) {
       if (!this.doChange) {
-        this.doChange = _.debounce(() => this.debounceChange(modifyName), 200)
+        this.doChange = _.debounce(() => {
+          this.debounceChange(modifyName)
+          this.doChange = undefined
+        }, 200)
       }
       this.doChange()
     },

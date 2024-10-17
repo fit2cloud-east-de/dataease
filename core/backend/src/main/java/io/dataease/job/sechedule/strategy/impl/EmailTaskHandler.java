@@ -31,6 +31,7 @@ import io.dataease.plugins.xpack.wecom.dto.entity.WecomMsgResult;
 import io.dataease.plugins.xpack.wecom.service.WecomXpackService;
 import io.dataease.service.chart.ChartViewService;
 import io.dataease.service.chart.ViewExportExcel;
+import io.dataease.service.panel.PanelGroupService;
 import io.dataease.service.sys.SysUserService;
 import io.dataease.service.system.EmailService;
 import org.apache.commons.collections4.CollectionUtils;
@@ -269,7 +270,9 @@ public class EmailTaskHandler extends TaskHandler implements Job {
                                     emailService.sendWithImageAndFiles(recipients, emailTemplateDTO.getTitle(), contentStr, bytes, files);
                                 } else {
                                     bytes = emailXpackService.printPdf(url, token, xpackPixelEntity, false, true);
-                                    emailService.sendPdfWithFiles(recipients, emailTemplateDTO.getTitle(), contentStr, bytes, files);
+                                    String panelName = CommonBeanFactory.getBean(PanelGroupService.class).getPanelName(panelId);
+                                    String pdfFileName = panelName + ".pdf";
+                                    emailService.sendPdfWithFiles(recipients, emailTemplateDTO.getTitle(), contentStr, bytes, files, pdfFileName);
                                 }
 
                             } catch (Exception e) {
@@ -435,14 +438,18 @@ public class EmailTaskHandler extends TaskHandler implements Job {
 
     private String tokenByUser(SysUserEntity user) {
         TokenInfo tokenInfo = TokenInfo.builder().userId(user.getUserId()).username(user.getUsername()).build();
-        String token = JWTUtils.sign(tokenInfo, user.getPassword(), false);
-
-        return token;
+        return JWTUtils.signShotToken(tokenInfo, user.getPassword());
     }
 
     private String panelUrl(String panelId) {
         String domain = ServletUtils.domain();
         return domain + "/#/previewScreenShot/" + panelId + "/true";
+    }
+
+    public static void main(String[] args) {
+        TokenInfo tokenInfo = TokenInfo.builder().userId(1L).username("admin").build();
+        String contextPath = JWTUtils.signShotToken(tokenInfo, "ae8000252199d4f2aa00e3b99e6f9934");
+        System.out.println(contextPath);
     }
 
 }
