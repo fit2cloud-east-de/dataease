@@ -792,12 +792,15 @@ public class DataFillDataService {
 
         List<Object> results = dataSetFieldService.fieldValues(multFieldValuesRequest.getFieldIds(), multFieldValuesRequest.getSort(), multFieldValuesRequest.getUserId(), true, true, false, multFieldValuesRequest.getKeyword());
         List<ExtTableField.Option> result = new ArrayList<>();
-        for (Object obj : results) {
-            BaseTreeNode treeNode = (BaseTreeNode) obj;
-            ExtTableField.Option option = new ExtTableField.Option();
-            option.setName(treeNode.getText());
-            option.setValue(treeNode.getChildren().get(0).getText());
-            result.add(option);
+
+        if (CollectionUtils.isNotEmpty(results)) {
+            for (Object obj : results) {
+                BaseTreeNode treeNode = (BaseTreeNode) obj;
+                ExtTableField.Option option = new ExtTableField.Option();
+                option.setName(treeNode.getText());
+                option.setValue(treeNode.getChildren().get(0).getText());
+                result.add(option);
+            }
         }
         return result;
     }
