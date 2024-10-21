@@ -28,6 +28,7 @@ import io.dataease.datasource.manage.EngineManage;
 import io.dataease.datasource.provider.ApiUtils;
 import io.dataease.datasource.provider.CalciteProvider;
 import io.dataease.datasource.provider.ExcelUtils;
+import io.dataease.datasource.provider.OPCUAProvider;
 import io.dataease.engine.constant.SQLConstants;
 import io.dataease.exception.DEException;
 import io.dataease.extensions.datasource.api.PluginManageApi;
@@ -304,10 +305,43 @@ public class DatasourceServer implements DatasourceApi {
                     DEException.throwException("Failed to create table " + datasourceRequest.getTable() + ": " + e.getMessage());
                 }
             }
+        } else if (dataSourceDTO.getType().equals(DatasourceConfiguration.DatasourceType.OPCUA.name())) {
+//            CoreDatasourceTask coreDatasourceTask = new CoreDatasourceTask();
+//            BeanUtils.copyBean(coreDatasourceTask, dataSourceDTO.getSyncSetting());
+//            coreDatasourceTask.setName(coreDatasource.getName() + "-task");
+//            coreDatasourceTask.setDsId(coreDatasource.getId());
+//            if (coreDatasourceTask.getStartTime() == null) {
+//                coreDatasourceTask.setStartTime(System.currentTimeMillis() - 20 * 1000);
+//            }
+//            if (StringUtils.equalsIgnoreCase(coreDatasourceTask.getSyncRate(), RIGHTNOW.toString())) {
+//                coreDatasourceTask.setCron(null);
+//            } else {
+//                if (StringUtils.equalsIgnoreCase(coreDatasourceTask.getEndLimit(), "1") && coreDatasourceTask.getStartTime() > coreDatasourceTask.getEndTime()) {
+//                    DEException.throwException("结束时间不能小于开始时间！");
+//                }
+//            }
+//            coreDatasourceTask.setTaskStatus(TaskStatus.WaitingForExecution.name());
+//            datasourceTaskServer.insert(coreDatasourceTask);
+//            datasourceSyncManage.addSchedule(coreDatasourceTask);
+//            DatasourceRequest datasourceRequest = new DatasourceRequest();
+//            datasourceRequest.setDatasource(dataSourceDTO);
+//            List<DatasetTableDTO> tables = ApiUtils.getTables(datasourceRequest);
+//            checkName(tables.stream().map(DatasetTableDTO::getName).collect(Collectors.toList()));
+//            for (DatasetTableDTO api : tables) {
+//                datasourceRequest.setTable(api.getTableName());
+//                List<TableField> tableFields = ApiUtils.getTableFields(datasourceRequest);
+//                try {
+//                    datasourceSyncManage.createEngineTable(datasourceRequest.getTable(), tableFields);
+//                } catch (Exception e) {
+//                    DEException.throwException("Failed to create table " + datasourceRequest.getTable() + ": " + e.getMessage());
+//                }
+//            }
         } else {
             checkParams(dataSourceDTO.getConfiguration());
             calciteProvider.update(dataSourceDTO);
         }
+
+
         return dataSourceDTO;
     }
 
@@ -458,6 +492,23 @@ public class DatasourceServer implements DatasourceApi {
         result.setType(dataSourceDTO.getType());
         result.setStatus(dataSourceDTO.getStatus());
         return result;
+    }
+
+    @Override
+    public List<OpcUaData>  loadPointData(BusiDsRequest busiDsRequest) throws DEException {
+        DatasourceDTO dataSourceDTO = new DatasourceDTO();
+        BeanUtils.copyBean(dataSourceDTO, busiDsRequest);
+        dataSourceDTO.setConfiguration(new String(Base64.getDecoder().decode(dataSourceDTO.getConfiguration())));
+
+        DatasourceRequest datasourceRequest = new DatasourceRequest();
+        datasourceRequest.setDatasource(dataSourceDTO);
+
+        try {
+            return OPCUAProvider.readNodes(datasourceRequest);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
     @Override
@@ -654,6 +705,12 @@ public class DatasourceServer implements DatasourceApi {
         if (coreDatasource.getType().equals("Excel")) {
             return ExcelUtils.getTables(datasourceRequest);
         }
+
+        if (coreDatasource.getType().equals("OPCUA")) {
+            //todo 考虑下定时同步怎么处理
+            return OPCUAProvider.getTables(datasourceRequest);
+        }
+
         Provider provider = ProviderFactory.getProvider(datasourceDTO.getType());
         return provider.getTables(datasourceRequest);
     }
@@ -678,6 +735,9 @@ public class DatasourceServer implements DatasourceApi {
             return tableFields.stream().filter(tableField -> {
                 return !tableField.getOriginName().equalsIgnoreCase("dataease_uuid");
             }).collect(Collectors.toList());
+        } else if (coreDatasource.getType().equals("OPCUA")) {
+            //定时同步的再做考虑
+            return OPCUAProvider.getTableFields();
         }
 
         DatasourceSchemaDTO datasourceSchemaDTO = new DatasourceSchemaDTO();
@@ -846,6 +906,8 @@ public class DatasourceServer implements DatasourceApi {
             String status = null;
             if (coreDatasource.getType().equals("API")) {
                 status = ApiUtils.checkStatus(datasourceRequest);
+            } else if (coreDatasource.getType().equals("OPCUA")) {
+                status = OPCUAProvider.checkStatus(datasourceRequest);
             } else {
                 Provider provider = ProviderFactory.getProvider(coreDatasource.getType());
                 status = provider.checkStatus(datasourceRequest);

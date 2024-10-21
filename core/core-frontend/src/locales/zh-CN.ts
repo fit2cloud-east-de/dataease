@@ -491,6 +491,7 @@ export default {
     please_input_datasource_url: '请输入 Elasticsearch 地址，如: http://es_host:es_port',
     please_input_data_base: '请输入数据库名称',
     please_input_jdbc_url: '请输入 JDBC 连接',
+    please_input_endpoint: '请输入 endpoint',
     please_select_oracle_type: '选择连接类型',
     please_input_user_name: '请输入用户名',
     please_input_password: '请输入密码',
@@ -617,8 +618,15 @@ export default {
     add_data_source: '添加数据源',
     delete_this_driver: '确定删除该驱动吗？',
     basic_info: '基本信息',
+    update_info: '更新信息',
+    point_info: '点位信息',
     data_preview: '预览数据',
     update_type: '更新方式',
+    node_id: '节点 ID',
+    enter_node_id: '请输入节点 ID',
+    connection_type: '连接方式',
+    direct: '直连',
+    sync: '定时同步',
     all_scope: '全量更新',
     add_scope: '增量更新',
     select_data_time: '选择日期时间',
@@ -638,7 +646,8 @@ export default {
     sync_table: '同步指定表',
     req_completed: '请求成功',
     sync_rate: '更新频率',
-    has_same_ds: '存在相同配置数据源，确认保存？'
+    has_same_ds: '存在相同配置数据源，确认保存？',
+    endpoint: 'endpoint'
   },
   chart: {
     align: '对齐方式',

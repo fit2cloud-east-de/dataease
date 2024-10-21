@@ -26,24 +26,26 @@
         </dependency>
         <dependency>
             <groupId>io.dataease</groupId>
-            <artifactId>xpack-permissions</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.dataease</groupId>
-            <artifactId>xpack-sync</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.dataease</groupId>
-            <artifactId>xpack-base</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.dataease</groupId>
             <artifactId>api-permissions</artifactId>
             <version>${dataease.version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.eclipse.milo</groupId>
+            <artifactId>sdk-server</artifactId>
+            <version>0.6.13</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.milo</groupId>
+            <artifactId>sdk-client</artifactId>
+            <version>0.6.13</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk15on</artifactId>
+            <version>1.57</version>
+        </dependency>
+
         <dependency>
             <groupId>io.dataease</groupId>
             <artifactId>api-sync</artifactId>

@@ -22,4 +22,5 @@ public class TaskDTO implements Serializable {
     private Long endTime;
     private String endLimit;
     private String cron;
+    private String connectionType;
 }

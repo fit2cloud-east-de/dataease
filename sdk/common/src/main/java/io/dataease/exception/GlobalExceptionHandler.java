@@ -26,6 +26,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DEException.class)
     public ResultMessage deExceptionHandler(DEException e) {
+        e.printStackTrace();
         LogUtil.error(e.getMessage());
         return new ResultMessage(e.getCode(),e.getMessage());
     }

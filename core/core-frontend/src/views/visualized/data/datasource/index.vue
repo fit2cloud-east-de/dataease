@@ -1235,7 +1235,7 @@ const getMenuList = (val: boolean) => {
           <div class="tab-border">
             <el-tabs v-model="activeName" @tab-change="handleClick">
               <el-tab-pane :label="t('datasource.config')" name="config"></el-tab-pane>
-              <el-tab-pane :label="t('datasource.table')" name="table"></el-tab-pane>
+              <el-tab-pane :label="t('datasource.table')"  name="table"></el-tab-pane>
             </el-tabs>
           </div>
         </div>
@@ -1372,7 +1372,7 @@ const getMenuList = (val: boolean) => {
                   }}</BaseInfoItem>
                 </el-col>
               </el-row>
-              <template v-if="!['Excel', 'API'].includes(nodeInfo.type)">
+              <template v-if="!['Excel', 'API' , 'OPCUA'].includes(nodeInfo.type)">
                 <el-row :gutter="24" v-show="nodeInfo.configuration.urlType !== 'jdbcUrl'">
                   <el-col :span="12">
                     <BaseInfoItem :label="t('datasource.host')">{{
@@ -1499,6 +1499,27 @@ const getMenuList = (val: boolean) => {
                   </el-row>
                 </template>
               </template>
+
+              <template v-if="['OPCUA'].includes(nodeInfo.type)">
+
+                <el-row :gutter="24" >
+                  <el-col :span="12">
+                    <BaseInfoItem :label="t('datasource.endpoint')">{{
+                        nodeInfo.configuration.endpoint
+                      }}</BaseInfoItem>
+                  </el-col>
+                </el-row>
+
+                <el-row :gutter="24" >
+                  <el-col :span="12">
+                    <BaseInfoItem :label="t('datasource.user_name')">{{
+                        nodeInfo.configuration.username?nodeInfo.configuration.username:'无'
+                      }}</BaseInfoItem>
+                  </el-col>
+                </el-row>
+
+              </template>
+
             </template>
           </BaseInfoContent>
           <BaseInfoContent

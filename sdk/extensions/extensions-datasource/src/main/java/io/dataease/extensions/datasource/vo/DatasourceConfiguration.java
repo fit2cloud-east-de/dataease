@@ -27,7 +27,8 @@ public class DatasourceConfiguration extends Configuration {
         ck("ck", "Clickhouse", "OLAP", "`", "`"),
         h2("h2", "H2", "OLAP", "\"", "\""),
         sqlServer("sqlServer", "Sqlserver", "DL", "[", "]"),
-        mongo("mongo", "MongoDB", "DL", "`", "`");
+        mongo("mongo", "MongoDB", "DL", "`", "`"),
+        OPCUA("OPCUA","OPCUA","OPCUA","`", "`");
 
         private String type;
         private String name;

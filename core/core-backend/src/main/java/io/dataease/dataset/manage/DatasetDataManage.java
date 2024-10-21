@@ -1,9 +1,11 @@
 package io.dataease.dataset.manage;
 
+import com.alibaba.nacos.shaded.com.google.gson.JsonObject;
 import io.dataease.api.chart.dto.DeSortField;
 import io.dataease.api.dataset.dto.*;
 import io.dataease.api.dataset.union.DatasetGroupInfoDTO;
 import io.dataease.api.dataset.union.DatasetTableInfoDTO;
+import io.dataease.api.dataset.union.UnionDTO;
 import io.dataease.api.permissions.auth.dto.BusiPerCheckDTO;
 import io.dataease.api.permissions.dataset.dto.DataSetRowPermissionsTreeDTO;
 import io.dataease.auth.bo.TokenUserBO;
@@ -17,6 +19,7 @@ import io.dataease.dataset.utils.TableUtils;
 import io.dataease.datasource.dao.auto.entity.CoreDatasource;
 import io.dataease.datasource.dao.auto.mapper.CoreDatasourceMapper;
 import io.dataease.datasource.manage.EngineManage;
+import io.dataease.datasource.provider.OPCUAProvider;
 import io.dataease.datasource.utils.DatasourceUtils;
 import io.dataease.engine.constant.ExtFieldConstant;
 import io.dataease.engine.constant.SQLConstants;
@@ -87,9 +90,10 @@ public class DatasetDataManage {
         List<DatasetTableFieldDTO> list = null;
         List<TableField> tableFields = null;
         String type = datasetTableDTO.getType();
+        CoreDatasource coreDatasource = coreDatasourceMapper.selectById(datasetTableDTO.getDatasourceId());
         DatasetTableInfoDTO tableInfoDTO = JsonUtil.parseObject(datasetTableDTO.getInfo(), DatasetTableInfoDTO.class);
         if (StringUtils.equalsIgnoreCase(type, DatasetTableType.DB) || StringUtils.equalsIgnoreCase(type, DatasetTableType.SQL)) {
-            CoreDatasource coreDatasource = coreDatasourceMapper.selectById(datasetTableDTO.getDatasourceId());
+
             DatasourceSchemaDTO datasourceSchemaDTO = new DatasourceSchemaDTO();
             if (StringUtils.equalsIgnoreCase("excel", coreDatasource.getType()) || StringUtils.equalsIgnoreCase("api", coreDatasource.getType())) {
                 coreDatasource = engineManage.getDeEngine();
@@ -130,9 +134,12 @@ public class DatasetDataManage {
             }
 
             tableFields = provider.fetchTableField(datasourceRequest);
-        } else {
+        } else if ("OPCUA".equals(coreDatasource.getType())) {
+            //todo 先只考虑直连，先走通
+            tableFields = OPCUAProvider.getTableFields();
+        } else  {
             // excel,api
-            CoreDatasource coreDatasource = engineManage.getDeEngine();
+            coreDatasource = engineManage.getDeEngine();
             DatasourceSchemaDTO datasourceSchemaDTO = new DatasourceSchemaDTO();
             BeanUtils.copyBean(datasourceSchemaDTO, coreDatasource);
             datasourceSchemaDTO.setSchemaAlias(String.format(SQLConstants.SCHEMA, datasourceSchemaDTO.getId()));
@@ -169,6 +176,21 @@ public class DatasetDataManage {
     }
 
     public Map<String, Object> previewDataWithLimit(DatasetGroupInfoDTO datasetGroupInfoDTO, Integer start, Integer count, boolean checkPermission) throws Exception {
+
+        DatasourceRequest datasourceRequest = new DatasourceRequest();
+
+        // OPCUA
+        UnionDTO unionDTO = datasetGroupInfoDTO.getUnion().get(0);
+        DatasetTableDTO currentDs = unionDTO.getCurrentDs();
+        CoreDatasource coreDatasource = coreDatasourceMapper.selectById(currentDs.getDatasourceId());
+        if (null != coreDatasource && "OPCUA".equals(coreDatasource.getType())) {
+            DatasourceDTO datasourceDTO = new DatasourceDTO();
+            BeanUtils.copyBean(datasourceDTO,coreDatasource);
+            datasourceRequest.setDatasource(datasourceDTO);
+            Map parse = JsonUtil.parse(currentDs.getInfo(), Map.class);
+            datasourceRequest.setTable(parse.get("table").toString());
+        }
+
         Map<String, Object> sqlMap = datasetSQLManage.getUnionSQLForEdit(datasetGroupInfoDTO, null);
         String sql = (String) sqlMap.get("sql");
 
@@ -233,7 +255,6 @@ public class DatasetDataManage {
 
         // 通过数据源请求数据
         // 调用数据源的calcite获得data
-        DatasourceRequest datasourceRequest = new DatasourceRequest();
         datasourceRequest.setQuery(querySQL);
         datasourceRequest.setDsList(dsMap);
 
@@ -312,6 +333,16 @@ public class DatasetDataManage {
     }
 
     public Long getDatasetTotal(DatasetGroupInfoDTO datasetGroupInfoDTO, String s, ChartExtRequest request) throws Exception {
+
+        DatasourceRequest datasourceRequest = new DatasourceRequest();
+        // OPCUA
+        UnionDTO unionDTO = datasetGroupInfoDTO.getUnion().get(0);
+        DatasetTableDTO currentDs = unionDTO.getCurrentDs();
+        CoreDatasource coreDatasource = coreDatasourceMapper.selectById(currentDs.getDatasourceId());
+        if (null != coreDatasource && "OPCUA".equals(coreDatasource.getType())) {
+            return 1L;
+        }
+
         Map<String, Object> sqlMap = datasetSQLManage.getUnionSQLForEdit(datasetGroupInfoDTO, request);
         Map<Long, DatasourceSchemaDTO> dsMap = (Map<Long, DatasourceSchemaDTO>) sqlMap.get("dsMap");
         boolean crossDs = Utils.isCrossDs(dsMap);
@@ -329,7 +360,6 @@ public class DatasetDataManage {
 
         // 通过数据源请求数据
         // 调用数据源的calcite获得data
-        DatasourceRequest datasourceRequest = new DatasourceRequest();
         datasourceRequest.setQuery(querySQL);
         datasourceRequest.setDsList(dsMap);
 
@@ -339,6 +369,7 @@ public class DatasetDataManage {
         } else {
             provider = ProviderFactory.getProvider(dsMap.entrySet().iterator().next().getValue().getType());
         }
+
         Map<String, Object> data = provider.fetchResultField(datasourceRequest);
         List<String[]> dataList = (List<String[]>) data.get("data");
         if (ObjectUtils.isNotEmpty(dataList) && ObjectUtils.isNotEmpty(dataList.get(0)) && ObjectUtils.isNotEmpty(dataList.get(0)[0])) {

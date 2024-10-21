@@ -3,6 +3,7 @@ package io.dataease.extensions.datasource.dto;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.lang.reflect.Field;
 import java.util.List;
 
 
@@ -25,4 +26,6 @@ public class TableField implements Serializable {
 
     private int inCount;
 
+
+    private Field field;
 }

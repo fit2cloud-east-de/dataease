@@ -72,6 +72,10 @@ export const validate = (data = {}) => {
   return request.post({ url: '/datasource/validate', data })
 }
 
+export const loadPointData = (data = {}) => {
+  return request.post({ url: '/datasource/loadPointData', data })
+}
+
 export const isShowFinishPage = async () => {
   return request.get({ url: '/datasource/showFinishPage' })
 }

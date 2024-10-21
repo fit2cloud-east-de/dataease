@@ -8,6 +8,7 @@ import lombok.Data;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.util.List;
 
 @Data
 public class BusiDsRequest implements Serializable {
@@ -42,6 +43,7 @@ public class BusiDsRequest implements Serializable {
     private String createBy;
     private String creator;
     private String status;
+    private List <String> nodeList;
     private TaskDTO syncSetting;
     private Integer editType;
     private String  fileName;

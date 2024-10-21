@@ -108,15 +108,22 @@ export const dsTypes = [
     name: 'Excel',
     catalog: 'LOCAL',
     extraParams: ''
-  }
+  },
+  {
+    type: 'OPCUA',
+    name: 'OPCUA',
+    catalog: 'OPCUA',
+    extraParams: ''
+  },
 ]
 
-export const typeList = ['OLTP', 'OLAP', 'DL', 'OTHER', 'LOCAL']
+export const typeList = ['OLTP', 'OLAP', 'DL', 'OTHER', 'LOCAL' , 'OPCUA']
 export const nameMap = {
   OLTP: 'OLTP',
   OLAP: 'OLAP',
   DL: t('datasource.dl'),
   OTHER: 'API数据',
+  'OPCUA': 'OPCUA',
   LOCAL: t('datasource.local_file')
 }
 

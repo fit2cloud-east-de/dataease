@@ -5,7 +5,7 @@ import Icon from '@/components/icon-custom/src/Icon.vue'
 import { XpackComponent } from '@/components/plugin'
 import { iconDatasourceMap } from '@/components/icon-group/datasource-list'
 
-export type DsType = 'OLTP' | 'OLAP' | 'DL' | 'OTHER' | 'LOCAL' | 'latestUse' | 'all'
+export type DsType = 'OLTP' | 'OLAP' | 'DL' | 'OTHER' | 'LOCAL' | 'latestUse' | 'all' | 'OPCUA'
 const props = defineProps({
   currentType: {
     type: String as PropType<DsType>,
@@ -69,13 +69,16 @@ const currentTypeList = computed(() => {
   )
 })
 const getDatasourceTypes = () => {
-  const arr = [[], [], [], [], []]
+  const arr = [[], [], [], [], [] ,[]]
   dsTypes.forEach(item => {
     const index = typeList.findIndex(ele => ele === item.catalog)
     if (index !== -1) {
       arr[index].push(item)
     }
   })
+
+  console.log(arr);
+
   databaseList.value = arr.map(ele => {
     return ele.sort((a, b) => {
       return a.name.toLowerCase().charCodeAt(0) - b.name.toLowerCase().charCodeAt(0)

@@ -152,7 +152,12 @@ public class CalciteProvider extends Provider {
     public Map<String, Object> fetchResultField(DatasourceRequest datasourceRequest) throws DEException {
         // 不跨数据源
         if (datasourceRequest.getDsList().size() == 1) {
-            return jdbcFetchResultField(datasourceRequest);
+            //todo 定时同步的逻辑怎么处理？
+            if ( null!= datasourceRequest.getDatasource() && "OPCUA".equals(datasourceRequest.getDatasource().getType())) {
+                return OPCUAProvider.fetchResultAndField(datasourceRequest);
+            } else {
+                return jdbcFetchResultField(datasourceRequest);
+            }
         }
 
         List<TableField> datasetTableFields = new ArrayList<>();

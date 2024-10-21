@@ -41,6 +41,7 @@ public class HtmlResourceFilter implements Filter, Ordered {
         try {
             filterChain.doFilter(servletRequest, httpResponse);
         }catch (Exception e){
+            e.printStackTrace();
             httpResponse.setContentType("application/json");
             httpResponse.setCharacterEncoding("UTF-8");
             httpResponse.setStatus(HttpServletResponse.SC_BAD_REQUEST);

@@ -11,14 +11,14 @@ import icon_deleteTrash_outlined from '@/assets/svg/icon_delete-trash_outlined.s
 import icon_edit_outlined from '@/assets/svg/icon_edit_outlined.svg'
 import { ref, reactive, h, computed, toRefs, nextTick, watch } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
-import type { FormInstance, FormRules } from 'element-plus-secondary'
+import {ElTableV2, FormInstance, FormRules} from 'element-plus-secondary'
 import EmptyBackground from '@/components/empty-background/src/EmptyBackground.vue'
 import { cloneDeep } from 'lodash-es'
 import ApiHttpRequestDraw from './ApiHttpRequestDraw.vue'
 import type { Configuration, ApiConfiguration, SyncSetting } from './option'
 import { fieldType, fieldTypeText } from '@/utils/attr'
 import { Icon } from '@/components/icon-custom'
-import { getSchema } from '@/api/datasource'
+import { getSchema ,loadPointData } from '@/api/datasource'
 import { Base64 } from 'js-base64'
 import { CustomPassword } from '@/components/custom-password'
 import { ElForm, ElMessage, ElMessageBox } from 'element-plus-secondary'
@@ -70,6 +70,9 @@ const loading = ref(false)
 const dsForm = ref<FormInstance>()
 
 const cronEdit = ref(true)
+
+const nodeColumns = ref([]);
+const nodeData = ref([]);
 
 const defaultRule = {
   name: [
@@ -136,7 +139,7 @@ const initForm = type => {
     rule.value = cloneDeep(defaultRule)
     setRules()
   }
-  if (type === 'API') {
+  if (type === 'API' || type === 'OPCUA'  ) {
     form.value.syncSetting = {
       updateType: 'all_scope',
       syncRate: 'SIMPLE_CRON',
@@ -148,6 +151,13 @@ const initForm = type => {
       cron: '0 0/1 * * * ? *'
     }
   }
+
+  if (type === 'OPCUA') {
+    form.value.configuration.connectionType = 'direct'
+    form.value.configuration.nodeList = [''];
+  }
+
+
   if (type === 'oracle') {
     form.value.configuration.connectionType = 'sid'
   }
@@ -158,7 +168,10 @@ const initForm = type => {
   }, 0)
 }
 
-const notapiexcelconfig = computed(() => form.value.type !== 'API')
+const notapiexcelconfig = computed(() => form.value.type !== 'API' &&   form.value.type !== 'OPCUA')
+
+const opcuaconfig = computed(() =>  form.value.type === 'OPCUA')
+
 
 const authMethodList = [
   {
@@ -192,6 +205,14 @@ const validateSshUserName = (_: any, value: any, callback: any) => {
   return callback()
 }
 
+const addInput = () => {
+  form.value.configuration.nodeList.push("");
+}
+
+const deletePoint = (index: any) => {
+  form.value.configuration.nodeList.splice(index,1)
+}
+
 const validateSshPassword = (_: any, value: any, callback: any) => {
   if (
     (value === undefined || value === null || value === '') &&
@@ -216,6 +237,13 @@ const validateSshkey = (_: any, value: any, callback: any) => {
 
 const setRules = () => {
   const configRules = {
+    'configuration.endpoint': [
+      {
+        required: true,
+        message: t('datasource.please_input_endpoint'),
+        trigger: 'blur'
+      }
+    ],
     'configuration.jdbcUrl': [
       {
         required: true,
@@ -331,7 +359,7 @@ const setRules = () => {
 watch(
   () => form.value.type,
   val => {
-    if (val !== 'API') {
+    if (val !== 'API'  && val !== 'OPCUA' ) {
       rule.value = cloneDeep(defaultRule)
       setRules()
     }
@@ -504,6 +532,27 @@ const onSimpleCronChange = () => {
 }
 
 const showSchema = ref(false)
+
+const loadData = () => {
+  const request = JSON.parse(JSON.stringify(form.value))
+  request.configuration = Base64.encode(JSON.stringify(request.configuration))
+  loadPointData(request)
+    .then( res => {
+      if (res.data[0]) {
+        nodeColumns.value = [];
+        Object.keys(res.data[0]).forEach(key => {
+            nodeColumns.value.push({
+              key: key,
+              dataKey: key,
+              title: key,
+              width: 150
+            })
+        })
+      }
+      nodeData.value = res.data;
+      console.log(res.data)
+    } )
+}
 
 const getDsSchema = () => {
   showSchema.value = true
@@ -723,14 +772,25 @@ defineExpose({
 <template>
   <div class="editor-detail">
     <div class="detail-inner create-dialog">
-      <div v-show="form.type === 'API'" class="info-update">
+      <div v-show="form.type === 'API' ||  form.type === 'OPCUA'" class="info-update">
         <div :class="activeStep === 1 && 'active'" class="info-text">数据源配置信息</div>
         <div class="update-info-line"></div>
         <div :class="activeStep === 2 && 'active'" class="update-text">数据更新设置</div>
+        <div class="update-info-line" v-show="form.type === 'OPCUA'" ></div>
+        <div :class="activeStep === 3 && 'active'" v-show="form.type === 'OPCUA'"  class="update-text">数据点位设置</div>
       </div>
-      <div class="title-form_primary base-info" v-show="activeStep !== 2 && form.type === 'API'">
+      <div class="title-form_primary base-info" v-show="activeStep === 1 && ( form.type === 'API' || form.type === 'OPCUA' )">
         {{ t('datasource.basic_info') }}
       </div>
+
+      <div class="title-form_primary base-info" v-show="activeStep === 2 && form.type === 'OPCUA' ">
+        {{ t('datasource.update_info') }}
+      </div>
+
+      <div class="title-form_primary base-info" v-show="activeStep === 3 && form.type === 'OPCUA' ">
+        {{ t('datasource.point_info') }}
+      </div>
+
       <el-form
         ref="dsForm"
         :model="form"
@@ -743,7 +803,7 @@ defineExpose({
         <el-form-item
           :label="t('auth.datasource') + t('chart.name')"
           prop="name"
-          v-show="activeStep !== 2"
+          v-show="activeStep === 1"
         >
           <el-input
             v-model="form.name"
@@ -751,7 +811,7 @@ defineExpose({
             :placeholder="t('datasource.input_name')"
           />
         </el-form-item>
-        <el-form-item :label="t('common.description')" v-show="activeStep !== 2">
+        <el-form-item :label="t('common.description')" v-show="activeStep === 1">
           <el-input
             class="description-text"
             type="textarea"
@@ -763,7 +823,7 @@ defineExpose({
           />
         </el-form-item>
         <template v-if="form.type === 'API'">
-          <div class="title-form_primary flex-space table-info-mr" v-show="activeStep !== 2">
+          <div class="title-form_primary flex-space table-info-mr" v-show="activeStep === 1">
             <el-tabs v-model="activeName" class="api-tabs">
               <el-tab-pane :label="t('datasource.data_table')" name="table"></el-tab-pane>
               <el-tab-pane label="接口参数" name="params"></el-tab-pane>
@@ -776,7 +836,7 @@ defineExpose({
             </el-button>
           </div>
           <empty-background
-            v-show="activeStep !== 2"
+            v-show="activeStep === 1"
             v-if="!form.apiConfiguration.length && activeName === 'table'"
             :description="t('datasource.no_data_table')"
             img-type="noneWhite"
@@ -1269,6 +1329,35 @@ defineExpose({
             jsname="L2NvbXBvbmVudC9kYXRhLWZpbGxpbmcvRGF0YXNvdXJjZUVuYWJsZURhdGFGaWxsaW5n"
           />
         </template>
+
+        <template v-if="opcuaconfig && activeStep === 1 ">
+          <el-form-item
+            :label="t('datasource.endpoint')"
+            prop="configuration.endpoint"
+          >
+            <el-input
+              v-model="form.configuration.endpoint"
+              :placeholder="t('datasource.endpoint')"
+              autocomplete="off"
+            />
+          </el-form-item>
+          <el-form-item :label="t('datasource.user_name')">
+            <el-input
+              :placeholder="t('common.inputText') + t('datasource.user_name')"
+              v-model="form.configuration.username"
+              autocomplete="off"
+            />
+          </el-form-item>
+          <el-form-item :label="t('datasource.password')" >
+            <CustomPassword
+              :placeholder="t('common.inputText') + t('datasource.password')"
+              show-password
+              type="password"
+              v-model="form.configuration.password"
+            />
+          </el-form-item>
+        </template>
+
       </el-form>
       <el-form
         ref="dsApiForm"
@@ -1280,19 +1369,34 @@ defineExpose({
       >
         <!--        API update setting -->
         <el-form-item
+          :label="t('datasource.connection_type')"
+          prop="configuration.connectionType"
+          v-if="activeStep === 2 &&  form.type === 'OPCUA'  "
+        >
+          <el-radio-group v-model="form.configuration.connectionType">
+            <el-radio label="direct">{{ t('datasource.direct') }}</el-radio>
+            <el-radio label="sync"> {{ t('datasource.sync') }}</el-radio>
+          </el-radio-group>
+        </el-form-item>
+
+
+        <el-form-item
           :label="t('datasource.update_type')"
           prop="syncSetting.updateType"
-          v-if="activeStep === 2 && form.type === 'API'"
+          v-if="activeStep === 2 && ( form.type === 'API' || ( form.type === 'OPCUA' && form.configuration.connectionType === 'sync')) "
         >
           <el-radio-group v-model="form.syncSetting.updateType">
             <el-radio label="all_scope">{{ t('datasource.all_scope') }}</el-radio>
             <el-radio label="add_scope"> {{ t('datasource.add_scope') }}</el-radio>
           </el-radio-group>
         </el-form-item>
+
+
+
         <el-form-item
           :label="t('datasource.sync_rate')"
           prop="syncSetting.syncRate"
-          v-if="activeStep === 2 && form.type === 'API'"
+          v-if="activeStep === 2 && ( form.type === 'API' || ( form.type === 'OPCUA' && form.configuration.connectionType === 'sync')) "
         >
           <el-radio-group v-model="form.syncSetting.syncRate" @change="onRateChange">
             <el-radio label="RIGHTNOW">立即更新</el-radio>
@@ -1301,7 +1405,7 @@ defineExpose({
           </el-radio-group>
         </el-form-item>
         <div
-          v-if="activeStep === 2 && form.type === 'API' && form.syncSetting.syncRate !== 'RIGHTNOW'"
+          v-if="activeStep === 2 && ( form.type === 'API' || ( form.type === 'OPCUA' && form.configuration.connectionType === 'sync')) && form.syncSetting.syncRate !== 'RIGHTNOW'"
           class="execute-rate-cont"
         >
           <el-form-item
@@ -1376,6 +1480,63 @@ defineExpose({
           </el-form-item>
         </div>
       </el-form>
+
+
+      <el-form
+        ref="dsApiForm"
+        :model="form"
+        :rules="apiRule"
+        label-width="180px"
+        label-position="top"
+        require-asterisk-position="right"
+        v-if="activeStep === 3 && form.type === 'OPCUA' "
+      >
+          <div v-for="(item , index) in form.configuration.nodeList" :key="index" style="margin-top: 5px"
+          >
+            <el-input
+              v-model="form.configuration.nodeList[index]"
+              style="width: 95%;margin-bottom: 10px"
+              size="small"
+              :placeholder="$t('datasource.enter_node_id')"
+            />
+            <el-button text :disabled="form.configuration.nodeList.length <= 1" @click="deletePoint(index)" style="margin-bottom: 10px" >
+              <template #icon>
+                <Icon name="icon_delete-trash_outlined"
+                ><icon_deleteTrash_outlined class="svg-icon"
+                /></Icon>
+              </template>
+            </el-button>
+          </div>
+          <el-button
+            style="margin-top: 10px ; margin-bottom: 20px"
+            type="primary"
+            size="small"
+            @click="addInput()"
+          >
+            添加节点
+          </el-button>
+
+          <el-button
+            style="margin-top: 10px ; margin-bottom: 20px"
+            type="primary"
+            size="small"
+            @click="loadData()"
+          >
+            加载节点数据
+          </el-button>
+
+          <el-table-v2
+            :columns="nodeColumns"
+            :style="border=2"
+            header-class="header-cell"
+            :data="nodeData"
+            :width="800"
+            :height="400"
+            fixed
+          />
+
+      </el-form>
+
       <el-dialog
         title="编辑参数"
         v-model="dialogEditParams"

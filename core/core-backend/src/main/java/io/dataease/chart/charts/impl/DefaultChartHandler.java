@@ -5,7 +5,10 @@ import io.dataease.chart.constant.ChartConstants;
 import io.dataease.chart.manage.ChartDataManage;
 import io.dataease.chart.manage.ChartViewManege;
 import io.dataease.chart.utils.ChartDataBuild;
+import io.dataease.dataset.dao.auto.entity.CoreDatasetTable;
 import io.dataease.dataset.manage.DatasetTableFieldManage;
+import io.dataease.dataset.manage.DatasetTableManage;
+import io.dataease.datasource.manage.DataSourceManage;
 import io.dataease.engine.constant.SQLConstants;
 import io.dataease.engine.sql.SQLProvider;
 import io.dataease.engine.trans.Dimension2SQLObj;
@@ -13,6 +16,7 @@ import io.dataease.engine.trans.Quota2SQLObj;
 import io.dataease.engine.utils.Utils;
 import io.dataease.extensions.datasource.api.PluginManageApi;
 import io.dataease.extensions.datasource.dto.DatasetTableFieldDTO;
+import io.dataease.extensions.datasource.dto.DatasourceDTO;
 import io.dataease.extensions.datasource.dto.DatasourceRequest;
 import io.dataease.extensions.datasource.dto.DatasourceSchemaDTO;
 import io.dataease.extensions.datasource.model.SQLMeta;
@@ -48,6 +52,10 @@ public class DefaultChartHandler extends AbstractChartPlugin {
     protected ChartHandlerManager chartHandlerManager;
     @Resource
     protected DatasetTableFieldManage datasetTableFieldManage;
+    @Resource
+    protected DatasetTableManage datasetTableManage;
+    @Resource
+    protected DataSourceManage dataSourceManage;
     @Resource
     protected ChartViewManege chartViewManege;
     @Getter
@@ -115,6 +123,14 @@ public class DefaultChartHandler extends AbstractChartPlugin {
         querySql = provider.rebuildSQL(querySql, sqlMeta, crossDs, dsMap);
         datasourceRequest.setQuery(querySql);
         logger.debug("calcite chart sql: " + querySql);
+
+        List<CoreDatasetTable> coreDatasetTables = datasetTableManage.selectByDatasetGroupId(view.getTableId());
+        if (CollectionUtils.isNotEmpty(coreDatasetTables)) {
+            CoreDatasetTable coreDatasetTable = coreDatasetTables.get(0);
+            DatasourceDTO ds = dataSourceManage.getDs(coreDatasetTable.getDatasourceId());
+            datasourceRequest.setDatasource(ds);
+            datasourceRequest.setTable(coreDatasetTable.getTableName());
+        }
         List<String[]> data = (List<String[]>) provider.fetchResultField(datasourceRequest).get("data");
         //自定义排序
         data = ChartDataUtil.resultCustomSort(xAxis, data);

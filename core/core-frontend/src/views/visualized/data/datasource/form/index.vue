@@ -83,6 +83,7 @@ const selectDsType = (type: string) => {
   currentDsType.value = type
   activeStep.value = 1
   activeApiStep.value = 1
+  activeOPCUAStep.value = 1
   nextTick(() => {
     detail?.value?.initForm(type) ||
       xpack?.value?.invokeMethod({
@@ -136,13 +137,14 @@ const currentTypeList = computed(() => {
 })
 
 const getDatasourceTypes = () => {
-  const arr = [[], [], [], [], []]
+  const arr = [[], [], [], [], [], []]
   dsTypes.forEach(item => {
     const index = typeList.findIndex(ele => ele === item.catalog)
     if (index !== -1) {
       arr[index].push(item)
     }
   })
+  console.log(arr);
   databaseList.value = arr.map(ele => {
     return ele.sort((a, b) => {
       return a.name.toLowerCase().charCodeAt(0) - b.name.toLowerCase().charCodeAt(0)
@@ -191,10 +193,22 @@ const getLatestUseTypes = () => {
 getLatestUseTypes()
 
 const activeApiStep = ref(0)
+const activeOPCUAStep = ref(0)
 
 const setNextStep = () => {
-  activeApiStep.value = activeStep.value + 1
-  if (currentDsType.value === 'API' && activeStep.value === 1) return
+  activeApiStep.value = activeApiStep.value + 1
+  activeOPCUAStep.value = activeOPCUAStep.value + 1
+
+  console.log("activeApiStep.value:" + activeApiStep.value);
+  console.log("activeOPCUAStep.value:" + activeOPCUAStep.value);
+
+  if (currentDsType.value === 'API' && activeStep.value === 1) {
+    return
+  }
+  if (currentDsType.value === 'OPCUA' &&  ( activeStep.value === 1 ||  activeStep.value === 2 )) {
+    return
+  }
+  console.log("currentDsType.value:" + currentDsType.value + "  ;  activeStep.value : " +  activeStep.value);
   activeStep.value = activeStep.value + 1
 }
 
@@ -213,10 +227,14 @@ const next = () => {
     return
   }
 
-  if (currentDsType.value === 'API' && activeStep.value !== 2) {
+  console.log("点击了下一步")
+
+  if ((currentDsType.value === 'API' || currentDsType.value === 'OPCUA'  ) && activeStep.value !== 3) {
     const validateFrom = detail.value.submitForm()
+    console.log("我进入了 if 判断")
     validateFrom(val => {
       if (val) {
+        console.log("我判断成功了!")
         setNextStep()
       }
     })
@@ -282,7 +300,9 @@ const handleShowFinishPage = ({ id, name, pid }) => {
 emitter.on('showFinishPage', handleShowFinishPage)
 
 const prev = () => {
-  if ((currentDsType.value === 'API' && activeApiStep.value === 1) || activeStep.value === 1) {
+  if ((currentDsType.value === 'API' && activeApiStep.value === 1)
+    || (currentDsType.value === 'OPCUA' && (activeOPCUAStep.value === 1 || activeOPCUAStep.value === 2 ))
+    || activeStep.value === 1) {
     ElMessageBox.confirm('填写的信息将会清空，确定返回上一步吗？', {
       confirmButtonType: 'primary',
       type: 'warning',
@@ -300,6 +320,18 @@ const prevConfirm = () => {
   if (currentDsType.value === 'API' && activeApiStep.value === 2) {
     activeApiStep.value = 1
     activeStep.value = 1
+    return
+  }
+
+  if (currentDsType.value === 'OPCUA' && activeOPCUAStep.value === 2  ) {
+    activeOPCUAStep.value = 1
+    activeStep.value = 1
+    return
+  }
+
+  if (currentDsType.value === 'OPCUA' && activeOPCUAStep.value === 3  ) {
+    activeOPCUAStep.value = 2
+    activeStep.value = 2
     return
   }
 
@@ -604,6 +636,7 @@ const init = (nodeInfo: Form | Param, id?: string, res?: object) => {
   }
   activeStep.value = Number(editDs.value)
   activeApiStep.value = activeStep.value
+  activeOPCUAStep.value = activeStep.value
 
   visible.value = true
   nextTick(() => {
@@ -615,6 +648,7 @@ const init = (nodeInfo: Form | Param, id?: string, res?: object) => {
       currentDsType.value = nodeInfo.type
       activeStep.value = 1
       activeApiStep.value = activeStep.value
+      activeOPCUAStep.value = activeStep.value
       if (!!res) {
         nextTick(() => {
           excel.value.appendReplaceExcel(res)
@@ -786,15 +820,30 @@ defineExpose({
             :current-type="currentType"
             :latest-use-types="latestUseTypes"
           ></ds-type-list>
+
           <editor-detail
             ref="detail"
             :form="form"
             :editDs="editDs"
             :active-step="activeApiStep"
             v-if="
-              activeStep !== 0 && currentDsType && currentDsType !== 'Excel' && visible && !isPlugin
+              activeStep !== 0 && currentDsType && currentDsType !== 'Excel' &&  currentDsType !== 'OPCUA' && visible && !isPlugin
             "
           ></editor-detail>
+
+
+          <editor-detail
+            ref="detail"
+            :form="form"
+            :editDs="editDs"
+            :active-step="activeOPCUAStep"
+            v-if="
+              activeStep !== 0 && currentDsType && currentDsType !== 'Excel' && currentDsType !== 'API'  && visible && !isPlugin
+            "
+          ></editor-detail>
+
+
+
           <plugin-component
             :jsname="getPluginStatic(currentDsType)"
             ref="xpack"
@@ -803,10 +852,26 @@ defineExpose({
             :active-step="activeApiStep"
             @submitForm="handleSubmit"
             v-if="
-              activeStep !== 0 && currentDsType && currentDsType !== 'Excel' && visible && isPlugin
+              activeStep !== 0 && currentDsType && currentDsType !== 'Excel' && currentDsType !== 'OPCUA' && visible && isPlugin
             "
           >
           </plugin-component>
+
+          <plugin-component
+            :jsname="getPluginStatic(currentDsType)"
+            ref="xpack"
+            :form="form"
+            :editDs="editDs"
+            :active-step="activeOPCUAStep"
+            @submitForm="handleSubmit"
+            v-if="
+              activeStep !== 0 && currentDsType && currentDsType !== 'Excel' && currentDsType !== 'API'   && visible && isPlugin
+            "
+          >
+          </plugin-component>
+
+
+
           <template v-if="activeStep !== 0 && currentDsType == 'Excel'">
             <excel-detail :editDs="editDs" ref="excel" :param="form2"></excel-detail>
           </template>
@@ -815,7 +880,7 @@ defineExpose({
       <div class="editor-footer" v-loading="dsLoading">
         <el-button secondary @click="beforeClose"> {{ t('common.cancel') }}</el-button>
         <el-button
-          v-show="!(activeStep === 0 || (editDs && activeApiStep <= 1))"
+          v-show="!(activeStep === 0 || (editDs && ( activeApiStep <= 1 || activeOPCUAStep <= 1 )))"
           secondary
           @click="prev"
         >
@@ -830,8 +895,9 @@ defineExpose({
         >
         <el-button
           v-show="
-            (activeStep === 0 && currentDsType !== 'API') ||
-            (activeApiStep !== 2 && currentDsType === 'API')
+            (activeStep === 0 && currentDsType !== 'API' && currentDsType !== 'OPCUA' ) ||
+            (activeApiStep !== 2 && currentDsType === 'API') ||
+            (activeOPCUAStep !== 3 && currentDsType === 'OPCUA')
           "
           type="primary"
           @click="next"
@@ -840,8 +906,9 @@ defineExpose({
         >
         <el-button
           v-show="
-            (activeStep === 1 && currentDsType !== 'API') ||
-            (activeApiStep === 2 && currentDsType === 'API')
+            (activeStep === 1 && currentDsType !== 'API' && currentDsType !== 'OPCUA'  ) ||
+            (activeApiStep === 2 && currentDsType === 'API') ||
+            (activeOPCUAStep === 3 && currentDsType === 'OPCUA')
           "
           type="primary"
           @click="saveDS"

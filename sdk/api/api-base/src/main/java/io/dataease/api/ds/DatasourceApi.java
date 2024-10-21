@@ -68,6 +68,10 @@ public interface DatasourceApi {
     @Operation(summary = "校验")
     DatasourceDTO validate(@RequestBody BusiDsRequest dataSourceDTO) throws DEException;
 
+    @PostMapping("/loadPointData")
+    @Operation(summary = "加载节点数据")
+    List<OpcUaData>  loadPointData(@RequestBody BusiDsRequest dataSourceDTO) throws DEException;
+
     @PostMapping("/getSchema")
     @Operation(summary = "获取 schema")
     List<String> getSchema(@RequestBody BusiDsRequest dataSourceDTO) throws DEException;
