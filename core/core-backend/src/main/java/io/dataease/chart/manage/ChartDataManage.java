@@ -6,10 +6,9 @@ import io.dataease.api.permissions.dataset.dto.DataSetRowPermissionsTreeDTO;
 import io.dataease.chart.charts.ChartHandlerManager;
 import io.dataease.chart.constant.ChartConstants;
 import io.dataease.constant.AuthEnum;
-import io.dataease.dataset.manage.DatasetGroupManage;
-import io.dataease.dataset.manage.DatasetSQLManage;
-import io.dataease.dataset.manage.DatasetTableFieldManage;
-import io.dataease.dataset.manage.PermissionManage;
+import io.dataease.dataset.dao.auto.entity.CoreDatasetTable;
+import io.dataease.dataset.manage.*;
+import io.dataease.datasource.manage.DataSourceManage;
 import io.dataease.engine.sql.SQLProvider;
 import io.dataease.engine.trans.*;
 import io.dataease.engine.utils.SQLUtils;
@@ -17,6 +16,7 @@ import io.dataease.engine.utils.Utils;
 import io.dataease.exception.DEException;
 import io.dataease.extensions.datasource.api.PluginManageApi;
 import io.dataease.extensions.datasource.dto.DatasetTableFieldDTO;
+import io.dataease.extensions.datasource.dto.DatasourceDTO;
 import io.dataease.extensions.datasource.dto.DatasourceRequest;
 import io.dataease.extensions.datasource.dto.DatasourceSchemaDTO;
 import io.dataease.extensions.datasource.factory.ProviderFactory;
@@ -65,6 +65,11 @@ public class ChartDataManage {
     private ChartFilterTreeService chartFilterTreeService;
     @Resource
     private ChartHandlerManager chartHandlerManager;
+
+    @Resource
+    protected DatasetTableManage datasetTableManage;
+    @Resource
+    protected DataSourceManage dataSourceManage;
 
     @Resource
     private CorePermissionManage corePermissionManage;
@@ -390,6 +395,7 @@ public class ChartDataManage {
             Dimension2SQLObj.dimension2sqlObj(sqlMeta, xAxis, FieldUtil.transFields(allFields), crossDs, dsMap, Utils.getParams(FieldUtil.transFields(allFields)), view.getCalParams(), pluginManage);
             Quota2SQLObj.quota2sqlObj(sqlMeta, yAxis, FieldUtil.transFields(allFields), crossDs, dsMap, Utils.getParams(FieldUtil.transFields(allFields)), view.getCalParams(), pluginManage);
             String querySql = SQLProvider.createQuerySQL(sqlMeta, true, needOrder, view);
+
             querySql = provider.rebuildSQL(querySql, sqlMeta, crossDs, dsMap);
             filterResult.getContext().put("querySql", querySql);
         }
@@ -649,6 +655,9 @@ public class ChartDataManage {
 
         chartFilterTreeService.searchFieldAndSet(fieldCustomFilter);
 
+        // 调用数据源的calcite获得data
+        DatasourceRequest datasourceRequest = new DatasourceRequest();
+
         if (ObjectUtils.isEmpty(xAxis) && ObjectUtils.isEmpty(yAxis)) {
             return new ArrayList<String[]>();
         }
@@ -673,6 +682,11 @@ public class ChartDataManage {
                 if (ObjectUtils.isEmpty(xAxis)) {
                     return new ArrayList<String[]>();
                 }
+
+                for (ChartViewFieldDTO chartViewFieldDTO :  xAxis) {
+                    datasourceRequest.getFields().add(chartViewFieldDTO.getName());
+                }
+
                 break;
             case "table-normal":
                 break;
@@ -697,9 +711,17 @@ public class ChartDataManage {
             sql = Utils.replaceSchemaAlias(sql, dsMap);
         }
 
-        // 调用数据源的calcite获得data
-        DatasourceRequest datasourceRequest = new DatasourceRequest();
+
         datasourceRequest.setDsList(dsMap);
+
+        List<CoreDatasetTable> coreDatasetTables = datasetTableManage.selectByDatasetGroupId(view.getTableId());
+        if (CollectionUtils.isNotEmpty(coreDatasetTables)) {
+            CoreDatasetTable coreDatasetTable = coreDatasetTables.getFirst();
+            DatasourceDTO ds = dataSourceManage.getDs(coreDatasetTable.getDatasourceId());
+            datasourceRequest.setDatasource(ds);
+            datasourceRequest.setTable(coreDatasetTable.getTableName());
+        }
+
 
         Provider provider;
         if (crossDs) {

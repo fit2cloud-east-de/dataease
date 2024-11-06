@@ -11,7 +11,7 @@ import icon_deleteTrash_outlined from '@/assets/svg/icon_delete-trash_outlined.s
 import icon_edit_outlined from '@/assets/svg/icon_edit_outlined.svg'
 import { ref, reactive, h, computed, toRefs, nextTick, watch } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
-import {ElTableV2, FormInstance, FormRules} from 'element-plus-secondary'
+import {ElFormItem, ElRow, ElTableV2, FormInstance, FormRules} from 'element-plus-secondary'
 import EmptyBackground from '@/components/empty-background/src/EmptyBackground.vue'
 import { cloneDeep } from 'lodash-es'
 import ApiHttpRequestDraw from './ApiHttpRequestDraw.vue'
@@ -154,7 +154,7 @@ const initForm = type => {
 
   if (type === 'OPCUA') {
     form.value.configuration.connectionType = 'direct'
-    form.value.configuration.nodeList = [''];
+    form.value.configuration.nodeList = [{}];
   }
 
 
@@ -206,7 +206,7 @@ const validateSshUserName = (_: any, value: any, callback: any) => {
 }
 
 const addInput = () => {
-  form.value.configuration.nodeList.push("");
+  form.value.configuration.nodeList.push({});
 }
 
 const deletePoint = (index: any) => {
@@ -1486,26 +1486,48 @@ defineExpose({
         ref="dsApiForm"
         :model="form"
         :rules="apiRule"
-        label-width="180px"
-        label-position="top"
+        label-width="23%"
+        label-position="right"
         require-asterisk-position="right"
         v-if="activeStep === 3 && form.type === 'OPCUA' "
       >
           <div v-for="(item , index) in form.configuration.nodeList" :key="index" style="margin-top: 5px"
           >
-            <el-input
-              v-model="form.configuration.nodeList[index]"
-              style="width: 95%;margin-bottom: 10px"
-              size="small"
-              :placeholder="$t('datasource.enter_node_id')"
-            />
-            <el-button text :disabled="form.configuration.nodeList.length <= 1" @click="deletePoint(index)" style="margin-bottom: 10px" >
-              <template #icon>
-                <Icon name="icon_delete-trash_outlined"
-                ><icon_deleteTrash_outlined class="svg-icon"
-                /></Icon>
-              </template>
-            </el-button>
+            <el-row type="flex">
+              <el-col :span="11">
+                <el-form-item
+                 label="节点名称：">
+                  <el-input
+                    v-model="form.configuration.nodeList[index].nodeName"
+                    style="width: 100%;"
+                    size="small"
+                    :placeholder="$t('datasource.enter_node_name')"
+                  />
+                </el-form-item>
+              </el-col>
+              <el-col :span="11">
+                <el-form-item
+                  label="节点 ID：">
+                  <el-input
+                    v-model="form.configuration.nodeList[index].nodeId"
+                    style="width: 100%;"
+                    size="small"
+                    :placeholder="$t('datasource.enter_node_id')"
+                  />
+                </el-form-item>
+
+              </el-col>
+              <el-col :span="2">
+                <el-button text :disabled="form.configuration.nodeList.length <= 1" @click="deletePoint(index)"  >
+                  <template #icon>
+                    <Icon name="icon_delete-trash_outlined"
+                    ><icon_deleteTrash_outlined class="svg-icon"
+                    /></Icon>
+                  </template>
+                </el-button>
+              </el-col>
+            </el-row>
+
           </div>
           <el-button
             style="margin-top: 10px ; margin-bottom: 20px"

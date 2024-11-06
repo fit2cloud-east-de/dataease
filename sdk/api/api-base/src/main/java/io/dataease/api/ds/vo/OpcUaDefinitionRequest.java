@@ -3,6 +3,7 @@ package io.dataease.api.ds.vo;
 import lombok.Data;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * @program: dataease
@@ -16,7 +17,7 @@ public class OpcUaDefinitionRequest {
     private String endpoint;
     private String opcUaUsername;
     private String opcUaPassword;
-    private List<String> nodeList;
+    private List<Map<String , String>> nodeList;
     private String connectionType;
 
 }

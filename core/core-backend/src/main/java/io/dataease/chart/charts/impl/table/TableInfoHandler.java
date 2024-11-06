@@ -2,9 +2,11 @@ package io.dataease.chart.charts.impl.table;
 
 import io.dataease.api.chart.dto.PageInfo;
 import io.dataease.chart.charts.impl.DefaultChartHandler;
+import io.dataease.dataset.dao.auto.entity.CoreDatasetTable;
 import io.dataease.engine.sql.SQLProvider;
 import io.dataease.engine.trans.Dimension2SQLObj;
 import io.dataease.engine.utils.Utils;
+import io.dataease.extensions.datasource.dto.DatasourceDTO;
 import io.dataease.extensions.datasource.dto.DatasourceRequest;
 import io.dataease.extensions.datasource.dto.DatasourceSchemaDTO;
 import io.dataease.extensions.datasource.model.SQLMeta;
@@ -14,6 +16,7 @@ import io.dataease.extensions.view.util.ChartDataUtil;
 import io.dataease.extensions.view.util.FieldUtil;
 import io.dataease.utils.JsonUtil;
 import lombok.Getter;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
@@ -98,8 +101,24 @@ public class TableInfoHandler extends DefaultChartHandler {
                 if (fieldDTO.isAgg()) {
                     sqlMeta.getXFields().get(i).setFieldName("'-'");
                 }
+
+                datasourceRequest.getFields().add(xAxis.get(i).getName());
+
+            }
+        } else {
+            for (int i = 0; i < xAxis.size(); i++) {
+                datasourceRequest.getFields().add(xAxis.get(i).getName());
             }
         }
+
+        List<CoreDatasetTable> coreDatasetTables = datasetTableManage.selectByDatasetGroupId(view.getTableId());
+        if (CollectionUtils.isNotEmpty(coreDatasetTables)) {
+            CoreDatasetTable coreDatasetTable = coreDatasetTables.getFirst();
+            DatasourceDTO ds = dataSourceManage.getDs(coreDatasetTable.getDatasourceId());
+            datasourceRequest.setDatasource(ds);
+            datasourceRequest.setTable(coreDatasetTable.getTableName());
+        }
+
 
         String originSql = SQLProvider.createQuerySQL(sqlMeta, false, true, view);// 明细表强制加排序
         String limit = ((pageInfo.getGoPage() != null && pageInfo.getPageSize() != null) ? " LIMIT " + pageInfo.getPageSize() + " OFFSET " + (pageInfo.getGoPage() - 1) * chartExtRequest.getPageSize() : "");
@@ -125,6 +144,7 @@ public class TableInfoHandler extends DefaultChartHandler {
         querySql = provider.rebuildSQL(querySql, sqlMeta, crossDs, dsMap);
         datasourceRequest.setQuery(querySql);
         logger.debug("calcite chart sql: " + querySql);
+
         List<String[]> data = (List<String[]>) provider.fetchResultField(datasourceRequest).get("data");
         //自定义排序
         data = ChartDataUtil.resultCustomSort(xAxis, data);

@@ -1,17 +1,12 @@
 package io.dataease.datasource.provider;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.gson.Gson;
 import io.dataease.api.ds.vo.OpcUaData;
 import io.dataease.api.ds.vo.OpcUaDefinitionRequest;
-import io.dataease.exception.DEException;
 import io.dataease.extensions.datasource.dto.DatasetTableDTO;
-import io.dataease.extensions.datasource.dto.DatasourceDTO;
 import io.dataease.extensions.datasource.dto.DatasourceRequest;
 import io.dataease.extensions.datasource.dto.TableField;
-import io.dataease.utils.CommonBeanFactory;
 import io.dataease.utils.JsonUtil;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.milo.opcua.sdk.client.OpcUaClient;
 import org.eclipse.milo.opcua.sdk.client.api.config.OpcUaClientConfigBuilder;
@@ -20,16 +15,14 @@ import org.eclipse.milo.opcua.sdk.client.api.identity.UsernameProvider;
 import org.eclipse.milo.opcua.stack.client.DiscoveryClient;
 import org.eclipse.milo.opcua.stack.core.UaException;
 import org.eclipse.milo.opcua.stack.core.security.SecurityPolicy;
-import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
-import org.eclipse.milo.opcua.stack.core.types.builtin.LocalizedText;
-import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
-import org.eclipse.milo.opcua.stack.core.types.builtin.Variant;
+import org.eclipse.milo.opcua.stack.core.types.builtin.*;
 import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.UInteger;
 import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn;
 import org.eclipse.milo.opcua.stack.core.types.structured.EndpointDescription;
 import org.eclipse.milo.opcua.stack.core.util.EndpointUtil;
 
 import java.lang.reflect.Field;
+import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -63,9 +56,9 @@ public class OPCUAProvider {
             client = createClient(opcUaDefinitionRequest);
             client.connect();
 
-            List<String> nodeList = opcUaDefinitionRequest.getNodeList();
-            for (String node : nodeList) {
-                opcUaDataList.add(readNode(client ,node ));
+            List<Map<String,String>> nodeList = opcUaDefinitionRequest.getNodeList();
+            for (Map<String,String> node : nodeList) {
+                opcUaDataList.add(readNode(client ,node.get("nodeId") , node.get("nodeName") ));
             }
         } catch ( Exception e) {
             e.printStackTrace();
@@ -96,10 +89,10 @@ public class OPCUAProvider {
             throw new RuntimeException("can not find endpoint");
         }
 
-        EndpointDescription configPoint = EndpointUtil.updateUrl(endpointDescription, endPoint.substring(endPoint.indexOf("//")+2 , endPoint.lastIndexOf(":")), Integer.parseInt(endPoint.substring( endPoint.lastIndexOf(":")+1)));
+//        EndpointDescription configPoint = EndpointUtil.updateUrl(endpointDescription, endPoint.substring(endPoint.indexOf("//")+2 , endPoint.lastIndexOf(":")), Integer.parseInt(endPoint.substring( endPoint.lastIndexOf(":")+1)));
 
         OpcUaClientConfigBuilder cfg = new OpcUaClientConfigBuilder();
-        cfg.setEndpoint(configPoint);
+        cfg.setEndpoint(endpointDescription);
         cfg.setApplicationName(LocalizedText.english("eclipse milo opc-ua client"));
         cfg.setApplicationUri("urn:eclipse:milo:examples:client");
         cfg.setRequestTimeout(UInteger.valueOf(5000));
@@ -114,8 +107,7 @@ public class OPCUAProvider {
 
     }
 
-
-    public static OpcUaData readNode(OpcUaClient client, String nodeId) throws Exception {
+    public static OpcUaData readNode(OpcUaClient client, String nodeId , String nodeName) throws Exception {
 
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
@@ -128,6 +120,8 @@ public class OPCUAProvider {
         ).get();
 
         OpcUaData opcUaData = new OpcUaData();
+        opcUaData.setNodeId(nodeId);
+        opcUaData.setNodeName(nodeName);
 
         Variant value = dataValue.getValue();
 
@@ -135,9 +129,14 @@ public class OPCUAProvider {
             return opcUaData;
         }
 
-        opcUaData.setValue(null == value.getValue() ? null : value.getValue().toString());
-
-        opcUaData.setNodeId(nodeId);
+        if (null != value.getValue() ) {
+            try {
+                BigDecimal bigDecimal = new BigDecimal(String.valueOf(value.getValue()));
+                opcUaData.setValue(bigDecimal.setScale(2, BigDecimal.ROUND_HALF_UP).toString());
+            } catch (Exception ignore) {
+                opcUaData.setValue(value.getValue().toString());
+            }
+        }
 
         opcUaData.setServerTime( dataValue.getServerTime() == null ? null : simpleDateFormat.format(dataValue.getServerTime().getJavaDate()));
         opcUaData.setSourceTime( dataValue.getSourceTime() == null ? null : simpleDateFormat.format(dataValue.getSourceTime().getJavaDate()));
@@ -161,16 +160,14 @@ public class OPCUAProvider {
         List<DatasetTableDTO> datasetTableDTOS = new ArrayList<>();
         //直连
         if ("direct".equals(opcUaDefinitionRequest.getConnectionType())) {
-            for (String nodeId: opcUaDefinitionRequest.getNodeList()) {
-                DatasetTableDTO datasetTableDTO = new DatasetTableDTO();
-                datasetTableDTO.setTableName(nodeId);
-                datasetTableDTO.setName(nodeId);
-                datasetTableDTO.setDatasourceId(datasourceRequest.getDatasource().getId());
-                datasetTableDTOS.add(datasetTableDTO);
-            }
+            //表名称虚拟成数据源的名称塞进去
+            DatasetTableDTO datasetTableDTO = new DatasetTableDTO();
+            datasetTableDTO.setTableName(datasourceRequest.getDatasource().getName());
+            datasetTableDTO.setName(datasourceRequest.getDatasource().getName());
+            datasetTableDTO.setDatasourceId(datasourceRequest.getDatasource().getId());
+            datasetTableDTOS.add(datasetTableDTO);
         } else {
         // todo 定时同步
-
 
 
         }
@@ -179,40 +176,49 @@ public class OPCUAProvider {
 
 
     public static List<TableField> getTableFields() {
-        return getTableFields(OpcUaData.class , Boolean.FALSE);
+        return getTableFields(OpcUaData.class , Boolean.FALSE , null);
     }
 
-    private static List<TableField> getTableFields(Class claz , Boolean setField)   {
+    private static List<TableField> getTableFields(Class claz , Boolean setField , List<String> fieldNames)   {
         List<TableField> tableFields = new ArrayList<>();
 
         Field[] declaredFields = claz.getDeclaredFields();
-        for (Field field : declaredFields) {
-            TableField tableField = new TableField();
-            field.setAccessible(true);
 
-            tableField.setName(field.getName());
-            tableField.setOriginName(field.getName());
-
-            if (field.getName().equals("value")) {
-                tableField.setDeType(3);
-                tableField.setDeExtractType(3);
-                tableField.setType("DECIMAL");
-            } else if (field.getName().equals("serverTime") || field.getName().equals("sourceTime") || field.getName().equals("currentTime")) {
-                tableField.setDeType(1);
-                tableField.setDeExtractType(1);
-                tableField.setType("DATETIME");
-            } else {
+        if (CollectionUtils.isNotEmpty(fieldNames) ) {
+            fieldNames.forEach(fieldName -> {
+                for (Field field : declaredFields) {
+                    TableField tableField = new TableField();
+                    field.setAccessible(true);
+                    if (!fieldName.equals(field.getName())) {
+                        continue;
+                    }
+                    tableField.setName(field.getName());
+                    tableField.setOriginName(field.getName());
+                    tableField.setDeType(0);
+                    tableField.setDeExtractType(0);
+                    tableField.setType("VARCHAR");
+                    if (setField) {
+                        tableField.setField(field);
+                    }
+                    tableFields.add(tableField);
+                }
+            });
+        } else {
+            for (Field field : declaredFields) {
+                TableField tableField = new TableField();
+                field.setAccessible(true);
+                tableField.setName(field.getName());
+                tableField.setOriginName(field.getName());
                 tableField.setDeType(0);
                 tableField.setDeExtractType(0);
                 tableField.setType("VARCHAR");
+                if (setField) {
+                    tableField.setField(field);
+                }
+                tableFields.add(tableField);
             }
-
-            if (setField) {
-                tableField.setField(field);
-            }
-
-            tableFields.add(tableField);
         }
+
         return tableFields;
     }
 
@@ -228,14 +234,12 @@ public class OPCUAProvider {
 
             client = createClient(opcUaDefinitionRequest);
 
-            List<TableField> tableFields = getTableFields(OpcUaData.class , Boolean.TRUE);
-
-            List<String> tables = Collections.singletonList(datasourceRequest.getTable());
+            List<TableField> tableFields = getTableFields(OpcUaData.class , Boolean.TRUE , datasourceRequest.getFields());
 
             List<String[]> dataList = new ArrayList<>();
 
-            for (String table: tables  ) {
-                OpcUaData opcUaData = readNode(client, table);
+            for (Map<String , String> map: opcUaDefinitionRequest.getNodeList()  ) {
+                OpcUaData opcUaData = readNode(client, map.get("nodeId") ,map.get("nodeName"));
                 String[] str = fetchResult(opcUaData, tableFields);
                 dataList.add(str);
             }

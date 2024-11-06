@@ -6,6 +6,7 @@ import io.dataease.api.dataset.dto.*;
 import io.dataease.api.dataset.union.DatasetGroupInfoDTO;
 import io.dataease.api.dataset.union.DatasetTableInfoDTO;
 import io.dataease.api.dataset.union.UnionDTO;
+import io.dataease.api.ds.vo.OpcUaDefinitionRequest;
 import io.dataease.api.permissions.auth.dto.BusiPerCheckDTO;
 import io.dataease.api.permissions.dataset.dto.DataSetRowPermissionsTreeDTO;
 import io.dataease.auth.bo.TokenUserBO;
@@ -340,7 +341,8 @@ public class DatasetDataManage {
         DatasetTableDTO currentDs = unionDTO.getCurrentDs();
         CoreDatasource coreDatasource = coreDatasourceMapper.selectById(currentDs.getDatasourceId());
         if (null != coreDatasource && "OPCUA".equals(coreDatasource.getType())) {
-            return 1L;
+            OpcUaDefinitionRequest opcUaDefinitionRequest = JsonUtil.parseObject(coreDatasource.getConfiguration(), OpcUaDefinitionRequest.class);
+            return (long) opcUaDefinitionRequest.getNodeList().size();
         }
 
         Map<String, Object> sqlMap = datasetSQLManage.getUnionSQLForEdit(datasetGroupInfoDTO, request);

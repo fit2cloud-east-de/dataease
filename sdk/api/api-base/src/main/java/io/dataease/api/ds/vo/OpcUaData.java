@@ -19,5 +19,6 @@ public class OpcUaData {
     private String sourcePicoseconds;
     private String currentTime;
     private String nodeId;
+    private String nodeName;
 
 }

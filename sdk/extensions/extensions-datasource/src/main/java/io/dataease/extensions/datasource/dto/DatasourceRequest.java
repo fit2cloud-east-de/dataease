@@ -4,6 +4,7 @@ import lombok.Data;
 import org.springframework.util.StringUtils;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -26,6 +27,8 @@ public class DatasourceRequest implements Serializable {
     private boolean totalPageFlag;
     private Map<Long, DatasourceSchemaDTO> dsList;
     private List<TableFieldWithValue> tableFieldWithValues;
+
+    private List<String> fields = new ArrayList<>();
 
     public DatasourceRequest() {
     }

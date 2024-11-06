@@ -623,6 +623,7 @@ export default {
     data_preview: '预览数据',
     update_type: '更新方式',
     node_id: '节点 ID',
+    enter_node_name: '请输入节点名称',
     enter_node_id: '请输入节点 ID',
     connection_type: '连接方式',
     direct: '直连',

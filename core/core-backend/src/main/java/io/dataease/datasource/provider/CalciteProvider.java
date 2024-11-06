@@ -154,6 +154,9 @@ public class CalciteProvider extends Provider {
         if (datasourceRequest.getDsList().size() == 1) {
             //todo 定时同步的逻辑怎么处理？
             if ( null!= datasourceRequest.getDatasource() && "OPCUA".equals(datasourceRequest.getDatasource().getType())) {
+                if (datasourceRequest.getQuery().contains("COUNT(*)")) {
+                    return new HashMap<>();
+                }
                 return OPCUAProvider.fetchResultAndField(datasourceRequest);
             } else {
                 return jdbcFetchResultField(datasourceRequest);
