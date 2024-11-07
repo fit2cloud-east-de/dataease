@@ -2,6 +2,7 @@ package io.dataease.datasource.manage;
 
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import io.dataease.commons.constants.TaskStatus;
+import io.dataease.constant.DataSourceType;
 import io.dataease.dataset.utils.TableUtils;
 import io.dataease.datasource.dao.auto.entity.CoreDatasource;
 import io.dataease.datasource.dao.auto.entity.CoreDatasourceTask;
@@ -134,18 +135,36 @@ public class DatasourceSyncManage {
     public void extractedData(Long taskId, CoreDatasource coreDatasource, DatasourceServer.UpdateType updateType, String scheduleType) {
         DatasourceRequest datasourceRequest = new DatasourceRequest();
         datasourceRequest.setDatasource(transDTO(coreDatasource));
-        List<DatasetTableDTO> tables = ApiUtils.getTables(datasourceRequest);
+        List<DatasetTableDTO> tables = null;
+        if (coreDatasource.getType().equals(DataSourceType.API.name())) {
+            tables = ApiUtils.getTables(datasourceRequest);
+        } else {
+            tables = OPCUAProvider.getTables(datasourceRequest);
+        }
+
         for (DatasetTableDTO api : tables) {
             CoreDatasourceTaskLog datasetTableTaskLog = datasourceTaskServer.initTaskLog(coreDatasource.getId(), taskId, api.getTableName(), scheduleType);
             datasourceRequest.setTable(api.getTableName());
-            List<TableField> tableFields = ApiUtils.getTableFields(datasourceRequest);
+            List<TableField> tableFields = null;
+            if (coreDatasource.getType().equals(DataSourceType.API.name())) {
+                tableFields = ApiUtils.getTableFields(datasourceRequest);
+            } else {
+                tableFields = OPCUAProvider.getTableFields();
+            }
+
             try {
                 datasetTableTaskLog.setInfo(datasetTableTaskLog.getInfo() + "/n Begin to sync datatable: " + datasourceRequest.getTable());
                 createEngineTable(datasourceRequest.getTable(), tableFields);
                 if (updateType.equals(DatasourceServer.UpdateType.all_scope)) {
                     createEngineTable(TableUtils.tmpName(datasourceRequest.getTable()), tableFields);
                 }
-                extractApiData(datasourceRequest, updateType);
+
+                if (coreDatasource.getType().equals(DataSourceType.API.name())) {
+                    extractApiData(datasourceRequest, updateType);
+                } else {
+                    extractOPCUAData(datasourceRequest , updateType);
+                }
+
                 if (updateType.equals(DatasourceServer.UpdateType.all_scope)) {
                     replaceTable(datasourceRequest.getTable());
                 }
@@ -219,6 +238,38 @@ public class DatasourceSyncManage {
                     datasourceTaskServer.saveLog(datasetTableTaskLog);
                 }
             }
+        }
+    }
+
+
+    private void extractOPCUAData (DatasourceRequest datasourceRequest, DatasourceServer.UpdateType extractType) throws Exception {
+        Map<String, Object> result = OPCUAProvider.fetchResultAndField(datasourceRequest);
+        List<String[]> dataList = (List<String[]>) result.get("dataList");
+        String engineTableName;
+        switch (extractType) {
+            case all_scope:
+                engineTableName = TableUtils.tmpName(TableUtils.tableName(datasourceRequest.getTable()));
+                break;
+            default:
+                engineTableName = TableUtils.tableName(datasourceRequest.getTable());
+                break;
+        }
+        CoreDeEngine engine = engineManage.info();
+
+        EngineRequest engineRequest = new EngineRequest();
+        engineRequest.setEngine(engine);
+        EngineProvider engineProvider = ProviderUtil.getEngineProvider(engine.getType());
+        int pageNumber = 1000; //一次插入 1000条
+        int totalPage;
+        if (dataList.size() % pageNumber > 0) {
+            totalPage = dataList.size() / pageNumber + 1;
+        } else {
+            totalPage = dataList.size() / pageNumber;
+        }
+
+        for (int page = 1; page <= totalPage; page++) {
+            engineRequest.setQuery(engineProvider.insertSql(engineTableName, dataList, page, pageNumber));
+            calciteProvider.exec(engineRequest);
         }
     }
 

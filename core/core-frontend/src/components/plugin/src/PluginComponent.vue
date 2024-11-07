@@ -104,9 +104,9 @@ onMounted(async () => {
   if (wsCache.get(key) === null) {
     const res = await xpackModelApi()
     wsCache.set('xpack-model-distributed', res.data)
-    distributed = false
+    distributed = res.data
   } else {
-    distributed = false
+    distributed = wsCache.get(key)
   }
   if (distributed) {
     const moduleName = getModuleName()

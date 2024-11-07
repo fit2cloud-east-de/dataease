@@ -152,12 +152,16 @@ public class CalciteProvider extends Provider {
     public Map<String, Object> fetchResultField(DatasourceRequest datasourceRequest) throws DEException {
         // 不跨数据源
         if (datasourceRequest.getDsList().size() == 1) {
-            //todo 定时同步的逻辑怎么处理？
             if ( null!= datasourceRequest.getDatasource() && "OPCUA".equals(datasourceRequest.getDatasource().getType())) {
-                if (datasourceRequest.getQuery().contains("COUNT(*)")) {
-                    return new HashMap<>();
+                DatasourceConfiguration configuration = JsonUtil.parseObject(datasourceRequest.getDatasource().getConfiguration(), DatasourceConfiguration.class);
+                if ("sync".equals(configuration.getConnectionType())) {
+                    return jdbcFetchResultField(datasourceRequest);
+                } else {
+                    if (datasourceRequest.getQuery().contains("COUNT(*)")) {
+                        return new HashMap<>();
+                    }
+                    return OPCUAProvider.fetchResultAndField(datasourceRequest);
                 }
-                return OPCUAProvider.fetchResultAndField(datasourceRequest);
             } else {
                 return jdbcFetchResultField(datasourceRequest);
             }

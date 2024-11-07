@@ -12,6 +12,7 @@ import io.dataease.api.ds.DatasourceApi;
 import io.dataease.api.ds.vo.*;
 import io.dataease.api.permissions.relation.api.RelationApi;
 import io.dataease.commons.constants.TaskStatus;
+import io.dataease.constant.DataSourceType;
 import io.dataease.constant.LogOT;
 import io.dataease.constant.LogST;
 import io.dataease.dataset.manage.DatasetDataManage;
@@ -29,6 +30,7 @@ import io.dataease.datasource.provider.ApiUtils;
 import io.dataease.datasource.provider.CalciteProvider;
 import io.dataease.datasource.provider.ExcelUtils;
 import io.dataease.datasource.provider.OPCUAProvider;
+import io.dataease.datasource.type.CK;
 import io.dataease.engine.constant.SQLConstants;
 import io.dataease.exception.DEException;
 import io.dataease.extensions.datasource.api.PluginManageApi;
@@ -306,36 +308,45 @@ public class DatasourceServer implements DatasourceApi {
                 }
             }
         } else if (dataSourceDTO.getType().equals(DatasourceConfiguration.DatasourceType.OPCUA.name())) {
-//            CoreDatasourceTask coreDatasourceTask = new CoreDatasourceTask();
-//            BeanUtils.copyBean(coreDatasourceTask, dataSourceDTO.getSyncSetting());
-//            coreDatasourceTask.setName(coreDatasource.getName() + "-task");
-//            coreDatasourceTask.setDsId(coreDatasource.getId());
-//            if (coreDatasourceTask.getStartTime() == null) {
-//                coreDatasourceTask.setStartTime(System.currentTimeMillis() - 20 * 1000);
-//            }
-//            if (StringUtils.equalsIgnoreCase(coreDatasourceTask.getSyncRate(), RIGHTNOW.toString())) {
-//                coreDatasourceTask.setCron(null);
-//            } else {
-//                if (StringUtils.equalsIgnoreCase(coreDatasourceTask.getEndLimit(), "1") && coreDatasourceTask.getStartTime() > coreDatasourceTask.getEndTime()) {
-//                    DEException.throwException("结束时间不能小于开始时间！");
-//                }
-//            }
-//            coreDatasourceTask.setTaskStatus(TaskStatus.WaitingForExecution.name());
-//            datasourceTaskServer.insert(coreDatasourceTask);
-//            datasourceSyncManage.addSchedule(coreDatasourceTask);
-//            DatasourceRequest datasourceRequest = new DatasourceRequest();
-//            datasourceRequest.setDatasource(dataSourceDTO);
-//            List<DatasetTableDTO> tables = ApiUtils.getTables(datasourceRequest);
-//            checkName(tables.stream().map(DatasetTableDTO::getName).collect(Collectors.toList()));
-//            for (DatasetTableDTO api : tables) {
-//                datasourceRequest.setTable(api.getTableName());
-//                List<TableField> tableFields = ApiUtils.getTableFields(datasourceRequest);
-//                try {
-//                    datasourceSyncManage.createEngineTable(datasourceRequest.getTable(), tableFields);
-//                } catch (Exception e) {
-//                    DEException.throwException("Failed to create table " + datasourceRequest.getTable() + ": " + e.getMessage());
-//                }
-//            }
+            DatasourceConfiguration configuration = JsonUtil.parseObject(dataSourceDTO.getConfiguration(), DatasourceConfiguration.class);
+            if ("sync".equals(configuration.getConnectionType())) {
+
+                CoreDatasourceTask coreDatasourceTask = new CoreDatasourceTask();
+                BeanUtils.copyBean(coreDatasourceTask, dataSourceDTO.getSyncSetting());
+                coreDatasourceTask.setName(coreDatasource.getName() + "-task");
+                coreDatasourceTask.setDsId(coreDatasource.getId());
+                if (coreDatasourceTask.getStartTime() == null) {
+                    coreDatasourceTask.setStartTime(System.currentTimeMillis() - 20 * 1000);
+                }
+
+                if (StringUtils.equalsIgnoreCase(coreDatasourceTask.getSyncRate(), RIGHTNOW.toString())) {
+                    coreDatasourceTask.setCron(null);
+                } else {
+                    if (StringUtils.equalsIgnoreCase(coreDatasourceTask.getEndLimit(), "1") && coreDatasourceTask.getStartTime() > coreDatasourceTask.getEndTime()) {
+                        DEException.throwException("结束时间不能小于开始时间！");
+                    }
+                }
+                coreDatasourceTask.setTaskStatus(TaskStatus.WaitingForExecution.name());
+                datasourceTaskServer.insert(coreDatasourceTask);
+                datasourceSyncManage.addSchedule(coreDatasourceTask);
+                DatasourceRequest datasourceRequest = new DatasourceRequest();
+                datasourceRequest.setDatasource(dataSourceDTO);
+
+                List<DatasetTableDTO> tables = OPCUAProvider.getTables(datasourceRequest);
+                checkName(tables.stream().map(DatasetTableDTO::getName).collect(Collectors.toList()));
+                for (DatasetTableDTO datasetTableDTO : tables) {
+                    datasourceRequest.setTable(datasetTableDTO.getTableName());
+                    List<TableField> tableFields = OPCUAProvider.getTableFields();
+                    try {
+                        datasourceSyncManage.createEngineTable(datasourceRequest.getTable(), tableFields);
+                    } catch (Exception e) {
+                        DEException.throwException("Failed to create table " + datasourceRequest.getTable() + ": " + e.getMessage());
+                    }
+                }
+
+            }
+
+
         } else {
             checkParams(dataSourceDTO.getConfiguration());
             calciteProvider.update(dataSourceDTO);
@@ -432,6 +443,27 @@ public class DatasourceServer implements DatasourceApi {
             datasourceSyncManage.addSchedule(coreDatasourceTask);
             dataSourceManage.checkName(dataSourceDTO);
             dataSourceManage.innerEdit(requestDatasource);
+        } else if (dataSourceDTO.getType().equals(DatasourceConfiguration.DatasourceType.OPCUA.name())) {
+            requestDatasource.setEnableDataFill(null);
+            CoreDatasourceTask coreDatasourceTask = new CoreDatasourceTask();
+            BeanUtils.copyBean(coreDatasourceTask, dataSourceDTO.getSyncSetting());
+            coreDatasourceTask.setName(requestDatasource.getName() + "-task");
+            coreDatasourceTask.setDsId(requestDatasource.getId());
+            if (StringUtils.equalsIgnoreCase(coreDatasourceTask.getSyncRate(), RIGHTNOW.toString())) {
+                coreDatasourceTask.setStartTime(System.currentTimeMillis() - 20 * 1000);
+                coreDatasourceTask.setCron(null);
+            } else {
+                if (StringUtils.equalsIgnoreCase(coreDatasourceTask.getEndLimit(), "1") && coreDatasourceTask.getStartTime() > coreDatasourceTask.getEndTime()) {
+                    DEException.throwException("结束时间不能小于开始时间！");
+                }
+            }
+            coreDatasourceTask.setTaskStatus(TaskStatus.WaitingForExecution.toString());
+            datasourceTaskServer.update(coreDatasourceTask);
+            datasourceSyncManage.deleteSchedule(datasourceTaskServer.selectByDSId(dataSourceDTO.getId()));
+            datasourceSyncManage.addSchedule(coreDatasourceTask);
+            dataSourceManage.checkName(dataSourceDTO);
+            dataSourceManage.innerEdit(requestDatasource);
+
         } else if (dataSourceDTO.getType().equals(DatasourceConfiguration.DatasourceType.Excel.name())) {
             requestDatasource.setEnableDataFill(null);
             List<String> sourceTables = ExcelUtils.getTables(sourceTableRequest).stream().map(DatasetTableDTO::getTableName).collect(Collectors.toList());
@@ -707,8 +739,20 @@ public class DatasourceServer implements DatasourceApi {
         }
 
         if (coreDatasource.getType().equals("OPCUA")) {
-            //todo 考虑下定时同步怎么处理
-            return OPCUAProvider.getTables(datasourceRequest);
+            DatasourceConfiguration configuration = JsonUtil.parseObject(coreDatasource.getConfiguration(), DatasourceConfiguration.class);
+            if ("sync".equals(configuration.getConnectionType())) {
+                List<DatasetTableDTO> tables = OPCUAProvider.getTables(datasourceRequest);
+                tables.forEach(datasetTableDTO1 -> {
+                    CoreDatasourceTaskLog log = datasourceTaskServer.lastSyncLogForTable(datasetTableDTO.getDatasourceId(), datasetTableDTO1.getTableName());
+                    if (log != null) {
+                        datasetTableDTO1.setLastUpdateTime(log.getStartTime());
+                        datasetTableDTO1.setStatus(log.getTaskStatus());
+                    }
+                });
+                return tables;
+            } else {
+                return OPCUAProvider.getTables(datasourceRequest);
+            }
         }
 
         Provider provider = ProviderFactory.getProvider(datasourceDTO.getType());
@@ -965,7 +1009,13 @@ public class DatasourceServer implements DatasourceApi {
         CoreDatasource coreDatasource = datasourceMapper.selectById(dsId);
         DatasourceRequest datasourceRequest = new DatasourceRequest();
         datasourceRequest.setDatasource(transDTO(coreDatasource));
-        List<DatasetTableDTO> datasetTableDTOS = ApiUtils.getTables(datasourceRequest);
+        List<DatasetTableDTO> datasetTableDTOS = new ArrayList<>();
+
+        if (coreDatasource.getType().equals(DataSourceType.API.name())) {
+            datasetTableDTOS.addAll(ApiUtils.getTables(datasourceRequest));
+        } else {
+            datasetTableDTOS.addAll(OPCUAProvider.getTables(datasourceRequest));
+        }
         for (int i = 0; i < pager.getRecords().size(); i++) {
             for (int i1 = 0; i1 < datasetTableDTOS.size(); i1++) {
                 if (pager.getRecords().get(i).getTableName().equalsIgnoreCase(datasetTableDTOS.get(i1).getTableName())) {
@@ -1175,15 +1225,9 @@ public class DatasourceServer implements DatasourceApi {
                     datasourceDTO.setStatus("Error");
                 }
             }
-            CoreDatasourceTask coreDatasourceTask = datasourceTaskServer.selectByDSId(datasourceDTO.getId());
-            TaskDTO taskDTO = new TaskDTO();
-            BeanUtils.copyBean(taskDTO, coreDatasourceTask);
-            datasourceDTO.setSyncSetting(taskDTO);
-
-            CoreDatasourceTask task = datasourceTaskServer.selectByDSId(datasourceDTO.getId());
-            if (task != null) {
-                datasourceDTO.setLastSyncTime(task.getStartTime());
-            }
+            getDsSyncSetting(datasourceDTO);
+        } else if (datasourceDTO.getType().equalsIgnoreCase(DatasourceConfiguration.DatasourceType.OPCUA.toString())) {
+            getDsSyncSetting(datasourceDTO);
         } else {
             if (hidePw) {
                 Provider provider = ProviderFactory.getProvider(datasourceDTO.getType());
@@ -1198,6 +1242,17 @@ public class DatasourceServer implements DatasourceApi {
         datasourceDTO.setConfiguration(new String(Base64.getEncoder().encode(datasourceDTO.getConfiguration().getBytes())));
         datasourceDTO.setCreator(coreUserManage.getUserName(Long.valueOf(datasourceDTO.getCreateBy())));
         return datasourceDTO;
+    }
+
+    private void getDsSyncSetting(DatasourceDTO datasourceDTO) {
+        CoreDatasourceTask coreDatasourceTask = datasourceTaskServer.selectByDSId(datasourceDTO.getId());
+        TaskDTO taskDTO = new TaskDTO();
+        BeanUtils.copyBean(taskDTO, coreDatasourceTask);
+        datasourceDTO.setSyncSetting(taskDTO);
+        CoreDatasourceTask task = datasourceTaskServer.selectByDSId(datasourceDTO.getId());
+        if (task != null) {
+            datasourceDTO.setLastSyncTime(task.getStartTime());
+        }
     }
 
     private DatasourceDTO validate(CoreDatasource coreDatasource) {

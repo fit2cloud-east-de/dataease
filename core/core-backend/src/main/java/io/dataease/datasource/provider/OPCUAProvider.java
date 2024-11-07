@@ -156,21 +156,13 @@ public class OPCUAProvider {
 
 
     public static List<DatasetTableDTO> getTables (DatasourceRequest datasourceRequest ) {
-        OpcUaDefinitionRequest opcUaDefinitionRequest = JsonUtil.parseObject(datasourceRequest.getDatasource().getConfiguration(), OpcUaDefinitionRequest.class);
         List<DatasetTableDTO> datasetTableDTOS = new ArrayList<>();
-        //直连
-        if ("direct".equals(opcUaDefinitionRequest.getConnectionType())) {
-            //表名称虚拟成数据源的名称塞进去
-            DatasetTableDTO datasetTableDTO = new DatasetTableDTO();
-            datasetTableDTO.setTableName(datasourceRequest.getDatasource().getName());
-            datasetTableDTO.setName(datasourceRequest.getDatasource().getName());
-            datasetTableDTO.setDatasourceId(datasourceRequest.getDatasource().getId());
-            datasetTableDTOS.add(datasetTableDTO);
-        } else {
-        // todo 定时同步
-
-
-        }
+        //表名称虚拟成数据源的名称塞进去
+        DatasetTableDTO datasetTableDTO = new DatasetTableDTO();
+        datasetTableDTO.setTableName(datasourceRequest.getDatasource().getName());
+        datasetTableDTO.setName(datasourceRequest.getDatasource().getName());
+        datasetTableDTO.setDatasourceId(datasourceRequest.getDatasource().getId());
+        datasetTableDTOS.add(datasetTableDTO);
         return datasetTableDTOS;
     }
 
@@ -222,6 +214,8 @@ public class OPCUAProvider {
         return tableFields;
     }
 
+
+
     public static Map<String, Object> fetchResultAndField(DatasourceRequest datasourceRequest) {
 
         Map<String, Object> result = new HashMap<>();
@@ -246,6 +240,8 @@ public class OPCUAProvider {
 
             result.put("fields", tableFields);
             result.put("data", dataList);
+            result.put("dataList", dataList);
+            result.put("fieldList", tableFields);
 
         } catch ( Exception e ) {
             e.printStackTrace();

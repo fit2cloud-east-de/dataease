@@ -806,10 +806,20 @@ defineExpose({
           v-show="activeStep === 1"
         >
           <el-input
+            disabled
+            v-if="form.id && form.type === 'OPCUA' "
             v-model="form.name"
             autocomplete="off"
             :placeholder="t('datasource.input_name')"
           />
+
+          <el-input
+            v-if="!form.id || form.type !== 'OPCUA' "
+            v-model="form.name"
+            autocomplete="off"
+            :placeholder="t('datasource.input_name')"
+          />
+
         </el-form-item>
         <el-form-item :label="t('common.description')" v-show="activeStep === 1">
           <el-input

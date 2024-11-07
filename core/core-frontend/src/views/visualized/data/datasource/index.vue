@@ -1274,7 +1274,7 @@ const getMenuList = (val: boolean) => {
               <el-table-column
                 key="status"
                 prop="status"
-                v-if="['api'].includes(nodeInfo.type.toLowerCase())"
+                v-if="['api','opcua'].includes(nodeInfo.type.toLowerCase())"
                 label="最近更新状态"
               >
                 <template #default="scope">
@@ -1304,7 +1304,7 @@ const getMenuList = (val: boolean) => {
               <el-table-column
                 key="lastUpdateTime"
                 prop="lastUpdateTime"
-                v-if="['excel', 'api'].includes(nodeInfo.type.toLowerCase())"
+                v-if="['excel', 'api' , 'opcua'].includes(nodeInfo.type.toLowerCase())"
                 label="最近更新时间"
               >
                 <template v-slot:default="scope">
@@ -1577,13 +1577,22 @@ const getMenuList = (val: boolean) => {
             </el-button>
           </BaseInfoContent>
           <BaseInfoContent
-            v-if="nodeInfo.type === 'API'"
+            v-if="nodeInfo.type === 'API' || nodeInfo.type === 'OPCUA' "
             v-slot="slotProps"
             :name="t('dataset.update_setting')"
             :time="(nodeInfo.lastSyncTime as string)"
           >
             <template v-if="slotProps.active">
+
               <el-row :gutter="24">
+                <el-col :span="12">
+                  <BaseInfoItem label="连接方式">{{
+                      nodeInfo.configuration.connectionType === 'sync'?'定时同步':'直连'
+                    }}</BaseInfoItem>
+                </el-col>
+              </el-row>
+
+              <el-row :gutter="24" v-if="nodeInfo.type === 'API' || (nodeInfo.type === 'OPCUA' && nodeInfo.configuration.connectionType === 'sync')   " >
                 <el-col :span="12">
                   <BaseInfoItem :label="t('dataset.update_type')">{{
                     t(`dataset.${nodeInfo.syncSetting.updateType}`)
@@ -1602,7 +1611,7 @@ const getMenuList = (val: boolean) => {
                 </el-col>
               </el-row>
             </template>
-            <el-button @click="getRecord" class="update-records" text>
+            <el-button  v-if="nodeInfo.type === 'API' || (nodeInfo.type === 'OPCUA' && nodeInfo.configuration.connectionType === 'sync')"    @click="getRecord" class="update-records" text  >
               <template #icon>
                 <icon name="icon_describe_outlined"
                   ><icon_describe_outlined class="svg-icon"
