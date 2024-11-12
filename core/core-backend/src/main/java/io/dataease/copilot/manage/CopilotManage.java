@@ -104,7 +104,7 @@ public class CopilotManage {
         Map<Long, DatasourceSchemaDTO> dsMap = (Map<Long, DatasourceSchemaDTO>) sqlMap.get("dsMap");
         boolean crossDs = Utils.isCrossDs(dsMap);
         if (crossDs) {
-            DEException.throwException("跨源数据集不支持该功能");
+            DEException.throwException(Translator.get("i18n_copilot_cross_ds_error"));
         }
 
         // 调用copilot service 获取SQL和chart struct，将返回SQL中表名替换成数据集SQL
@@ -302,7 +302,7 @@ public class CopilotManage {
         if (StringUtils.equalsIgnoreCase(receiveDTO.getChart().getType(), "pie")) {
             AxisFieldDTO column = receiveDTO.getChart().getColumn();
             if (fields.size() != 2 || column == null) {
-                DEException.throwException("当前字段不足以构建饼图: " + JsonUtil.toJSONString(receiveDTO));
+                DEException.throwException("build pie error: " + JsonUtil.toJSONString(receiveDTO));
             }
             AxisDTO axisDTO = new AxisDTO();
             AxisFieldDTO x = new AxisFieldDTO();
@@ -318,7 +318,7 @@ public class CopilotManage {
                 y.setName(column.getName());
                 y.setValue(column.getValue());
             } else {
-                DEException.throwException("当前字段不足以构建饼图: " + JsonUtil.toJSONString(receiveDTO));
+                DEException.throwException("build pie error: " + JsonUtil.toJSONString(receiveDTO));
             }
             axisDTO.setX(x);
             axisDTO.setY(y);

@@ -11,27 +11,27 @@
       :create-auth="createAuth"
       @closePreview="closePreview"
       @templateApply="templateApply"
-    ></market-preview-v2>
+    />
     <el-row v-if="previewModel === 'createPreview'" class="main-container">
       <el-row class="market-head">
         <el-icon class="custom-back-icon hover-icon" @click="previewModel = 'full'"
           ><ArrowLeft
         /></el-icon>
-        <span>{{ state.curTemplate.title }}1 </span>
+        <span>{{ state.curTemplate.title }} </span>
         <el-row class="head-right">
           <el-button
             secondary
             :disabled="state.curTemplateIndex === 0"
             style="float: right"
             @click="preOne"
-            >上一个</el-button
+            >{{ t('work_branch.last') }}</el-button
           >
           <el-button
             :disabled="state.curTemplateIndex === state.curTemplateShowFilter.length - 1"
             style="float: right"
             secondary
             @click="nextOne"
-            >下一个</el-button
+            >{{ t('work_branch.next') }}</el-button
           >
           <el-button
             style="float: right"
@@ -116,7 +116,7 @@
           id="template-show-area"
           class="template-right"
         >
-          <el-row v-show="state.marketActiveTab !== '推荐'">
+          <el-row v-show="state.marketActiveTab !== t('work_branch.recommend')">
             <category-template-v2
               :search-text="state.searchText"
               :label="state.marketActiveTab"
@@ -128,16 +128,16 @@
               :create-auth="createAuth"
               @templateApply="templateApply"
               @templatePreview="templatePreview"
-            ></category-template-v2>
+            />
           </el-row>
-          <el-row v-show="state.marketActiveTab === '推荐'">
+          <el-row v-show="state.marketActiveTab === t('work_branch.recommend')">
             <el-row
               style="display: inline; width: 100%; margin-bottom: 16px"
               v-for="(categoryItem, index) in categoriesComputed"
               :key="index"
             >
               <category-template-v2
-                v-if="categoryItem.label !== '最近使用'"
+                v-if="categoryItem.label !== t('work_branch.recent')"
                 :search-text="state.searchText"
                 :label="categoryItem.label"
                 :full-template-show-list="state.currentMarketTemplateShowList"
@@ -148,7 +148,7 @@
                 :create-auth="createAuth"
                 @templateApply="templateApply"
                 @templatePreview="templatePreview"
-              ></category-template-v2>
+              />
             </el-row>
           </el-row>
         </div>
@@ -158,7 +158,7 @@
               ><no_result style="margin-bottom: 16px; font-size: 75px" class="svg-icon"
             /></Icon>
             <br />
-            <span>没有找到相关模板</span>
+            <span>{{ t('work_branch.relevant_templates_found') }}</span>
           </div>
         </el-row>
         <el-row v-show="!state.networkStatus" class="template-empty">
@@ -201,7 +201,11 @@ const close = () => {
   emits('close')
 }
 
-const title = computed(() => (state.curPosition === 'branch' ? '模板中心' : '使用模板新建'))
+const title = computed(() =>
+  state.curPosition === 'branch'
+    ? t('work_branch.template_center')
+    : t('work_branch.new_using_template')
+)
 const isEmbedded = computed(() => appStore.getIsDataEaseBi || appStore.getIsIframe)
 const state = reactive({
   initReady: true,
@@ -218,43 +222,43 @@ const state = reactive({
   templateClassifyOptions: [
     {
       value: 'all',
-      label: '全部分类'
+      label: t('visualization.all_type')
     },
     {
       value: 'app',
-      label: '应用模板'
+      label: t('visualization.apply_template')
     },
     {
       value: 'template',
-      label: '样式模板'
+      label: t('visualization.style_template')
     }
   ],
   templateSourceOptions: [
     {
       value: 'all',
-      label: '全部来源'
+      label: t('work_branch.all_source')
     },
     {
       value: 'market',
-      label: '模板市场'
+      label: t('visualization.template_market')
     },
     {
       value: 'manage',
-      label: '模板管理'
+      label: t('template_manage.name')
     }
   ],
   templateTypeOptions: [
     {
       value: 'all',
-      label: '全部类型'
+      label: t('work_branch.all_types')
     },
     {
       value: 'PANEL',
-      label: '仪表板'
+      label: t('work_branch.dashboard')
     },
     {
       value: 'SCREEN',
-      label: '数据大屏'
+      label: t('work_branch.big_data_screen')
     }
   ],
   loading: false,
@@ -454,7 +458,7 @@ const templateApply = template => {
 
 const apply = template => {
   if (state.dvCreateForm.newFrom === 'new_market_template' && !state.dvCreateForm.templateUrl) {
-    ElMessage.warning('未获取模板下载链接请联系模板市场官方')
+    ElMessage.warning(t('template_manage.get_download_link_hint'))
     return false
   }
   const templateTemplate = {
@@ -464,7 +468,7 @@ const apply = template => {
     templateId: state.dvCreateForm.templateId
   }
   state.curApplyTemplate.recentUseTime = Date.now()
-  state.curApplyTemplate.categoryNames.push('最近使用')
+  state.curApplyTemplate.categoryNames.push(t('work_branch.recent'))
   const baseUrl =
     (['dataV', 'SCREEN'].includes(state.dvCreateForm.nodeType)
       ? '#/dvCanvas?opt=create&createType=template'
@@ -555,7 +559,7 @@ const templatePreview = previewId => {
     previewModel.value = 'marketPreview'
   } else {
     state.curTemplateShowFilter =
-      state.marketActiveTab === '推荐'
+      state.marketActiveTab === t('work_branch.recommend')
         ? state.currentMarketTemplateShowList.filter(ele => ele.showFlag)
         : state.currentMarketTemplateShowList.filter(
             ele => ele.showFlag && ele.categoryNames?.includes(state.marketActiveTab)
@@ -742,6 +746,17 @@ defineExpose({
   overflow-x: auto;
   overflow-y: hidden;
   height: 100%;
+}
+
+.custom-market-tree {
+  ::v-deep(.ed-tree-node__content) {
+    .ed-tree-node__label {
+      width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
 }
 </style>
 

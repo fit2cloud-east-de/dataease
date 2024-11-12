@@ -2,7 +2,7 @@
   <div class="user-center flex-align-center">
     <div class="user-center-container">
       <div class="user-tabs">
-        <div class="tabs-title flex-align-center">用户中心</div>
+        <div class="tabs-title flex-align-center">{{ t('commons.user_center') }}</div>
         <el-divider />
         <div class="list-item_primary active">
           {{ t('user.change_password') }}

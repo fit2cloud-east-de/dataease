@@ -17,7 +17,12 @@ import dvFolder from '@/assets/svg/dv-folder.svg'
 import icon_operationAnalysis_outlined from '@/assets/svg/icon_operation-analysis_outlined.svg'
 import icon_edit_outlined from '@/assets/svg/icon_edit_outlined.svg'
 import { onMounted, reactive, ref, toRefs, watch, nextTick, computed } from 'vue'
-import { copyResource, deleteLogic, ResourceOrFolder } from '@/api/visualization/dataVisualization'
+import {
+  copyResource,
+  deleteLogic,
+  ResourceOrFolder,
+  queryShareBaseApi
+} from '@/api/visualization/dataVisualization'
 import { ElIcon, ElMessage, ElMessageBox, ElScrollbar } from 'element-plus-secondary'
 import { Icon } from '@/components/icon-custom'
 import { useEmitt } from '@/hooks/web/useEmitt'
@@ -30,6 +35,8 @@ import { useAppStoreWithOut } from '@/store/modules/app'
 import { storeToRefs } from 'pinia'
 import DvHandleMore from '@/components/handle-more/src/DvHandleMore.vue'
 import { interactiveStoreWithOut } from '@/store/modules/interactive'
+import { useShareStoreWithOut } from '@/store/modules/share'
+const shareStore = useShareStoreWithOut()
 const interactiveStore = interactiveStoreWithOut()
 import router from '@/router'
 import { useI18n } from '@/hooks/web/useI18n'
@@ -66,7 +73,8 @@ const mounted = ref(false)
 const rootManage = ref(false)
 const anyManage = ref(false)
 const { curCanvasType, showPosition } = toRefs(props)
-const resourceLabel = curCanvasType.value === 'dataV' ? '数据大屏' : '仪表板'
+const resourceLabel =
+  curCanvasType.value === 'dataV' ? t('work_branch.big_data_screen') : t('work_branch.dashboard')
 const newResourceLabel = '新建' + resourceLabel
 const selectedNodeKey = ref(null)
 const filterText = ref(null)
@@ -132,7 +140,7 @@ const resourceTypeList = computed(() => {
       command: 'newLeaf'
     },
     {
-      label: '使用模板新建',
+      label: t('work_branch.new_using_template'),
       svgName: dvUseTemplate,
       command: 'newFromTemplate'
     },
@@ -212,7 +220,12 @@ const getTree = async () => {
   const nodeData = interactiveData.treeNodes
   rootManage.value = interactiveData.rootManage
   anyManage.value = interactiveData.anyManage
-  if (dvInfo.value && dvInfo.value.id && !JSON.stringify(nodeData).includes(dvInfo.value.id)) {
+  if (
+    dvInfo.value &&
+    dvInfo.value.id &&
+    !JSON.stringify(nodeData).includes(dvInfo.value.id) &&
+    showPosition.value !== 'multiplexing'
+  ) {
     dvMainStore.resetDvInfo()
   }
   if (nodeData.length && nodeData[0]['id'] === '0' && nodeData[0]['name'] === 'root') {
@@ -260,6 +273,8 @@ const afterTreeInit = () => {
   })
 }
 
+const copyLoading = ref(false)
+
 const emit = defineEmits(['nodeClick'])
 
 const operation = (cmd: string, data: BusiTreeNode, nodeType: string) => {
@@ -291,29 +306,36 @@ const operation = (cmd: string, data: BusiTreeNode, nodeType: string) => {
       id: data.id,
       pid: targetPid || '0'
     }
-    copyResource(params).then(data => {
-      const baseUrl =
-        curCanvasType.value === 'dataV'
-          ? `#/dvCanvas?opt=copy&pid=${params.pid}&dvId=${data.data}`
-          : `#/dashboard?opt=copy&pid=${params.pid}&resourceId=${data.data}`
-      if (isEmbedded.value) {
-        embeddedStore.clearState()
-        embeddedStore.setPid(params.pid as string)
-        embeddedStore.setOpt('copy')
-        if (curCanvasType.value === 'dataV') {
-          embeddedStore.setDvId(data.data)
-        } else {
-          embeddedStore.setResourceId(data.data)
+
+    copyLoading.value = true
+
+    copyResource(params)
+      .then(data => {
+        const baseUrl =
+          curCanvasType.value === 'dataV'
+            ? `#/dvCanvas?opt=copy&pid=${params.pid}&dvId=${data.data}`
+            : `#/dashboard?opt=copy&pid=${params.pid}&resourceId=${data.data}`
+        if (isEmbedded.value) {
+          embeddedStore.clearState()
+          embeddedStore.setPid(params.pid as string)
+          embeddedStore.setOpt('copy')
+          if (curCanvasType.value === 'dataV') {
+            embeddedStore.setDvId(data.data)
+          } else {
+            embeddedStore.setResourceId(data.data)
+          }
+          useEmitt().emitter.emit(
+            'changeCurrentComponent',
+            curCanvasType.value === 'dataV' ? 'VisualizationEditor' : 'DashboardEditor'
+          )
+          return
         }
-        useEmitt().emitter.emit(
-          'changeCurrentComponent',
-          curCanvasType.value === 'dataV' ? 'VisualizationEditor' : 'DashboardEditor'
-        )
-        return
-      }
-      const newWindow = window.open(baseUrl, '_blank')
-      initOpenHandler(newWindow)
-    })
+        const newWindow = window.open(baseUrl, '_blank')
+        initOpenHandler(newWindow)
+      })
+      .finally(() => {
+        copyLoading.value = false
+      })
   } else {
     resourceGroupOpt.value.optInit(nodeType, data, cmd, ['copy'].includes(cmd))
   }
@@ -494,9 +516,20 @@ const loadInit = () => {
     state.curSortType = historyTreeSort
   }
 }
+
+const loadShareBase = () => {
+  queryShareBaseApi().then(res => {
+    const param = {
+      shareDisable: res.data?.disable,
+      sharePeRequire: res.data?.peRequire
+    }
+    shareStore.setData(param)
+  })
+}
 onMounted(() => {
   loadInit()
   getTree()
+  loadShareBase()
 })
 
 defineExpose({
@@ -542,7 +575,7 @@ defineExpose({
                     <el-icon class="handle-icon">
                       <Icon name="dv-use-template"><dvUseTemplate class="svg-icon" /></Icon>
                     </el-icon>
-                    使用模板新建
+                    {{ t('work_branch.new_using_template') }}
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -593,7 +626,7 @@ defineExpose({
         </template>
       </el-dropdown>
     </div>
-    <el-scrollbar class="custom-tree">
+    <el-scrollbar class="custom-tree" v-loading="copyLoading">
       <el-tree
         menu
         ref="resourceListTree"

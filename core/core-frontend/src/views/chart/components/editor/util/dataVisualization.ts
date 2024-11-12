@@ -89,6 +89,7 @@ export const DEFAULT_CANVAS_STYLE_DATA_BASE = {
   refreshTime: 5, // 仪表板刷新时间 默认5分钟
   popupAvailable: true, // 弹窗区域是否可用 默认为true
   popupButtonAvailable: true, // 弹框区域显示按钮是否可用 默认为true
+  suspensionButtonAvailable: false, // 悬浮按钮是否可用 默认false
   screenAdaptor: 'widthFirst', // 屏幕适配方式 widthFirst=宽度优先 heightFirst=高度优先 full=铺满全屏 keepSize=不缩放
   scale: 60,
   scaleWidth: 60,

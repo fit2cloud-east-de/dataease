@@ -46,7 +46,6 @@ export class StockLine extends G2PlotChartView<MixOptions, Mix> {
   }
   axis: AxisType[] = ['xAxis', 'yAxis', 'filter', 'extLabel', 'extTooltip']
   axisConfig = {
-    ...this['axisConfig'],
     xAxis: {
       name: `日期 / ${t('chart.dimension')}`,
       limit: 1,
@@ -611,6 +610,7 @@ export class StockLine extends G2PlotChartView<MixOptions, Mix> {
               label
             }
           : {
+              ...yAxisOptions['yAxis'],
               label,
               grid: null,
               line: null

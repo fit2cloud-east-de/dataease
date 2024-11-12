@@ -79,11 +79,11 @@
         v-model="canvasStyleData.refreshBrowserEnable"
         @change="themeChange"
       >
-        整体刷新
+        {{ t('components.overall_refresh') }}
       </el-checkbox>
       <el-tooltip class="item" :effect="toolTip" placement="bottom">
         <template #content>
-          <div>仅公共链接和新Tab预览生效</div>
+          <div>{{ t('components.previews_take_effect') }}</div>
         </template>
         <el-icon
           class="hint-icon"
@@ -180,6 +180,26 @@
         :disabled="canvasStyleData.dashboard.resultMode === 'all'"
       />
     </el-form-item>
+    <el-form-item style="margin-top: 16px; margin-bottom: 8px" :class="'form-item-' + themes">
+      <el-checkbox
+        :effect="themes"
+        size="small"
+        v-model="canvasStyleData.suspensionButtonAvailable"
+        @change="themeChange"
+      >
+        <span class="data-area-label">
+          <span style="margin-right: 4px"> 显示放大、导出等悬浮按钮 </span>
+          <el-tooltip class="item" :effect="toolTip" placement="bottom">
+            <template #content>
+              <div>预览时启用</div>
+            </template>
+            <el-icon class="hint-icon" :class="{ 'hint-icon--dark': themes === 'dark' }">
+              <Icon name="icon_info_outlined"><icon_info_outlined class="svg-icon" /></Icon>
+            </el-icon>
+          </el-tooltip>
+        </span>
+      </el-checkbox>
+    </el-form-item>
   </el-form>
 </template>
 
@@ -229,7 +249,9 @@ const toolTip = computed(() => {
   return props.themes === 'dark' ? 'ndark' : 'dark'
 })
 
-const resourceType = computed(() => (dvInfo.value.type === 'dashboard' ? '仪表板' : '数据大屏'))
+const resourceType = computed(() =>
+  dvInfo.value.type === 'dashboard' ? t('work_branch.dashboard') : t('dashboard.big_data_screen')
+)
 
 const onRefreshChange = val => {
   if (val === '' || parseFloat(val).toString() === 'NaN' || parseFloat(val) < 1) {

@@ -72,7 +72,8 @@ const emit = defineEmits([
   'onNameEdit',
   'editItemFilter',
   'editItemCompare',
-  'valueFormatter'
+  'valueFormatter',
+  'onToggleHide'
 ])
 
 const { item, chart } = toRefs(props)
@@ -162,6 +163,9 @@ const clickItem = param => {
     case 'formatter':
       valueFormatter()
       break
+    case 'toggleHide':
+      toggleHide()
+      break
     default:
       break
   }
@@ -169,7 +173,7 @@ const clickItem = param => {
 
 const beforeClickItem = type => {
   return {
-    type: type
+    type
   }
 }
 
@@ -249,7 +253,10 @@ const quickCalc = param => {
       break
     case 'setting':
       // 选择占比外，设置自动
-      resetValueFormatter(item.value)
+      // 指标卡不需要重置数值格式
+      if (chart.value.type !== 'indicator') {
+        resetValueFormatter(item.value)
+      }
       editCompare()
       break
     case 'percent':
@@ -282,7 +289,15 @@ const valueFormatter = () => {
   item.value.formatterType = props.type
   emit('valueFormatter', item.value)
 }
-
+const toggleHide = () => {
+  item.value.index = props.index
+  item.value.hide = !item.value.hide
+  item.value.axisType = props.type
+  emit('onToggleHide', item.value)
+}
+const showHideIcon = computed(() => {
+  return ['tale-info', 'table-normal'].includes(props.chart.type) && item.value.hide
+})
 onMounted(() => {
   isEnableCompare()
   getItemTagType()
@@ -349,6 +364,15 @@ onMounted(() => {
             -{{ t('chart.' + item.compareCalc.type) }}
           </span>
         </span>
+        <el-icon style="margin-left: 8px">
+          <Icon>
+            <Hide
+              v-show="showHideIcon"
+              :class="`field-icon-${fieldType[[2, 3].includes(item.deType) ? 2 : 0]}`"
+              class="svg-icon inner-class"
+            />
+          </Icon>
+        </el-icon>
         <el-tooltip :effect="toolTip" placement="top">
           <template #content>
             <span>{{ t('chart.delete') }}</span>
@@ -370,57 +394,6 @@ onMounted(() => {
           class="drop-style"
           :class="themes === 'dark' ? 'dark-dimension-quota' : ''"
         >
-          <!--          <el-dropdown-item @click.prevent v-if="chart.type === 'chart-mix'">
-            <el-dropdown
-              :effect="themes"
-              placement="right-start"
-              popper-class="data-dropdown_popper_mr9"
-              style="width: 100%"
-              @command="switchChartType"
-            >
-              <span class="el-dropdown-link inner-dropdown-menu menu-item-padding">
-                <span class="menu-item-content">
-                  <el-icon>
-                    <Icon name="icon_dashboard_outlined" ><icon_dashboard_outlined class="svg-icon" /></Icon>
-                  </el-icon>
-                  <span>{{ t('chart.chart_type') }}</span>
-                </span>
-                <el-icon>
-                  <Icon name="icon_right_outlined"><icon_right_outlined class="svg-icon" /></Icon>
-                </el-icon>
-              </span>
-              <template #dropdown>
-                <el-dropdown-menu
-                  :effect="themes"
-                  class="drop-style sub"
-                  :class="themes === 'dark' ? 'dark-dimension-quota' : ''"
-                >
-                  <el-dropdown-item class="menu-item-padding" :command="beforeSwitchType('bar')">
-                    <span
-                      class="sub-menu-content"
-                      :class="'bar' === item.chartType ? 'content-active' : ''"
-                    >
-                      {{ t('chart.chart_bar') }}
-                      <el-icon class="sub-menu-content&#45;&#45;icon">
-                        <Icon name="icon_done_outlined" v-if="'bar' === item.chartType" ><icon_done_outlined class="svg-icon" /></Icon>
-                      </el-icon>
-                    </span>
-                  </el-dropdown-item>
-                  <el-dropdown-item class="menu-item-padding" :command="beforeSwitchType('line')">
-                    <span
-                      class="sub-menu-content"
-                      :class="'line' === item.chartType ? 'content-active' : ''"
-                    >
-                      {{ t('chart.chart_line') }}
-                      <el-icon class="sub-menu-content&#45;&#45;icon">
-                        <Icon name="icon_done_outlined" v-if="'line' === item.chartType" ><icon_done_outlined class="svg-icon" /></Icon>
-                      </el-icon>
-                    </span>
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </el-dropdown-item>-->
           <el-dropdown-item
             @click.prevent
             v-if="chart.type !== 'table-info' && item.summary !== ''"
@@ -681,7 +654,7 @@ onMounted(() => {
               props.type !== 'extLabel' &&
               props.type !== 'extTooltip' &&
               props.type !== 'extBubble' &&
-              !chart.type.includes('chart-mix')
+              !['chart-mix', 'indicator', 'liquid', 'gauge'].includes(chart.type)
             "
             :divided="chart.type !== 'table-info'"
           >
@@ -763,7 +736,7 @@ onMounted(() => {
             :command="beforeClickItem('filter')"
             :divided="chart.type.includes('chart-mix')"
           >
-            <span>{{ t('chart.filter') }}...</span>
+            <span>{{ t('chart.filter') }}</span>
           </el-dropdown-item>
 
           <el-dropdown-item
@@ -773,7 +746,7 @@ onMounted(() => {
             :command="beforeClickItem('formatter')"
           >
             <el-icon />
-            <span>{{ t('chart.value_formatter') }}...</span>
+            <span>{{ t('chart.value_formatter') }}</span>
           </el-dropdown-item>
 
           <el-dropdown-item class="menu-item-padding" :command="beforeClickItem('rename')">
@@ -781,6 +754,17 @@ onMounted(() => {
               <icon name="icon_edit_outlined"><icon_edit_outlined class="svg-icon" /></icon>
             </el-icon>
             <span>{{ t('chart.show_name_set') }}</span>
+          </el-dropdown-item>
+          <el-dropdown-item
+            class="menu-item-padding"
+            v-if="['table-normal', 'table-info'].includes(chart.type)"
+            :command="beforeClickItem('toggleHide')"
+          >
+            <el-icon>
+              <icon v-if="item.hide === true" name="view"><View class="svg-icon" /></icon>
+              <icon v-else name="hide"><Hide class="svg-icon" /></icon>
+            </el-icon>
+            <span>{{ item.hide === true ? t('chart.show') : t('chart.hide') }}</span>
           </el-dropdown-item>
           <el-dropdown-item class="menu-item-padding" :command="beforeClickItem('remove')">
             <el-icon>

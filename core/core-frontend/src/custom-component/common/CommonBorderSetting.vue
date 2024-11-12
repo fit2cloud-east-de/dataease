@@ -80,7 +80,7 @@ watch(
 </script>
 
 <template>
-  <el-row class="custom-row">
+  <el-row class="custom-row" style="padding-bottom: 8px">
     <el-form label-position="top">
       <template v-if="isSvgComponent">
         <el-row style="display: flex">
@@ -135,6 +135,7 @@ watch(
               class="color-picker-style"
               :triggerWidth="65"
               is-custom
+              :effect="themes"
               :predefine="state.predefineColors"
               @change="changeStylePre('borderColor')"
             >
@@ -205,5 +206,3 @@ watch(
     </el-form>
   </el-row>
 </template>
-
-<style scoped lang="less"></style>

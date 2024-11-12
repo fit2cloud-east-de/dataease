@@ -107,7 +107,7 @@ const getEmptyImg = (): string => {
 
 const getEmptyDesc = (): string => {
   if (panelKeyword.value) {
-    return '没有找到相关内容'
+    return t('work_branch.relevant_content_found')
   }
 
   return ''
@@ -172,7 +172,7 @@ watch(
         v-model="panelKeyword"
         clearable
         @change="triggerFilterPanel"
-        placeholder="搜索关键词"
+        :placeholder="t('work_branch.search_keyword')"
       >
         <template #prefix>
           <el-icon>
@@ -230,7 +230,7 @@ watch(
 
       <el-table-column width="96" fixed="right" key="_operation" :label="t('common.operate')">
         <template #default="scope">
-          <el-tooltip effect="dark" content="新页面预览" placement="top">
+          <el-tooltip effect="dark" :content="t('work_branch.new_page_preview')" placement="top">
             <el-icon class="hover-icon hover-icon-in-table" @click="preview(scope.row.resourceId)">
               <Icon name="icon_pc_outlined"><icon_pc_outlined class="svg-icon" /></Icon>
             </el-icon>

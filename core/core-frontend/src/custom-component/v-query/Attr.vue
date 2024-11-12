@@ -11,7 +11,7 @@ const { curComponent } = storeToRefs(dvMainStore)
   <div class="attr-list">
     <CommonAttr :element="curComponent"></CommonAttr>
     <div class="content">
-      <span>内容</span>
+      <span>{{ $t('visualization.content') }}</span>
       <el-input v-model="curComponent['propValue']" type="textarea" :rows="3" />
     </div>
   </div>

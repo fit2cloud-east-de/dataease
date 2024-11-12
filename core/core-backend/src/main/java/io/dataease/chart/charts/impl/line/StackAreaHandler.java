@@ -100,7 +100,7 @@ public class StackAreaHandler extends YoyChartHandler {
             if (CollectionUtils.isNotEmpty(assistFields)) {
                 var req = new DatasourceRequest();
                 req.setDsList(dsMap);
-                var assistSql = assistSQL(originSql, assistFields);
+                var assistSql = assistSQL(originSql, assistFields, dsMap);
                 req.setQuery(assistSql);
                 logger.debug("calcite assist sql: " + assistSql);
                 var assistData = (List<String[]>) provider.fetchResultField(req).get("data");

@@ -116,7 +116,7 @@ export const DEFAULT_COLOR_CASE_DARK: DeepPartial<ChartAttr> = {
     alpha: 100,
     gradient: false,
     mapStyle: 'darkblue',
-    areaBaseColor: '5470C6',
+    areaBaseColor: '#5470C6',
     areaBorderColor: '#EBEEF5',
     gaugeStyle: 'default',
     tableBorderColor: '#CCCCCC',
@@ -232,12 +232,12 @@ export const DEFAULT_MISC: ChartMiscAttr = {
     summary: ''
   },
   gaugeMin: 0,
-  gaugeMaxType: 'fix',
+  gaugeMaxType: 'dynamic',
   gaugeMaxField: {
     id: '',
     summary: ''
   },
-  gaugeMax: 1,
+  gaugeMax: undefined,
   gaugeStartAngle: 225,
   gaugeEndAngle: -45,
   nameFontSize: 18,
@@ -258,8 +258,8 @@ export const DEFAULT_MISC: ChartMiscAttr = {
   nameFontShadow: false,
   treemapWidth: 80,
   treemapHeight: 80,
-  liquidMax: 1,
-  liquidMaxType: 'fix',
+  liquidMax: undefined,
+  liquidMaxType: 'dynamic',
   liquidMaxField: {
     id: '',
     summary: ''
@@ -275,6 +275,8 @@ export const DEFAULT_MISC: ChartMiscAttr = {
   mapLegendMax: 0,
   mapLegendMin: 0,
   mapLegendNumber: 9,
+  mapLegendRangeType: 'quantize',
+  mapLegendCustomRange: [],
   flowMapConfig: {
     lineConfig: {
       mapLineAnimate: true,
@@ -339,7 +341,9 @@ export const DEFAULT_LABEL: ChartLabelAttr = {
   showTotal: false,
   totalFontSize: 12,
   totalColor: '#FFF',
-  totalFormatter: formatterItem
+  totalFormatter: formatterItem,
+  showStackQuota: false,
+  fullDisplay: false
 }
 export const DEFAULT_TOOLTIP: ChartTooltipAttr = {
   show: true,
@@ -425,7 +429,11 @@ export const DEFAULT_TABLE_CELL: ChartTableCellAttr = {
   showHorizonBorder: true,
   showVerticalBorder: true,
   isItalic: false,
-  isBolder: false
+  isBolder: false,
+  tableFreeze: false,
+  tableColumnFreezeHead: 0,
+  tableRowFreezeHead: 0,
+  mergeCells: true
 }
 export const DEFAULT_TITLE_STYLE: ChartTextStyle = {
   show: true,
@@ -724,6 +732,13 @@ export const DEFAULT_MISC_STYLE: ChartMiscStyle = {
   },
   splitArea: {
     show: true
+  },
+  axisValue: {
+    auto: true,
+    min: 10,
+    max: 100,
+    split: 10,
+    splitCount: 10
   }
 }
 export const DEFAULT_FUNCTION_CFG: ChartFunctionCfg = {
@@ -1494,7 +1509,7 @@ export const CHART_TYPE_CONFIGS = [
   },
   {
     category: 'other',
-    title: '富文本',
+    title: '其他',
     display: 'hidden',
     details: [
       {
@@ -1503,6 +1518,13 @@ export const CHART_TYPE_CONFIGS = [
         value: 'rich-text',
         title: '富文本',
         icon: 'rich-text'
+      },
+      {
+        render: 'custom',
+        category: 'quota',
+        value: 'picture-group',
+        title: '图片组',
+        icon: 'picture-group'
       }
     ]
   }
@@ -1570,7 +1592,19 @@ export const DEFAULT_BASIC_STYLE: ChartBasicStyle = {
   showSummary: false,
   summaryLabel: '总计',
   seriesColor: [],
-  layout: 'horizontal'
+  layout: 'horizontal',
+  mapSymbolSizeMin: 4,
+  mapSymbolSizeMax: 30,
+  showLabel: true,
+  mapStyleUrl: '',
+  autoFit: true,
+  mapCenter: {
+    longitude: 117.232,
+    latitude: 39.354
+  },
+  zoomLevel: 7,
+  customIcon: '',
+  showHoverStyle: true
 }
 
 export const BASE_VIEW_CONFIG = {

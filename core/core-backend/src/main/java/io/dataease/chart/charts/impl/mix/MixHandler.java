@@ -92,7 +92,7 @@ public class MixHandler extends YoyChartHandler {
             if (CollectionUtils.isNotEmpty(assistFields)) {
                 var req = new DatasourceRequest();
                 req.setDsList(dsMap);
-                var assistSql = assistSQL(originSql, assistFields);
+                var assistSql = assistSQL(originSql, assistFields, dsMap);
                 req.setQuery(assistSql);
                 logger.debug("calcite assistSql sql: " + assistSql);
                 var assistData = (List<String[]>) provider.fetchResultField(req).get("data");
@@ -144,7 +144,7 @@ public class MixHandler extends YoyChartHandler {
             if (CollectionUtils.isNotEmpty(assistFields)) {
                 var req = new DatasourceRequest();
                 req.setDsList(dsMap);
-                var assistSql = assistSQL(originSql, assistFields);
+                var assistSql = assistSQL(originSql, assistFields, dsMap);
                 req.setQuery(assistSql);
                 var assistData = (List<String[]>) provider.fetchResultField(req).get("data");
                 rightResult.setAssistData(assistData);

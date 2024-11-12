@@ -10,7 +10,10 @@ import { COLOR_PANEL, DEFAULT_TABLE_HEADER } from '@/views/chart/components/edit
 import { ElSpace } from 'element-plus-secondary'
 import { cloneDeep, defaultsDeep } from 'lodash-es'
 import { convertToAlphaColor, isAlphaColor } from '@/views/chart/components/js/util'
-
+import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
+import { storeToRefs } from 'pinia'
+const dvMainStore = dvMainStoreWithOut()
+const { mobileInPc } = storeToRefs(dvMainStore)
 const { t } = useI18n()
 
 const props = defineProps({
@@ -138,7 +141,7 @@ onMounted(() => {
         </el-select>
       </el-form-item>
     </el-space>
-    <el-space>
+    <el-space :class="{ 'mobile-style': mobileInPc }">
       <el-form-item class="form-item" :class="'form-item-' + themes">
         <el-checkbox
           :effect="themes"
@@ -412,5 +415,8 @@ onMounted(() => {
   :deep(.ed-checkbox__label) {
     padding: 0;
   }
+}
+.mobile-style {
+  margin-top: 25px;
 }
 </style>

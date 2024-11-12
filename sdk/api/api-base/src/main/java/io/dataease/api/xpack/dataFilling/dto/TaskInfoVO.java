@@ -40,6 +40,7 @@ public class TaskInfoVO implements Serializable {
     private String fitColumn;
 
     private Integer rateType;
+    private Integer oneTimeType;
 
     private String rateVal;
 
@@ -69,5 +70,6 @@ public class TaskInfoVO implements Serializable {
 
 
     private String formExtSetting;
+    private String formFilterSetting;
 
 }

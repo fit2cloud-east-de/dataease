@@ -72,7 +72,7 @@ const loadShareTableData = () => {
 }
 
 const tablePaneList = ref([
-  { title: '最近使用', name: 'recent', disabled: false },
+  { title: t('work_branch.recent'), name: 'recent', disabled: false },
   { title: '我的收藏', name: 'store', disabled: false },
   { title: t('visualization.share_out'), name: 'share', disabled: false }
 ])

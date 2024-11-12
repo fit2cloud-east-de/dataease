@@ -51,6 +51,10 @@ public interface UserApi {
     @GetMapping("/personInfo")
     UserFormVO personInfo();
 
+    @Operation(summary = "查询客户端IP信息")
+    @GetMapping("/ipInfo")
+    CurIpVO ipInfo();
+
     @Operation(summary = "创建")
     @DePermit("m:read")
     @PostMapping("/create")
@@ -185,6 +189,10 @@ public interface UserApi {
     @Hidden
     @GetMapping("/orgAdmin")
     boolean orgAdmin();
+
+    @Hidden
+    @GetMapping("/defaultOrgAdmin")
+    boolean defaultOrgAdmin();
 
     @Hidden
     @GetMapping("/invalidPwd")

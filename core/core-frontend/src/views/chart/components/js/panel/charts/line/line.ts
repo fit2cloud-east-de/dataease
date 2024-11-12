@@ -3,7 +3,12 @@ import {
   G2PlotDrawOptions
 } from '@/views/chart/components/js/panel/types/impl/g2plot'
 import type { Line as G2Line, LineOptions } from '@antv/g2plot/esm/plots/line'
-import { getPadding } from '../../common/common_antv'
+import {
+  configPlotTooltipEvent,
+  getPadding,
+  getTooltipContainer,
+  TOOLTIP_TPL
+} from '../../common/common_antv'
 import {
   flow,
   hexColorToRGBA,
@@ -42,6 +47,16 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
   axis: AxisType[] = [...LINE_AXIS_TYPE, 'xAxisExt']
   axisConfig = {
     ...this['axisConfig'],
+    xAxis: {
+      name: `${t('chart.drag_block_type_axis')} / ${t('chart.dimension')}`,
+      type: 'd'
+    },
+    xAxisExt: {
+      name: `${t('chart.chart_group')} / ${t('chart.dimension')}`,
+      type: 'd',
+      limit: 1,
+      allowEmpty: true
+    },
     yAxis: {
       name: `${t('chart.drag_block_value_axis')} / ${t('chart.quota')}`,
       type: 'q'
@@ -50,6 +65,7 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
   async drawChart(drawOptions: G2PlotDrawOptions<G2Line>): Promise<G2Line> {
     const { chart, action, container } = drawOptions
     if (!chart.data?.data?.length) {
+      chart.container = container
       clearExtremum(chart)
       return
     }
@@ -90,13 +106,6 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
           }
         },
         {
-          type: 'tooltip',
-          cfg: {
-            start: [{ trigger: 'point:mousemove', action: 'tooltip:show' }],
-            end: [{ trigger: 'point:mouseleave', action: 'tooltip:hide' }]
-          }
-        },
-        {
           type: 'active-region',
           cfg: {
             start: [{ trigger: 'element:mousemove', action: 'active-region:show' }],
@@ -112,6 +121,7 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
 
     newChart.on('point:click', action)
     extremumEvt(newChart, chart, options, container)
+    configPlotTooltipEvent(chart, newChart)
     return newChart
   }
 
@@ -133,7 +143,6 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
       fields: [],
       ...tmpOptions.label,
       offsetY: -8,
-      layout: [{ type: 'hide-overlap' }, { type: 'limit-in-plot' }],
       formatter: (data: Datum, _point) => {
         if (data.EXTREME) {
           return ''
@@ -276,7 +285,10 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
           }
         })
         return result
-      }
+      },
+      container: getTooltipContainer(`tooltip-${chart.id}`),
+      itemTpl: TOOLTIP_TPL,
+      enterable: true
     }
     return {
       ...options,
@@ -288,8 +300,11 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
   }
   protected configLegend(chart: Chart, options: LineOptions): LineOptions {
     const optionTmp = super.configLegend(chart, options)
+    if (!optionTmp.legend) {
+      return optionTmp
+    }
     const xAxisExt = chart.xAxisExt[0]
-    if (optionTmp.legend && xAxisExt?.customSort?.length > 0) {
+    if (xAxisExt?.customSort?.length > 0) {
       // 图例自定义排序
       const l = optionTmp.legend
       const basicStyle = parseJson(chart.customAttr).basicStyle
@@ -302,11 +317,8 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
           marker: {
             symbol: l.marker.symbol,
             style: {
-              r: 6,
-              fill: 'rgba(0,0,0,0)',
-              lineWidth: 2,
-              lineJoin: 'round',
-              stroke: basicStyle.colors[index % basicStyle.colors.length]
+              r: 4,
+              fill: basicStyle.colors[index % basicStyle.colors.length]
             }
           }
         })
@@ -319,6 +331,12 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
       return {
         ...optionTmp,
         legend
+      }
+    }
+    optionTmp.legend.marker.style = style => {
+      return {
+        r: 4,
+        fill: style.stroke
       }
     }
     return optionTmp

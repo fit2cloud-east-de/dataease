@@ -17,6 +17,9 @@ import { ref, watch, computed } from 'vue'
 import ShareVisualHead from '@/views/share/share/ShareVisualHead.vue'
 import { XpackComponent } from '@/components/plugin'
 import { useEmitt } from '@/hooks/web/useEmitt'
+import { useShareStoreWithOut } from '@/store/modules/share'
+const shareStore = useShareStoreWithOut()
+
 const dvMainStore = dvMainStoreWithOut()
 const appStore = useAppStoreWithOut()
 const { dvInfo } = storeToRefs(dvMainStore)
@@ -26,13 +29,19 @@ const embeddedStore = useEmbedded()
 
 const favorited = ref(false)
 const preview = () => {
-  const baseUrl = isDataEaseBi.value ? embeddedStore.baseUrl : ''
-  const url = baseUrl + '#/preview?dvId=' + dvInfo.value.id
+  const href = window.location.href
+  let baseUrl = isDataEaseBi.value ? embeddedStore.baseUrl : href.substring(0, href.indexOf('#'))
+  if (baseUrl.includes('oidcbi/') || baseUrl.includes('casbi/')) {
+    baseUrl = baseUrl.replace('oidcbi/', '')
+    baseUrl = baseUrl.replace('casbi/', '')
+  }
+  const url = baseUrl + '#/preview?&ignoreParams=true&dvId=' + dvInfo.value.id
   const newWindow = window.open(url, '_blank')
   initOpenHandler(newWindow)
 }
 const isDataEaseBi = computed(() => appStore.getIsDataEaseBi)
 const isIframe = computed(() => appStore.getIsIframe)
+const shareDisable = computed(() => shareStore.getShareDisable)
 
 const reload = () => {
   emit('reload', dvInfo.value.id)
@@ -148,9 +157,10 @@ const initOpenHandler = newWindow => {
         <template #icon>
           <icon name="icon_pc_outlined"><icon_pc_outlined class="svg-icon" /></icon>
         </template>
-        预览</el-button
-      >
+        {{ t('template_manage.preview') }}
+      </el-button>
       <ShareVisualHead
+        v-if="!shareDisable"
         :resource-id="dvInfo.id"
         :weight="dvInfo.weight"
         :resource-type="dvInfo.type"
@@ -169,7 +179,7 @@ const initOpenHandler = newWindow => {
           <el-dropdown-menu style="width: 130px">
             <el-dropdown-item icon="Refresh" @click="reload()">刷新数据 </el-dropdown-item>
             <el-dropdown
-              style="width: 100%"
+              style="width: 100%; overflow: hidden"
               trigger="hover"
               placement="left-start"
               v-if="dvInfo.weight > 3"
@@ -184,12 +194,14 @@ const initOpenHandler = newWindow => {
                   <el-dropdown-item style="width: 118px" @click="download('pdf')"
                     >PDF</el-dropdown-item
                   >
-                  <el-dropdown-item style="width: 118px" @click="downloadAsAppTemplate('template')"
-                    >样式模板</el-dropdown-item
+                  <el-dropdown-item
+                    style="width: 118px"
+                    @click="downloadAsAppTemplate('template')"
+                    >{{ t('visualization.style_template') }}</el-dropdown-item
                   >
-                  <el-dropdown-item style="width: 118px" @click="downloadAsAppTemplate('app')"
-                    >应用模板</el-dropdown-item
-                  >
+                  <el-dropdown-item style="width: 118px" @click="downloadAsAppTemplate('app')">{{
+                    t('visualization.apply_template')
+                  }}</el-dropdown-item>
                   <el-dropdown-item @click="download('img')">{{
                     t('chart.image')
                   }}</el-dropdown-item>

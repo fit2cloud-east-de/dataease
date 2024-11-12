@@ -6,7 +6,7 @@ import {
   L7Wrapper
 } from '@/views/chart/components/js/panel/types/impl/l7'
 import { MAP_EDITOR_PROPERTY_INNER } from '@/views/chart/components/js/panel/charts/map/common'
-import { hexColorToRGBA, parseJson } from '@/views/chart/components/js/util'
+import { hexColorToRGBA, parseJson, svgStrToUrl } from '@/views/chart/components/js/util'
 import { deepCopy } from '@/utils/utils'
 import { GaodeMap } from '@antv/l7-maps'
 import { Scene } from '@antv/l7-scene'
@@ -14,6 +14,7 @@ import { PointLayer } from '@antv/l7-layers'
 import { LayerPopup } from '@antv/l7'
 import { mapRendered, mapRendering } from '@/views/chart/components/js/panel/common/common_antv'
 import { configCarouselTooltip } from '@/views/chart/components/js/panel/charts/map/tooltip-carousel'
+import { DEFAULT_BASIC_STYLE } from '@/views/chart/components/editor/util/chart'
 const { t } = useI18n()
 
 /**
@@ -30,7 +31,17 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
   ]
   propertyInner: EditorPropertyInner = {
     ...MAP_EDITOR_PROPERTY_INNER,
-    'basic-style-selector': ['colors', 'alpha', 'mapBaseStyle', 'symbolicMapStyle', 'zoom'],
+    'basic-style-selector': [
+      'colors',
+      'alpha',
+      'mapBaseStyle',
+      'symbolicMapStyle',
+      'zoom',
+      'showLabel',
+      'autoFit',
+      'mapCenter',
+      'zoomLevel'
+    ],
     'label-selector': ['color', 'fontSize', 'showFields', 'customContent'],
     'tooltip-selector': [
       'color',
@@ -52,13 +63,16 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
     xAxisExt: {
       name: `颜色 / ${t('chart.dimension')}`,
       type: 'd',
-      limit: 1
+      limit: 1,
+      allowEmpty: true
     },
     extBubble: {
       name: `${t('chart.bubble_size')} / ${t('chart.quota')}`,
       type: 'q',
       limit: 1,
-      tooltip: '该指标生效时，样式基础样式中的大小属性将失效'
+      tooltip:
+        '该指标生效时，样式基础样式中的大小属性将失效，同时可在样式基础样式中的大小区间配置大小区间',
+      allowEmpty: true
     }
   }
   constructor() {
@@ -67,6 +81,11 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
 
   async drawChart(drawOption: L7DrawConfig<L7Config>) {
     const { chart, container, action } = drawOption
+    const containerDom = document.getElementById(container)
+    const rect = containerDom?.getBoundingClientRect()
+    if (rect?.height <= 0) {
+      return new L7Wrapper(drawOption.chartObj?.getScene(), [])
+    }
     const xAxis = deepCopy(chart.xAxis)
     let basicStyle
     let miscStyle
@@ -75,20 +94,43 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
       miscStyle = parseJson(chart.customAttr).misc
     }
 
-    const mapStyle = `amap://styles/${basicStyle.mapStyle ? basicStyle.mapStyle : 'normal'}`
-    const key = await this.getMapKey()
-    // 底层
-    const scene = new Scene({
-      id: container,
-      logoVisible: false,
-      map: new GaodeMap({
-        token: key ?? undefined,
-        style: mapStyle,
-        pitch: miscStyle.mapPitch,
-        center: [104.434765, 38.256735],
-        zoom: 1.8
+    let mapStyle = basicStyle.mapStyleUrl
+    if (basicStyle.mapStyle !== 'custom') {
+      mapStyle = `amap://styles/${basicStyle.mapStyle ? basicStyle.mapStyle : 'normal'}`
+    }
+    const mapKey = await this.getMapKey()
+    let center: [number, number] = [
+      DEFAULT_BASIC_STYLE.mapCenter.longitude,
+      DEFAULT_BASIC_STYLE.mapCenter.latitude
+    ]
+    if (basicStyle.autoFit === false) {
+      center = [basicStyle.mapCenter.longitude, basicStyle.mapCenter.latitude]
+    }
+    const chartObj = drawOption.chartObj as unknown as L7Wrapper<L7Config, Scene>
+    let scene = chartObj?.getScene()
+    if (!scene) {
+      scene = new Scene({
+        id: container,
+        logoVisible: false,
+        map: new GaodeMap({
+          token: mapKey?.key ?? undefined,
+          style: mapStyle,
+          pitch: miscStyle.mapPitch,
+          center,
+          zoom: basicStyle.autoFit === false ? basicStyle.zoomLevel : 2.5,
+          showLabel: !(basicStyle.showLabel === false)
+        })
       })
-    })
+    } else {
+      if (scene.getLayers()?.length) {
+        await scene.removeAllLayer()
+        scene.setCenter(center)
+        scene.setPitch(miscStyle.mapPitch)
+        scene.setZoom(basicStyle.autoFit === false ? basicStyle.zoomLevel : 2.5)
+        scene.setMapStyle(mapStyle)
+        scene.map.showLabel = !(basicStyle.showLabel === false)
+      }
+    }
     mapRendering(container)
     scene.once('loaded', () => {
       mapRendered(container)
@@ -97,7 +139,7 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
       return new L7Wrapper(scene, undefined)
     }
     const configList: L7Config[] = []
-    const symbolicLayer = this.buildSymbolicLayer(chart, basicStyle)
+    const symbolicLayer = await this.buildSymbolicLayer(chart, scene)
     configList.push(symbolicLayer)
     const tooltipLayer = this.buildTooltip(chart, container, symbolicLayer)
     if (tooltipLayer) {
@@ -154,12 +196,21 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
    * 构建符号图层
    * @param chart
    */
-  buildSymbolicLayer = (chart, basicStyle) => {
+  buildSymbolicLayer = async (chart, scene: Scene) => {
+    const { basicStyle } = parseJson(chart.customAttr) as ChartAttr
     const xAxis = deepCopy(chart.xAxis)
     const xAxisExt = deepCopy(chart.xAxisExt)
     const extBubble = deepCopy(chart.extBubble)
-    const { mapSymbolOpacity, mapSymbolSize, mapSymbol, mapSymbolStrokeWidth, colors, alpha } =
-      deepCopy(basicStyle)
+    const {
+      mapSymbolOpacity,
+      mapSymbolSize,
+      mapSymbol,
+      mapSymbolStrokeWidth,
+      colors,
+      alpha,
+      mapSymbolSizeMin,
+      mapSymbolSizeMax
+    } = deepCopy(basicStyle)
     const colorsWithAlpha = colors.map(color => hexColorToRGBA(color, alpha))
     let colorIndex = 0
     // 存储已分配的颜色
@@ -179,12 +230,12 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
           return {
             ...item,
             color,
-            size: item[sizeKey] ?? mapSymbolSize,
+            size: parseInt(item[sizeKey]) ?? mapSymbolSize,
             name: identifier
           }
         })
       : []
-    const pointLayer = new PointLayer({ autoFit: true })
+    const pointLayer = new PointLayer({ autoFit: !(basicStyle.autoFit === false) })
       .source(data, {
         parser: {
           type: 'json',
@@ -192,27 +243,70 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
           y: xAxis[1].dataeaseName
         }
       })
-      .shape(mapSymbol)
       .active(true)
     if (xAxisExt[0]?.dataeaseName) {
-      pointLayer.color(xAxisExt[0]?.dataeaseName, colorsWithAlpha)
-      pointLayer.style({
-        stroke: {
-          field: 'color'
-        },
-        strokeWidth: mapSymbolStrokeWidth,
-        opacity: mapSymbolOpacity / 10
-      })
+      if (basicStyle.mapSymbol === 'custom' && basicStyle.customIcon) {
+        // 图片无法改色
+        if (basicStyle.customIcon.startsWith('data')) {
+          scene.removeImage('customIcon')
+          await scene.addImage('customIcon', basicStyle.customIcon)
+          pointLayer.shape('customIcon')
+        } else {
+          const parser = new DOMParser()
+          for (let index = 0; index < Math.min(colorsWithAlpha.length, colorIndex + 1); index++) {
+            const color = colorsWithAlpha[index]
+            const fillRegex = /(fill="[^"]*")/g
+            const svgStr = basicStyle.customIcon.replace(fillRegex, '')
+            const doc = parser.parseFromString(svgStr, 'image/svg+xml')
+            const svgEle = doc.documentElement
+            svgEle.setAttribute('fill', color)
+            scene.removeImage(`icon-${color}`)
+            await scene.addImage(`icon-${color}`, svgStrToUrl(svgEle.outerHTML))
+          }
+          pointLayer.shape('color', c => {
+            return `icon-${c}`
+          })
+        }
+      } else {
+        pointLayer.shape(mapSymbol).color(xAxisExt[0]?.dataeaseName, colorsWithAlpha)
+        pointLayer.style({
+          stroke: {
+            field: 'color'
+          },
+          strokeWidth: mapSymbolStrokeWidth,
+          opacity: mapSymbolOpacity / 10
+        })
+      }
     } else {
-      pointLayer.color(colorsWithAlpha[0])
-      pointLayer.style({
-        stroke: colorsWithAlpha[0],
-        strokeWidth: mapSymbolStrokeWidth,
-        opacity: mapSymbolOpacity / 10
-      })
+      if (basicStyle.mapSymbol === 'custom' && basicStyle.customIcon) {
+        scene.removeImage('customIcon')
+        if (basicStyle.customIcon.startsWith('data')) {
+          await scene.addImage('customIcon', basicStyle.customIcon)
+          pointLayer.shape('customIcon')
+        } else {
+          const parser = new DOMParser()
+          const color = colorsWithAlpha[0]
+          const fillRegex = /(fill="[^"]*")/g
+          const svgStr = basicStyle.customIcon.replace(fillRegex, '')
+          const doc = parser.parseFromString(svgStr, 'image/svg+xml')
+          const svgEle = doc.documentElement
+          svgEle.setAttribute('fill', color)
+          await scene.addImage(`customIcon`, svgStrToUrl(svgEle.outerHTML))
+          pointLayer.shape('customIcon')
+        }
+      } else {
+        pointLayer
+          .shape(mapSymbol)
+          .color(colorsWithAlpha[0])
+          .style({
+            stroke: colorsWithAlpha[0],
+            strokeWidth: mapSymbolStrokeWidth,
+            opacity: mapSymbolOpacity / 10
+          })
+      }
     }
     if (sizeKey) {
-      pointLayer.size('size', [4, 30])
+      pointLayer.size('size', [mapSymbolSizeMin, mapSymbolSizeMax])
     } else {
       pointLayer.size(mapSymbolSize)
     }
@@ -242,12 +336,22 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
   }
 
   /**
+   * 清除 popup
+   * @param container
+   */
+  clearPopup = container => {
+    const containerElement = document.getElementById(container)
+    containerElement?.querySelectorAll('.l7-popup').forEach((element: Element) => element.remove())
+  }
+
+  /**
    * 构建 tooltip
    * @param chart
    * @param pointLayer
    */
   buildTooltip = (chart, container, pointLayer) => {
     const customAttr = chart.customAttr ? parseJson(chart.customAttr) : null
+    this.clearPopup(container)
     if (customAttr?.tooltip?.show) {
       const { tooltip } = deepCopy(customAttr)
       let showFields = tooltip.showFields || []
@@ -271,6 +375,7 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
             background-color: ${tooltip.backgroundColor} !important;
             padding: 6px 10px 6px;
             line-height: 1.6;
+            border-top-left-radius: 3px;
           }
           #${container} .l7-popup-tip {
            border-top-color: ${tooltip.backgroundColor} !important;
@@ -279,7 +384,35 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
       document.head.appendChild(style)
       const htmlPrefix = `<div style='font-size:${tooltip.fontSize}px;color:${tooltip.color}'>`
       const htmlSuffix = '</div>'
+      const containerElement = document.getElementById(container)
+      if (containerElement) {
+        containerElement.addEventListener('mousemove', event => {
+          const rect = containerElement.getBoundingClientRect()
+          const mouseX = event.clientX - rect.left
+          const mouseY = event.clientY - rect.top
+          const tooltipElement = containerElement.getElementsByClassName('l7-popup')
+          for (let i = 0; i < tooltipElement?.length; i++) {
+            const element = tooltipElement[i] as HTMLElement
+            element.firstElementChild.style.display = 'none'
+            element.style.transform = 'translate(15px, 12px)'
+            const isNearRightEdge =
+              containerElement.clientWidth - mouseX <= element.clientWidth + 10
+            const isNearBottomEdge = containerElement.clientHeight - mouseY <= element.clientHeight
+            let transform = ''
+            if (isNearRightEdge) {
+              transform += 'translateX(-120%) translateY(15%) '
+            }
+            if (isNearBottomEdge) {
+              transform += 'translateX(15%) translateY(-80%) '
+            }
+            if (transform) {
+              element.style.transform = transform.trim()
+            }
+          }
+        })
+      }
       return new LayerPopup({
+        anchor: 'top-left',
         items: [
           {
             layer: pointLayer,
@@ -375,6 +508,7 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
           .color(label.color)
           .size(label.fontSize)
           .style({
+            textAllowOverlap: label.fullDisplay,
             textAnchor: 'center',
             textOffset: [0, 0]
           })

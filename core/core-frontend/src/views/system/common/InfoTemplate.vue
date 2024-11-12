@@ -48,7 +48,9 @@
 
             <el-tooltip
               effect="dark"
-              :content="pwdItem[item.pkey]['hidden'] ? '点击显示' : '点击隐藏'"
+              :content="
+                pwdItem[item.pkey]['hidden'] ? t('system.click_to_show') : t('system.click_to_hide')
+              "
               placement="top"
             >
               <el-button text @click="switchPwd(item.pkey)" class="setting-tip-btn">
@@ -64,7 +66,7 @@
             </el-tooltip>
           </div>
           <span v-else-if="item.pkey.includes('basic.dsIntervalTime')">
-            <span>{{ item.pval + ' ' + executeTime + '执行一次' }}</span>
+            <span>{{ item.pval + ' ' + executeTime + t('common.every_exec') }}</span>
           </span>
           <span v-else>
             <span>{{ item.pval }}</span>
@@ -113,7 +115,7 @@ const props = defineProps({
   },
   settingTitle: {
     type: String,
-    default: '基础设置'
+    default: ''
   },
   hideHead: {
     type: Boolean,
@@ -132,9 +134,9 @@ const props = defineProps({
     default: () => []
   }
 })
-const executeTime = ref('0分0秒')
+const executeTime = ref(t('system.and_0_seconds'))
 const curTitle = computed(() => {
-  return props.settingTitle
+  return props.settingTitle || t('system.basic_settings')
 })
 const copyVal = async val => {
   try {
@@ -159,8 +161,8 @@ const loadList = () => {
 
 const getExecuteTime = val => {
   const options = [
-    { value: 'minute', label: '分钟（执行时间：0秒）' },
-    { value: 'hour', label: '小时（执行时间：0分0秒）' }
+    { value: 'minute', label: t('system.time_0_seconds') },
+    { value: 'hour', label: t('system.and_0_seconds_de') }
   ]
   return options.filter(item => item.value === val)[0].label
 }

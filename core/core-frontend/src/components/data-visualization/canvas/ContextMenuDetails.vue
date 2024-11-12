@@ -37,8 +37,14 @@ const popComponentDataLength = computed(
 )
 
 const lock = () => {
+  if (curComponent.value && !isGroupArea.value) {
+    lockStore.lock()
+  } else if (areaData.value.components.length) {
+    areaData.value.components.forEach(component => {
+      lockStore.lock(component)
+    })
+  }
   snapshotStore.recordSnapshotCache()
-  lockStore.lock()
   menuOpt('lock')
 }
 

@@ -2,15 +2,18 @@
 import icon_upload_outlined from '@/assets/svg/icon_upload_outlined.svg'
 import { ref, reactive } from 'vue'
 import { uploadFontFile } from '@/api/font'
+import { useI18n } from '@/hooks/web/useI18n'
 import FontInfo from './FontInfo.vue'
 import { ElMessage } from 'element-plus-secondary'
 import { edit } from '@/api/font'
 import { cloneDeep } from 'lodash-es'
+
 const state = reactive({
   fileList: null
 })
 const loading = ref(false)
 const upload = ref()
+const { t } = useI18n()
 const uploadExcel = () => {
   const formData = new FormData()
   formData.append('file', state.fileList.raw)
@@ -53,7 +56,7 @@ const defaultForm = {
 const ruleForm = reactive(cloneDeep(defaultForm))
 
 const init = (val, type, item) => {
-  dialogTitle.value = val || '添加字体'
+  dialogTitle.value = val || t('system.add_font')
   action.value = type
   dialogVisible.value = true
   Object.assign(ruleForm, cloneDeep(defaultForm))
@@ -67,8 +70,8 @@ const fontDel = () => {
 const ruleFormRef = ref()
 const rules = {
   name: [
-    { required: true, message: '请输入字体名称', trigger: 'blur' },
-    { min: 1, max: 50, message: '字符长度1-50', trigger: 'blur' }
+    { required: true, message: t('system.the_font_name'), trigger: 'blur' },
+    { min: 1, max: 50, message: t('system.character_length_1_50'), trigger: 'blur' }
   ]
 }
 defineExpose({
@@ -77,7 +80,7 @@ defineExpose({
 
 const beforeAvatarUpload = rawFile => {
   if (!rawFile.name.endsWith('.ttf')) {
-    ElMessage.error('只支持上传ttf格式的字体文件!')
+    ElMessage.error(t('system.in_ttf_format'))
     return false
   }
   return true
@@ -105,12 +108,12 @@ const confirm = () => {
     if (val) {
       if (action.value === 'uploadFile') {
         if (ruleForm.fileTransName === '') {
-          ElMessage.error('请上传字库文件')
+          ElMessage.error(t('system.upload_font_file_de'))
           return
         }
       }
       edit(ruleForm).then(() => {
-        ElMessage.success(dialogTitle.value + '成功')
+        ElMessage.success(dialogTitle.value + t('data_set.success'))
         cancel()
         emits('finish')
       })
@@ -136,10 +139,14 @@ const confirm = () => {
       label-width="auto"
       class="demo-ruleForm"
     >
-      <el-form-item v-if="action !== 'uploadFile'" label="字体名称" prop="name">
-        <el-input placeholder="请输入字体名称" v-model.trim="ruleForm.name" />
+      <el-form-item v-if="action !== 'uploadFile'" :label="t('system.font_name')" prop="name">
+        <el-input :placeholder="t('system.the_font_name')" v-model.trim="ruleForm.name" />
       </el-form-item>
-      <el-form-item v-loading="loading" v-if="action !== 'rename'" label="字库文件">
+      <el-form-item
+        v-loading="loading"
+        v-if="action !== 'rename'"
+        :label="t('system.font_file_de')"
+      >
         <el-upload
           action=""
           :multiple="false"
@@ -158,7 +165,7 @@ const confirm = () => {
               <template #icon>
                 <Icon name="icon_upload_outlined"><icon_upload_outlined class="svg-icon" /></Icon>
               </template>
-              上传字库文件
+              {{ t('system.upload_font_file') }}
             </el-button>
           </template>
         </el-upload>
@@ -182,15 +189,17 @@ const confirm = () => {
           v-show="state.fileList"
         >
           <template #trigger>
-            <el-button text> 重新上传 </el-button>
+            <el-button text> {{ t('data_source.reupload') }} </el-button>
           </template>
         </el-upload>
       </el-form-item>
     </el-form>
     <template #footer>
       <div class="dialog-footer">
-        <el-button @click="cancel">取消</el-button>
-        <el-button v-loading="loading" type="primary" @click="confirm"> 确定 </el-button>
+        <el-button @click="cancel">{{ t('userimport.cancel') }}</el-button>
+        <el-button v-loading="loading" type="primary" @click="confirm">
+          {{ t('userimport.sure') }}
+        </el-button>
       </div>
     </template>
   </el-dialog>

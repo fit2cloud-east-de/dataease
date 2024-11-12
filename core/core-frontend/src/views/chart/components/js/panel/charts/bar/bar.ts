@@ -18,7 +18,14 @@ import {
   BAR_EDITOR_PROPERTY,
   BAR_EDITOR_PROPERTY_INNER
 } from '@/views/chart/components/js/panel/charts/bar/common'
-import { getPadding, setGradientColor } from '@/views/chart/components/js/panel/common/common_antv'
+import {
+  configPlotTooltipEvent,
+  getLabel,
+  getPadding,
+  getTooltipContainer,
+  setGradientColor,
+  TOOLTIP_TPL
+} from '@/views/chart/components/js/panel/common/common_antv'
 import { useI18n } from '@/hooks/web/useI18n'
 import { DEFAULT_LABEL } from '@/views/chart/components/editor/util/chart'
 import { clearExtremum, extremumEvt } from '@/views/chart/components/js/extremumUitl'
@@ -43,51 +50,16 @@ export class Bar extends G2PlotChartView<ColumnOptions, Column> {
     yField: 'value',
     seriesField: 'category',
     isGroup: true,
-    data: [],
-    interactions: [
-      {
-        type: 'legend-active',
-        cfg: {
-          start: [{ trigger: 'legend-item:mouseenter', action: ['element-active:reset'] }],
-          end: [{ trigger: 'legend-item:mouseleave', action: ['element-active:reset'] }]
-        }
-      },
-      {
-        type: 'legend-filter',
-        cfg: {
-          start: [
-            {
-              trigger: 'legend-item:click',
-              action: [
-                'list-unchecked:toggle',
-                'data-filter:filter',
-                'element-active:reset',
-                'element-highlight:reset'
-              ]
-            }
-          ]
-        }
-      },
-      {
-        type: 'tooltip',
-        cfg: {
-          start: [{ trigger: 'interval:mousemove', action: 'tooltip:show' }],
-          end: [{ trigger: 'interval:mouseleave', action: 'tooltip:hide' }]
-        }
-      },
-      {
-        type: 'active-region',
-        cfg: {
-          start: [{ trigger: 'interval:mousemove', action: 'active-region:show' }],
-          end: [{ trigger: 'interval:mouseleave', action: 'active-region:hide' }]
-        }
-      }
-    ]
+    data: []
   }
 
   axis: AxisType[] = [...BAR_AXIS_TYPE]
   axisConfig = {
     ...this['axisConfig'],
+    xAxis: {
+      name: `${t('chart.drag_block_type_axis')} / ${t('chart.dimension')}`,
+      type: 'd'
+    },
     yAxis: {
       name: `${t('chart.drag_block_value_axis')} / ${t('chart.quota')}`,
       type: 'q'
@@ -97,6 +69,7 @@ export class Bar extends G2PlotChartView<ColumnOptions, Column> {
   async drawChart(drawOptions: G2PlotDrawOptions<Column>): Promise<Column> {
     const { chart, container, action } = drawOptions
     if (!chart?.data?.data?.length) {
+      chart.container = container
       clearExtremum(chart)
       return
     }
@@ -112,6 +85,7 @@ export class Bar extends G2PlotChartView<ColumnOptions, Column> {
     newChart = new ColumnClass(container, options)
     newChart.on('interval:click', action)
     extremumEvt(newChart, chart, options, container)
+    configPlotTooltipEvent(chart, newChart)
     return newChart
   }
 
@@ -270,25 +244,55 @@ export class StackBar extends Bar {
       'showTotal',
       'totalColor',
       'totalFontSize',
-      'totalFormatter'
+      'totalFormatter',
+      'showStackQuota'
     ],
     'tooltip-selector': ['fontSize', 'color', 'backgroundColor', 'tooltipFormatter', 'show']
   }
   protected configLabel(chart: Chart, options: ColumnOptions): ColumnOptions {
-    const baseOptions = super.configLabel(chart, options)
-    if (!baseOptions.label) {
-      return baseOptions
+    let label = getLabel(chart)
+    if (!label) {
+      return options
     }
+    options = { ...options, label }
     const { label: labelAttr } = parseJson(chart.customAttr)
-    baseOptions.label.style.fill = labelAttr.color
-    const label = {
-      ...baseOptions.label,
-      formatter: function (param: Datum) {
-        return valueFormatter(param.value, labelAttr.labelFormatter)
+    if (labelAttr.showStackQuota || labelAttr.showStackQuota === undefined) {
+      label.style.fill = labelAttr.color
+      label = {
+        ...label,
+        formatter: function (param: Datum) {
+          return valueFormatter(param.value, labelAttr.labelFormatter)
+        }
       }
+    } else {
+      label = false
+    }
+    if (labelAttr.showTotal) {
+      const formatterCfg = labelAttr.labelFormatter ?? formatterItem
+      each(groupBy(options.data, 'field'), (values, key) => {
+        const total = values.reduce((a, b) => a + b.value, 0)
+        const value = valueFormatter(total, formatterCfg)
+        if (!options.annotations) {
+          options = {
+            ...options,
+            annotations: []
+          }
+        }
+        options.annotations.push({
+          type: 'text',
+          position: [key, total],
+          content: `${value}`,
+          style: {
+            textAlign: 'center',
+            fontSize: labelAttr.fontSize,
+            fill: labelAttr.color
+          },
+          offsetY: -(parseInt(labelAttr.fontSize as unknown as string) / 2)
+        })
+      })
     }
     return {
-      ...baseOptions,
+      ...options,
       label
     }
   }
@@ -308,7 +312,10 @@ export class StackBar extends Bar {
         const res = valueFormatter(param.value, tooltipAttr.tooltipFormatter)
         obj.value = res ?? ''
         return obj
-      }
+      },
+      container: getTooltipContainer(`tooltip-${chart.id}`),
+      itemTpl: TOOLTIP_TPL,
+      enterable: true
     }
     return {
       ...options,
@@ -347,38 +354,6 @@ export class StackBar extends Bar {
     return options
   }
 
-  protected configTotalLabel(chart: Chart, options: ColumnOptions): ColumnOptions {
-    if (!options.label) {
-      return options
-    }
-    const { label } = parseJson(chart.customAttr)
-    if (label.showTotal) {
-      const formatterCfg = label.labelFormatter ?? formatterItem
-      each(groupBy(options.data, 'field'), (values, key) => {
-        const total = values.reduce((a, b) => a + b.value, 0)
-        const value = valueFormatter(total, formatterCfg)
-        if (!options.annotations) {
-          options = {
-            ...options,
-            annotations: []
-          }
-        }
-        options.annotations.push({
-          type: 'text',
-          position: [key, total],
-          content: `${value}`,
-          style: {
-            textAlign: 'center',
-            fontSize: label.fontSize,
-            fill: label.color
-          },
-          offsetY: -(parseInt(label.fontSize as unknown as string) / 2)
-        })
-      })
-    }
-    return options
-  }
-
   public setupSeriesColor(chart: ChartObj, data?: any[]): ChartBasicStyle['seriesColor'] {
     return setUpStackSeriesColor(chart, data)
   }
@@ -396,8 +371,7 @@ export class StackBar extends Bar {
       this.configYAxis,
       this.configSlider,
       this.configAnalyse,
-      this.configData,
-      this.configTotalLabel
+      this.configData
     )(chart, options, {}, this)
   }
 
@@ -406,7 +380,12 @@ export class StackBar extends Bar {
     this.baseOptions = {
       ...this.baseOptions,
       isStack: true,
-      isGroup: false
+      isGroup: false,
+      meta: {
+        category: {
+          type: 'cat'
+        }
+      }
     }
     this.axis = [...this.axis, 'extStack']
   }
@@ -430,10 +409,11 @@ export class GroupBar extends StackBar {
   }
 
   protected configLabel(chart: Chart, options: ColumnOptions): ColumnOptions {
-    const baseOptions = super.configLabel(chart, options)
-    if (!baseOptions.label) {
-      return baseOptions
+    const tmpLabel = getLabel(chart)
+    if (!tmpLabel) {
+      return options
     }
+    const baseOptions = { ...options, label: tmpLabel }
     const { label: labelAttr } = parseJson(chart.customAttr)
     baseOptions.label.style.fill = labelAttr.color
     const label = {
@@ -481,7 +461,12 @@ export class GroupBar extends StackBar {
     this.baseOptions = {
       ...this.baseOptions,
       isGroup: true,
-      isStack: false
+      isStack: false,
+      meta: {
+        category: {
+          type: 'cat'
+        }
+      }
     }
     this.axis = [...BAR_AXIS_TYPE, 'xAxisExt']
   }
@@ -510,6 +495,26 @@ export class GroupStackBar extends StackBar {
     }
   }
 
+  protected configLabel(chart: Chart, options: ColumnOptions): ColumnOptions {
+    const tmpLabel = getLabel(chart)
+    if (!tmpLabel) {
+      return options
+    }
+    const baseOptions = { ...options, label: tmpLabel }
+    const { label: labelAttr } = parseJson(chart.customAttr)
+    baseOptions.label.style.fill = labelAttr.color
+    const label = {
+      ...baseOptions.label,
+      formatter: function (param: Datum) {
+        return valueFormatter(param.value, labelAttr.labelFormatter)
+      }
+    }
+    return {
+      ...baseOptions,
+      label
+    }
+  }
+
   protected configTooltip(chart: Chart, options: ColumnOptions): ColumnOptions {
     const tooltipAttr = parseJson(chart.customAttr).tooltip
     if (!tooltipAttr.show) {
@@ -524,7 +529,10 @@ export class GroupStackBar extends StackBar {
         const obj = { name: `${param.category} - ${param.group}`, value: param.value }
         obj.value = valueFormatter(param.value, tooltipAttr.tooltipFormatter)
         return obj
-      }
+      },
+      container: getTooltipContainer(`tooltip-${chart.id}`),
+      itemTpl: TOOLTIP_TPL,
+      enterable: true
     }
     return {
       ...options,
@@ -607,7 +615,10 @@ export class PercentageStackBar extends GroupStackBar {
         const obj = { name: param.category, value: param.value }
         obj.value = (Math.round(param.value * 10000) / 100).toFixed(l.reserveDecimalCount) + '%'
         return obj
-      }
+      },
+      container: getTooltipContainer(`tooltip-${chart.id}`),
+      itemTpl: TOOLTIP_TPL,
+      enterable: true
     }
     return {
       ...options,
@@ -625,7 +636,8 @@ export class PercentageStackBar extends GroupStackBar {
       this.configLegend,
       this.configXAxis,
       this.configYAxis,
-      this.configSlider
+      this.configSlider,
+      this.configAnalyse
     )(chart, options, {}, this)
   }
   constructor() {
@@ -635,9 +647,13 @@ export class PercentageStackBar extends GroupStackBar {
       isStack: true,
       isPercent: true,
       isGroup: false,
-      groupField: undefined
+      groupField: undefined,
+      meta: {
+        category: {
+          type: 'cat'
+        }
+      }
     }
-    this.properties = this.properties.filter(item => item !== 'assist-line')
     this.axis = [...BAR_AXIS_TYPE, 'extStack']
   }
 }

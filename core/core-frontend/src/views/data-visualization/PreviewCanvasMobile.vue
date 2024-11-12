@@ -13,6 +13,7 @@ import { useI18n } from '@/hooks/web/useI18n'
 import { XpackComponent } from '@/components/plugin'
 import { propTypes } from '@/utils/propTypes'
 import { setTitle } from '@/utils/utils'
+import EmptyBackground from '../../components/empty-background/src/EmptyBackground.vue'
 
 const dvMainStore = dvMainStoreWithOut()
 const { t } = useI18n()
@@ -22,7 +23,8 @@ const state = reactive({
   canvasStylePreview: null,
   canvasViewInfoPreview: null,
   dvInfo: null,
-  curPreviewGap: 0
+  curPreviewGap: 0,
+  initState: true
 })
 
 const props = defineProps({
@@ -111,9 +113,11 @@ const loadCanvasDataAsync = async (dvId, dvType) => {
       if (jumpParam) {
         dvMainStore.addViewTrackFilter(jumpParam)
       }
-      if (attachParam) {
-        dvMainStore.addOuterParamsFilter(attachParam)
-      }
+      state.initState = false
+
+      dvMainStore.addOuterParamsFilter(attachParam)
+      state.initState = true
+
       if (props.publicLinkStatus) {
         // 设置浏览器title为当前仪表板名称
         document.title = dvInfo.name
@@ -156,7 +160,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="content">
+  <div class="content" v-if="state.initState">
     <de-preview
       ref="dvPreview"
       v-if="state.canvasStylePreview"
@@ -168,6 +172,7 @@ defineExpose({
       :is-selector="props.isSelector"
     ></de-preview>
   </div>
+  <empty-background v-if="!state.initState" description="参数不能为空" img-type="noneWhite" />
   <XpackComponent
     jsname="L2NvbXBvbmVudC9lbWJlZGRlZC1pZnJhbWUvTmV3V2luZG93SGFuZGxlcg=="
     @loaded="XpackLoaded"
@@ -175,7 +180,7 @@ defineExpose({
   />
 </template>
 
-<style lang="less">
+<style lang="less" scoped>
 .content {
   background-color: #ffffff;
   width: 100vw;

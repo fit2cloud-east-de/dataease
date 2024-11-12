@@ -45,7 +45,9 @@ declare interface Chart {
   customFilter: {}
   senior: CustomSenior
   customAttr: CustomAttr
+  customAttrMobile: CustomAttr
   customStyle: CustomStyle
+  customStyleMobile: CustomStyle
   drillFields: ChartViewField[]
   drillFilters: Filter[]
   datasetMode: 0 | 1
@@ -164,6 +166,10 @@ declare interface Axis extends ChartViewField {
    * 自定义排序项
    */
   customSort: string[]
+  /**
+   * 是否隐藏
+   */
+  hide: boolean
 }
 declare interface ChartViewField {
   /**
@@ -186,6 +192,10 @@ declare interface ChartViewField {
    * 字段类型
    */
   deType: number
+  /**
+   * 分组类型
+   */
+  groupType: 'q' | 'd'
 }
 
 declare interface Filter {

@@ -5,7 +5,12 @@ import {
 import type { ScatterOptions, Scatter as G2Scatter } from '@antv/g2plot/esm/plots/scatter'
 import { flow, parseJson } from '../../../util'
 import { valueFormatter } from '../../../formatter'
-import { getPadding } from '../../common/common_antv'
+import {
+  configPlotTooltipEvent,
+  getPadding,
+  getTooltipContainer,
+  TOOLTIP_TPL
+} from '../../common/common_antv'
 import { useI18n } from '@/hooks/web/useI18n'
 import { isEmpty } from 'lodash-es'
 
@@ -75,15 +80,20 @@ export class Scatter extends G2PlotChartView<ScatterOptions, G2Scatter> {
   }
   axis: AxisType[] = ['xAxis', 'yAxis', 'extBubble', 'filter', 'drill', 'extLabel', 'extTooltip']
   axisConfig: AxisConfig = {
-    ...this['axisConfig'],
+    xAxis: {
+      name: `${t('chart.drag_block_type_axis')} / ${t('chart.dimension')}`,
+      type: 'd'
+    },
     yAxis: {
       ...this['axisConfig'].yAxis,
-      limit: undefined
+      limit: undefined,
+      allowEmpty: false
     },
     extBubble: {
       name: `${t('chart.bubble_size')} / ${t('chart.quota')}`,
       type: 'q',
-      limit: 1
+      limit: 1,
+      allowEmpty: true
     }
   }
   async drawChart(drawOptions: G2PlotDrawOptions<G2Scatter>): Promise<G2Scatter> {
@@ -121,13 +131,6 @@ export class Scatter extends G2PlotChartView<ScatterOptions, G2Scatter> {
               }
             ]
           }
-        },
-        {
-          type: 'tooltip',
-          cfg: {
-            start: [{ trigger: 'point:mousemove', action: 'tooltip:show' }],
-            end: [{ trigger: 'point:mouseleave', action: 'tooltip:hide' }]
-          }
         }
       ]
     }
@@ -135,6 +138,7 @@ export class Scatter extends G2PlotChartView<ScatterOptions, G2Scatter> {
     const { Scatter: G2Scatter } = await import('@antv/g2plot/esm/plots/scatter')
     const newChart = new G2Scatter(container, options)
     newChart.on('point:click', action)
+    configPlotTooltipEvent(chart, newChart)
     return newChart
   }
 
@@ -235,12 +239,29 @@ export class Scatter extends G2PlotChartView<ScatterOptions, G2Scatter> {
           }
         })
         return result
-      }
+      },
+      container: getTooltipContainer(`tooltip-${chart.id}`),
+      itemTpl: TOOLTIP_TPL,
+      enterable: true
     }
     return {
       ...options,
       tooltip
     }
+  }
+
+  protected configLegend(chart: Chart, options: ScatterOptions): ScatterOptions {
+    const optionTmp = super.configLegend(chart, options)
+    if (!optionTmp.legend) {
+      return optionTmp
+    }
+    optionTmp.legend.marker.style = style => {
+      return {
+        r: 4,
+        fill: style.fill
+      }
+    }
+    return optionTmp
   }
 
   protected setupOptions(chart: Chart, options: ScatterOptions) {

@@ -1,14 +1,29 @@
-import { S2Event, S2Options, TableColCell, TableDataCell, TableSheet, ViewMeta } from '@antv/s2'
+import {
+  type LayoutResult,
+  S2DataConfig,
+  S2Event,
+  S2Options,
+  S2Theme,
+  TableColCell,
+  TableDataCell,
+  TableSheet,
+  ViewMeta
+} from '@antv/s2'
 import { formatterItem, valueFormatter } from '../../../formatter'
-import { parseJson } from '../../../util'
+import { hexColorToRGBA, isAlphaColor, parseJson } from '../../../util'
 import { S2ChartView, S2DrawOptions } from '../../types/impl/s2'
 import { TABLE_EDITOR_PROPERTY, TABLE_EDITOR_PROPERTY_INNER } from './common'
 import { useI18n } from '@/hooks/web/useI18n'
-import { isNumber } from 'lodash-es'
-import { copyContent, SortTooltip } from '@/views/chart/components/js/panel/common/common_table'
+import { isNumber, merge } from 'lodash-es'
+import {
+  copyContent,
+  CustomDataCell,
+  getRowIndex,
+  SortTooltip
+} from '@/views/chart/components/js/panel/common/common_table'
 
 const { t } = useI18n()
-class ImageCell extends TableDataCell {
+class ImageCell extends CustomDataCell {
   protected drawTextShape(): void {
     const img = new Image()
     const { x, y, width, height, fieldValue } = this.meta
@@ -50,7 +65,15 @@ export class TableInfo extends S2ChartView<TableSheet> {
       'tableBorderColor',
       'tableScrollBarColor',
       'alpha',
-      'tablePageMode'
+      'tablePageMode',
+      'showHoverStyle'
+    ],
+    'table-cell-selector': [
+      ...TABLE_EDITOR_PROPERTY_INNER['table-cell-selector'],
+      'tableFreeze',
+      'tableColumnFreezeHead',
+      'tableRowFreezeHead',
+      'mergeCells'
     ]
   }
   axis: AxisType[] = ['xAxis', 'filter', 'drill']
@@ -65,7 +88,7 @@ export class TableInfo extends S2ChartView<TableSheet> {
     const containerDom = document.getElementById(container)
 
     // fields
-    let fields = chart.data.fields
+    let fields = chart.data?.fields ?? []
     const columns = []
     const meta = []
     const axisMap = chart.xAxis.reduce((pre, cur) => {
@@ -90,6 +113,9 @@ export class TableInfo extends S2ChartView<TableSheet> {
     }
     fields.forEach(ele => {
       const f = axisMap[ele.dataeaseName]
+      if (f?.hide === true) {
+        return
+      }
       columns.push(ele.dataeaseName)
       meta.push({
         field: ele.dataeaseName,
@@ -115,7 +141,7 @@ export class TableInfo extends S2ChartView<TableSheet> {
     // 空值处理
     const newData = this.configEmptyDataStrategy(chart)
     // data config
-    const s2DataConfig = {
+    const s2DataConfig: S2DataConfig = {
       fields: {
         columns: columns
       },
@@ -123,31 +149,39 @@ export class TableInfo extends S2ChartView<TableSheet> {
       data: newData
     }
 
-    const customAttr = parseJson(chart.customAttr)
-    const style = this.configStyle(chart)
-    // 自适应列宽模式下，URL 字段的宽度固定为 120
-    if (customAttr.basicStyle.tableColumnMode === 'adapt') {
-      const urlFields = fields.filter(field => field.deType === 7)
-      style.colCfg.widthByFieldValue = urlFields?.reduce((p, n) => {
-        p[n.chartShowName ?? n.name] = 120
-        return p
-      }, {})
-    }
+    const { basicStyle, tableCell, tableHeader, tooltip } = parseJson(chart.customAttr)
     // options
     const s2Options: S2Options = {
-      width: containerDom.offsetWidth,
+      width: containerDom.getBoundingClientRect().width,
       height: containerDom.offsetHeight,
-      showSeriesNumber: customAttr.tableHeader.showIndex,
-      style,
+      showSeriesNumber: tableHeader.showIndex,
       conditions: this.configConditions(chart),
       tooltip: {
         getContainer: () => containerDom,
         renderTooltip: sheet => new SortTooltip(sheet)
+      },
+      interaction: {
+        hoverHighlight: !(basicStyle.showHoverStyle === false)
       }
+    }
+    s2Options.style = this.configStyle(chart, s2DataConfig)
+    // 自适应列宽模式下，URL 字段的宽度固定为 120
+    if (basicStyle.tableColumnMode === 'adapt') {
+      const urlFields = fields.filter(
+        field => field.deType === 7 && !axisMap[field.dataeaseName]?.hide
+      )
+      s2Options.style.colCfg.widthByFieldValue = urlFields?.reduce((p, n) => {
+        p[n.chartShowName ?? n.name] = 120
+        return p
+      }, {})
+    }
+    if (tableCell.tableFreeze) {
+      s2Options.frozenColCount = tableCell.tableColumnFreezeHead ?? 0
+      s2Options.frozenRowCount = tableCell.tableRowFreezeHead ?? 0
     }
     // 开启序号之后，第一列就是序号列，修改 label 即可
     if (s2Options.showSeriesNumber) {
-      let indexLabel = customAttr.tableHeader.indexLabel
+      let indexLabel = tableHeader.indexLabel
       if (!indexLabel) {
         indexLabel = ''
       }
@@ -164,22 +198,27 @@ export class TableInfo extends S2ChartView<TableSheet> {
         return new ImageCell(viewMeta, viewMeta?.spreadsheet)
       }
       if (viewMeta.colIndex === 0 && s2Options.showSeriesNumber) {
-        viewMeta.fieldValue = pageInfo.pageSize * (pageInfo.currentPage - 1) + viewMeta.rowIndex + 1
+        if (tableCell.mergeCells) {
+          viewMeta.fieldValue = getRowIndex(s2Options.mergedCellsInfo, viewMeta)
+        } else {
+          viewMeta.fieldValue =
+            pageInfo.pageSize * (pageInfo.currentPage - 1) + viewMeta.rowIndex + 1
+        }
       }
-      return new TableDataCell(viewMeta, viewMeta?.spreadsheet)
+      return new CustomDataCell(viewMeta, viewMeta?.spreadsheet)
     }
     // tooltip
     this.configTooltip(chart, s2Options)
+    // 合并单元格
+    this.configMergeCells(chart, s2Options, s2DataConfig)
     // 隐藏表头，保留顶部的分割线, 禁用表头横向 resize
-    if (customAttr.tableHeader.showTableHeader === false) {
+    if (tableHeader.showTableHeader === false) {
       s2Options.style.colCfg.height = 1
-      if (customAttr.tableCell.showHorizonBorder === false) {
+      if (tableCell.showHorizonBorder === false) {
         s2Options.style.colCfg.height = 0
       }
-      s2Options.interaction = {
-        resize: {
-          colCellVertical: false
-        }
+      s2Options.interaction.resize = {
+        colCellVertical: false
       }
       s2Options.colCell = (node, sheet, config) => {
         node.label = ' '
@@ -187,11 +226,70 @@ export class TableInfo extends S2ChartView<TableSheet> {
       }
     } else {
       // header interaction
+      chart.container = container
       this.configHeaderInteraction(chart, s2Options)
     }
     // 开始渲染
     const newChart = new TableSheet(containerDom, s2DataConfig, s2Options)
 
+    // 自适应铺满
+    if (basicStyle.tableColumnMode === 'adapt') {
+      newChart.on(S2Event.LAYOUT_RESIZE_COL_WIDTH, () => {
+        newChart.store.set('lastLayoutResult', newChart.facet.layoutResult)
+      })
+      newChart.on(S2Event.LAYOUT_AFTER_HEADER_LAYOUT, (ev: LayoutResult) => {
+        const lastLayoutResult = newChart.store.get('lastLayoutResult') as LayoutResult
+        if (lastLayoutResult) {
+          // 拖动表头 resize
+          const widthByFieldValue = newChart.options.style?.colCfg?.widthByFieldValue
+          const lastLayoutWidthMap: Record<string, number> =
+            lastLayoutResult?.colLeafNodes.reduce((p, n) => {
+              p[n.value] = widthByFieldValue?.[n.value] ?? n.width
+              return p
+            }, {}) || {}
+          const totalWidth = ev.colLeafNodes.reduce((p, n) => {
+            n.width = lastLayoutWidthMap[n.value] || n.width
+            n.x = p
+            return p + n.width
+          }, 0)
+          ev.colsHierarchy.width = totalWidth
+          newChart.store.set('lastLayoutResult', undefined)
+          return
+        }
+        // 第一次渲染初始化，把图片字段固定为 120 进行计算
+        const urlFields = fields
+          .filter(field => field.deType === 7 && !axisMap[field.dataeaseName]?.hide)
+          .map(f => f.dataeaseName)
+        const totalWidthWithImg = ev.colLeafNodes.reduce((p, n) => {
+          return p + (urlFields.includes(n.field) ? 120 : n.width)
+        }, 0)
+        const containerWidth = containerDom.getBoundingClientRect().width
+        if (containerWidth <= totalWidthWithImg) {
+          // 图库计算的布局宽度已经大于等于容器宽度，不需要再扩大，但是需要处理非整数宽度值，不然会出现透明细线
+          ev.colLeafNodes.reduce((p, n) => {
+            n.width = Math.round(n.width)
+            n.x = p
+            return p + n.width
+          }, 0)
+          return
+        }
+        // 图片字段固定 120, 剩余宽度按比例均摊到其他字段进行扩大
+        const totalWidthWithoutImg = ev.colLeafNodes.reduce((p, n) => {
+          return p + (urlFields.includes(n.field) ? 0 : n.width)
+        }, 0)
+        const restWidth = containerWidth - urlFields.length * 120
+        const scale = restWidth / totalWidthWithoutImg
+        const totalWidth = ev.colLeafNodes.reduce((p, n) => {
+          n.width = urlFields.includes(n.field) ? 120 : Math.round(n.width * scale)
+          n.x = p
+          return p + n.width
+        }, 0)
+        if (totalWidth > containerWidth) {
+          ev.colLeafNodes[ev.colLeafNodes.length - 1].width -= totalWidth - containerWidth
+        }
+        ev.colsHierarchy.width = containerWidth
+      })
+    }
     // click
     newChart.on(S2Event.DATA_CELL_CLICK, ev => {
       const cell = newChart.getCell(ev.target)
@@ -220,11 +318,14 @@ export class TableInfo extends S2ChartView<TableSheet> {
       }
       action(param)
     })
+    // 合并的单元格直接复用数据单元格的事件
+    newChart.on(S2Event.MERGED_CELLS_CLICK, e => newChart.emit(S2Event.DATA_CELL_CLICK, e))
     // tooltip
-    const { show } = customAttr.tooltip
+    const { show } = tooltip
     if (show) {
       newChart.on(S2Event.COL_CELL_HOVER, event => this.showTooltip(newChart, event, meta))
       newChart.on(S2Event.DATA_CELL_HOVER, event => this.showTooltip(newChart, event, meta))
+      newChart.on(S2Event.MERGED_CELLS_HOVER, event => this.showTooltip(newChart, event, meta))
     }
     // header resize
     newChart.on(S2Event.LAYOUT_RESIZE_COL_WIDTH, ev => resizeAction(ev))
@@ -233,8 +334,65 @@ export class TableInfo extends S2ChartView<TableSheet> {
     // theme
     const customTheme = this.configTheme(chart)
     newChart.setThemeCfg({ theme: customTheme })
-
     return newChart
+  }
+
+  protected configTheme(chart: Chart): S2Theme {
+    const theme = super.configTheme(chart)
+    const { basicStyle, tableCell } = parseJson(chart.customAttr)
+    if (tableCell.mergeCells) {
+      const tableFontColor = hexColorToRGBA(tableCell.tableFontColor, basicStyle.alpha)
+      let tableItemBgColor = tableCell.tableItemBgColor
+      if (!isAlphaColor(tableItemBgColor)) {
+        tableItemBgColor = hexColorToRGBA(tableItemBgColor, basicStyle.alpha)
+      }
+      const { tableBorderColor } = basicStyle
+      const { tableItemAlign, tableItemFontSize } = tableCell
+      const fontStyle = tableCell.isItalic ? 'italic' : 'normal'
+      const fontWeight = tableCell.isBolder === false ? 'normal' : 'bold'
+      const mergeCellTheme: S2Theme = {
+        mergedCell: {
+          cell: {
+            backgroundColor: tableItemBgColor,
+            crossBackgroundColor: tableItemBgColor,
+            horizontalBorderColor: tableBorderColor,
+            verticalBorderColor: tableBorderColor,
+            horizontalBorderWidth: tableCell.showHorizonBorder ? 1 : 0,
+            verticalBorderWidth: tableCell.showVerticalBorder ? 1 : 0
+          },
+          bolderText: {
+            fill: tableFontColor,
+            textAlign: tableItemAlign,
+            fontSize: tableItemFontSize,
+            fontStyle,
+            fontWeight
+          },
+          text: {
+            fill: tableFontColor,
+            textAlign: tableItemAlign,
+            fontSize: tableItemFontSize,
+            fontStyle,
+            fontWeight
+          },
+          measureText: {
+            fill: tableFontColor,
+            textAlign: tableItemAlign,
+            fontSize: tableItemFontSize,
+            fontStyle,
+            fontWeight
+          },
+          seriesText: {
+            fill: tableFontColor,
+            textAlign: tableItemAlign,
+            fontSize: tableItemFontSize,
+            fontStyle,
+            fontWeight
+          }
+        }
+      }
+      merge(theme, mergeCellTheme)
+    }
+    return theme
   }
 
   constructor() {

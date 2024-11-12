@@ -2,13 +2,13 @@ package io.dataease.visualization.server;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.ibm.icu.impl.coll.CollationLoader;
 import io.dataease.api.dataset.vo.CoreDatasetGroupVO;
 import io.dataease.api.dataset.vo.CoreDatasetTableFieldVO;
 import io.dataease.api.visualization.VisualizationOuterParamsApi;
 import io.dataease.api.visualization.dto.VisualizationOuterParamsDTO;
 import io.dataease.api.visualization.dto.VisualizationOuterParamsInfoDTO;
 import io.dataease.api.visualization.response.VisualizationOuterParamsBaseResponse;
+import io.dataease.auth.DeLinkPermit;
 import io.dataease.dataset.dao.auto.entity.CoreDatasetTable;
 import io.dataease.dataset.dao.auto.mapper.CoreDatasetTableMapper;
 import io.dataease.engine.constant.DeTypeConstants;
@@ -29,7 +29,10 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -98,6 +101,7 @@ public class VisualizationOuterParamsService implements VisualizationOuterParams
 
     }
 
+    @DeLinkPermit
     @Override
     public VisualizationOuterParamsBaseResponse getOuterParamsInfo(String visualizationId) {
         List<VisualizationOuterParamsInfoDTO> result = extOuterParamsMapper.getVisualizationOuterParamsInfo(visualizationId);

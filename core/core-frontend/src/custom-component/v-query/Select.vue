@@ -15,6 +15,7 @@ import {
 import { enumValueObj, type EnumValue, getEnumValue } from '@/api/dataset'
 import { cloneDeep, debounce } from 'lodash-es'
 import { useEmitt } from '@/hooks/web/useEmitt'
+import { useI18n } from '@/hooks/web/useI18n'
 
 interface SelectConfig {
   selectValue: any
@@ -25,6 +26,7 @@ interface SelectConfig {
   displayType: string
   showEmpty: boolean
   id: string
+  placeholder: string
   resultMode: number
   displayId: string
   sort: string
@@ -44,6 +46,8 @@ interface SelectConfig {
     value: string
   }[]
 }
+
+const { t } = useI18n()
 
 const props = defineProps({
   config: {
@@ -73,6 +77,7 @@ const loading = ref(false)
 const multiple = ref(false)
 const options = shallowRef([])
 const unMountSelect: Ref = inject('unmount-select')
+const placeholder: Ref = inject('placeholder')
 const releaseSelect = inject('release-unmount-select', Function, true)
 const queryDataForId = inject('query-data-for-id', Function, true)
 const isConfirmSearch = inject('is-confirm-search', Function, true)
@@ -80,6 +85,12 @@ const queryConditionWidth = inject('com-width', Function, true)
 const cascadeList = inject('cascade-list', Function, true)
 const setCascadeDefault = inject('set-cascade-default', Function, true)
 
+const placeholderText = computed(() => {
+  if (placeholder?.value?.placeholderShow) {
+    return ['', undefined].includes(props.config.placeholder) ? ' ' : props.config.placeholder
+  }
+  return ' '
+})
 const cascade = computed(() => {
   return cascadeList() || []
 })
@@ -359,7 +370,7 @@ const setEmptyData = () => {
   const [s] = options.value
   if (showEmpty) {
     if (s?.value !== '_empty_$') {
-      options.value = [{ label: '空数据', value: '_empty_$' }, ...options.value]
+      options.value = [{ label: t('v_query.empty_data'), value: '_empty_$' }, ...options.value]
     }
   } else {
     if (s?.value === '_empty_$') {
@@ -583,6 +594,7 @@ defineExpose({
     key="multiple"
     ref="mult"
     v-model="selectValue"
+    :placeholder="placeholderText"
     v-loading="loading"
     filterable
     @change="handleValueChange"
@@ -595,8 +607,6 @@ defineExpose({
     clearable
     :style="selectStyle"
     collapse-tags
-    :remote="config.optionValueSource === 1"
-    :remote-method="remoteMethod"
     :options="options"
     collapse-tags-tooltip
   ></el-select-v2>
@@ -604,6 +614,7 @@ defineExpose({
     v-else
     v-model="selectValue"
     key="single"
+    :placeholder="placeholderText"
     v-loading="loading"
     @change="handleValueChange"
     clearable
@@ -611,8 +622,6 @@ defineExpose({
     :style="selectStyle"
     filterable
     @clear="clear"
-    :remote="config.optionValueSource === 1"
-    :remote-method="remoteMethod"
     radio
     @visible-change="visibleChange"
     :popper-class="

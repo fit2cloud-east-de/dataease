@@ -2,17 +2,30 @@
   <el-row style="width: 100%">
     <el-row style="display: table; width: 100%">
       <el-col style="float: left" :class="state.asideActive ? 'aside-active' : 'aside-inActive'">
-        <el-tooltip class="box-item" effect="dark" content="展开" placement="right">
+        <el-tooltip
+          class="box-item"
+          effect="dark"
+          :content="t('relation.expand')"
+          placement="right"
+        >
           <el-icon v-show="!state.asideActive" class="insert" @click="asideActiveChange(true)">
             <Icon name="market-expand"><marketExpand class="svg-icon" /></Icon>
           </el-icon>
         </el-tooltip>
         <el-row v-show="state.asideActive" style="padding: 24px 12px 0">
           <el-row style="align-items: center">
-            <span class="custom-breadcrumb-item" @click="closePreview()">模版中心</span>
-            <el-icon><ArrowRight /></el-icon> <span class="custom-breadcrumb-item-to">预览</span>
+            <span class="custom-breadcrumb-item" @click="closePreview()">{{
+              t('template_manage.template_center')
+            }}</span>
+            <el-icon><ArrowRight /></el-icon>
+            <span class="custom-breadcrumb-item-to">{{ t('template_manage.preview') }}</span>
 
-            <el-tooltip class="box-item" effect="dark" content="收起" placement="right">
+            <el-tooltip
+              class="box-item"
+              effect="dark"
+              :content="t('relation.retract')"
+              placement="right"
+            >
               <div @click="asideActiveChange(false)" class="insert-retract">
                 <el-icon>
                   <Icon name="icon_left_outlined"><icon_left_outlined class="svg-icon" /></Icon>
@@ -26,17 +39,22 @@
               prefix-icon="Search"
               class="title-name-search"
               :placeholder="t('visualization.enter_template_name_tips')"
-              clearable="true"
+              clearable
             />
             <el-icon
               class="insert-filter filter-icon-span"
               :class="state.extFilterActive ? 'filter-icon-active' : ''"
               @click="extFilterActiveChange()"
-              ><Filter
-            /></el-icon>
+            >
+              <Filter />
+            </el-icon>
           </el-row>
           <el-row v-show="state.extFilterActive">
-            <el-select v-model="state.templateType" style="margin-top: 8px" placeholder="请选择">
+            <el-select
+              v-model="state.templateType"
+              style="margin-top: 8px"
+              :placeholder="t('common.selectText')"
+            >
               <el-option
                 v-for="item in state.templateTypeOptions"
                 :key="item.value"
@@ -49,7 +67,7 @@
             <el-select
               v-model="state.templateSourceType"
               style="margin-top: 8px"
-              placeholder="请选择"
+              :placeholder="t('common.selectText')"
             >
               <el-option
                 v-for="item in state.templateSourceOptions"
@@ -89,11 +107,11 @@
           </el-collapse>
           <el-row v-show="!state.hasResult" class="custom-position">
             <div style="text-align: center">
-              <Icon name="no_result"
-                ><no_result style="margin-bottom: 16px; font-size: 75px" class="svg-icon"
-              /></Icon>
+              <Icon name="no_result">
+                <no_result style="margin-bottom: 16px; font-size: 75px" class="svg-icon" />
+              </Icon>
               <br />
-              <span>没有找到相关模板</span>
+              <span>{{ t('work_branch.relevant_templates_found') }}</span>
             </div>
           </el-row>
         </el-row>
@@ -111,8 +129,9 @@
               type="primary"
               :disabled="!createAuth[state.curTemplate?.templateType]"
               @click="templateApply(state.curTemplate)"
-              >{{ t('visualization.apply_this_template') }}</el-button
             >
+              {{ t('visualization.apply_this_template') }}
+            </el-button>
           </div>
         </el-row>
         <el-row class="img-main">
@@ -180,30 +199,30 @@ const state = reactive({
   templateSourceOptions: [
     {
       value: 'all',
-      label: '全部来源'
+      label: t('work_branch.all_source')
     },
     {
       value: 'market',
-      label: '模板市场'
+      label: t('work_branch.template_market_official')
     },
     {
       value: 'manage',
-      label: '模板管理'
+      label: t('template_manage.name')
     }
   ],
   templateType: 'all',
   templateTypeOptions: [
     {
       value: 'all',
-      label: '全部类型'
+      label: t('work_branch.all_types')
     },
     {
       value: 'PANEL',
-      label: '仪表板'
+      label: t('work_branch.dashboard')
     },
     {
       value: 'SCREEN',
-      label: '大屏'
+      label: t('work_branch.big_screen')
     }
   ]
 })

@@ -465,7 +465,9 @@ const { t } = useI18n()
 const dialogShow = ref(false)
 const snapshotStore = snapshotStoreWithOut()
 
-const resourceType = computed(() => (dvInfo.value.type === 'dashboard' ? '仪表板' : '数据大屏'))
+const resourceType = computed(() =>
+  dvInfo.value.type === 'dashboard' ? t('work_branch.dashboard') : t('work_branch.big_data_screen')
+)
 
 const state = reactive({
   loading: false,

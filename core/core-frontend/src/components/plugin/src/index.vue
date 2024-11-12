@@ -8,9 +8,11 @@ import { i18n } from '@/plugins/vue-i18n'
 import * as Vue from 'vue'
 import axios from 'axios'
 import * as Pinia from 'pinia'
+import * as echarts from 'echarts'
 import router from '@/router'
 import tinymce from 'tinymce/tinymce'
 import { useEmitt } from '@/hooks/web/useEmitt'
+import { isNull } from '@/utils/utils'
 
 const { wsCache } = useCache()
 
@@ -96,20 +98,31 @@ const pluginProxy = ref(null)
 const invokeMethod = param => {
   if (pluginProxy.value['invokeMethod']) {
     pluginProxy.value['invokeMethod'](param)
-  } else {
+  } else if (param.methodName && pluginProxy.value[param.methodName]) {
     pluginProxy.value[param.methodName](param.args)
   }
 }
-
+const emits = defineEmits(['loadFail'])
+defineExpose({
+  invokeMethod
+})
 onMounted(async () => {
   const key = 'xpack-model-distributed'
   let distributed = false
   if (wsCache.get(key) === null) {
     const res = await xpackModelApi()
-    wsCache.set('xpack-model-distributed', res.data)
+    const resData = isNull(res.data) ? 'null' : res.data
+    wsCache.set('xpack-model-distributed', resData)
     distributed = res.data
   } else {
     distributed = wsCache.get(key)
+  }
+  if (isNull(distributed)) {
+    setTimeout(() => {
+      emits('loadFail')
+      loading.value = false
+    }, 1000)
+    return
   }
   if (distributed) {
     if (window['DEXPack']) {
@@ -123,6 +136,7 @@ onMounted(async () => {
       window['vueRouterDe'] = router
       window['MittAllDe'] = useEmitt().emitter.all
       window['I18nDe'] = i18n
+      window['EchartsDE'] = echarts
       if (!window.tinymce) {
         window.tinymce = tinymce
       }
@@ -134,11 +148,6 @@ onMounted(async () => {
   } else {
     loadComponent()
   }
-})
-
-const emits = defineEmits(['loadFail'])
-defineExpose({
-  invokeMethod
 })
 </script>
 

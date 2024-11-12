@@ -1,18 +1,20 @@
 <script setup lang="ts">
-import { onMounted, PropType, reactive, watch } from 'vue'
+import { computed, onMounted, PropType, reactive, watch, ref } from 'vue'
 import {
   COLOR_PANEL,
   DEFAULT_BASIC_STYLE,
   DEFAULT_MISC
 } from '@/views/chart/components/editor/util/chart'
+import icon_info_outlined from '@/assets/svg/icon_info_outlined.svg'
 import { useI18n } from '@/hooks/web/useI18n'
 import CustomColorStyleSelect from '@/views/chart/components/editor/editor-style/components/CustomColorStyleSelect.vue'
-import { cloneDeep, defaultsDeep } from 'lodash-es'
+import { cloneDeep, debounce, defaultsDeep } from 'lodash-es'
 import { SERIES_NUMBER_FIELD } from '@antv/s2'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { storeToRefs } from 'pinia'
 import { isNumber } from 'mathjs'
-import { ElMessage } from 'element-plus-secondary'
+import { ElMessage, UploadProps } from 'element-plus-secondary'
+import { svgStrToUrl } from '../../../js/util'
 
 const dvMainStore = dvMainStoreWithOut()
 const { batchOptStatus } = storeToRefs(dvMainStore)
@@ -40,21 +42,9 @@ const state = reactive({
   fieldColumnWidth: {
     fieldId: '',
     width: 0
-  }
-})
-watch(
-  [
-    () => props.chart.customAttr.basicStyle,
-    () => props.chart.customAttr.misc,
-    () => props.chart.customAttr.tableHeader,
-    () => props.chart.xAxis,
-    () => props.chart.yAxis
-  ],
-  () => {
-    init()
   },
-  { deep: true }
-)
+  fileList: []
+})
 const emit = defineEmits(['onBasicStyleChange', 'onMiscChange'])
 const changeBasicStyle = (prop?: string, requestData = false) => {
   emit('onBasicStyleChange', { data: state.basicStyleForm, requestData }, prop)
@@ -82,6 +72,18 @@ const init = () => {
   const basicStyle = cloneDeep(props.chart.customAttr.basicStyle)
   const miscStyle = cloneDeep(props.chart.customAttr.misc)
   configCompat(basicStyle)
+  if (
+    basicStyle.mapSymbol === 'custom' &&
+    state.basicStyleForm.customIcon !== basicStyle.customIcon
+  ) {
+    let file
+    if (basicStyle.customIcon?.startsWith('data')) {
+      file = basicStyle.customIcon
+    } else {
+      file = svgStrToUrl(basicStyle.customIcon)
+    }
+    file && (state.fileList[0] = { url: file })
+  }
   state.basicStyleForm = defaultsDeep(basicStyle, cloneDeep(DEFAULT_BASIC_STYLE)) as ChartBasicStyle
   state.miscForm = defaultsDeep(miscStyle, cloneDeep(DEFAULT_MISC)) as ChartMiscAttr
   if (!state.customColor) {
@@ -90,6 +92,18 @@ const init = () => {
   }
   initTableColumnWidth()
 }
+const debouncedInit = debounce(init, 500)
+watch(
+  [
+    () => props.chart.customAttr.basicStyle,
+    () => props.chart.customAttr.misc,
+    () => props.chart.customAttr.tableHeader,
+    () => props.chart.xAxis,
+    () => props.chart.yAxis
+  ],
+  debouncedInit,
+  { deep: true }
+)
 const configCompat = (basicStyle: ChartBasicStyle) => {
   // 悬浮改为图例和缩放按钮
   if (basicStyle.suspension === false && basicStyle.showZoom === undefined) {
@@ -213,13 +227,10 @@ const mapStyleOptions = [
   { name: t('chart.map_style_darkblue'), value: 'darkblue' },
   { name: t('chart.map_style_light'), value: 'light' },
   { name: t('chart.map_style_dark'), value: 'dark' },
-  { name: t('chart.map_style_whitesmoke'), value: 'whitesmoke' },
   { name: t('chart.map_style_fresh'), value: 'fresh' },
   { name: t('chart.map_style_grey'), value: 'grey' },
-  { name: t('chart.map_style_graffiti'), value: 'graffiti' },
-  { name: t('chart.map_style_macaron'), value: 'macaron' },
   { name: t('chart.map_style_blue'), value: 'blue' },
-  { name: t('chart.map_style_wine'), value: 'wine' }
+  { name: t('commons.custom'), value: 'custom' }
 ]
 const heatMapTypeOptions = [
   { name: t('chart.heatmap_classics'), value: 'heatmap' },
@@ -233,9 +244,82 @@ const mapSymbolOptions = [
   { name: t('chart.map_symbol_pentagon'), value: 'pentagon' },
   { name: t('chart.map_symbol_hexagon'), value: 'hexagon' },
   { name: t('chart.map_symbol_octagon'), value: 'octogon' },
-  { name: t('chart.line_symbol_diamond'), value: 'rhombus' }
+  { name: t('chart.line_symbol_diamond'), value: 'rhombus' },
+  { name: t('commons.custom'), value: 'custom' }
 ]
+const iconUpload = ref()
+const acceptedFileType = ['image/svg+xml', 'image/jpeg', 'image/png']
+const onIconChange: UploadProps['onChange'] = async uploadFile => {
+  const rawFile = uploadFile.raw
+  let validIcon = true
+  if (!acceptedFileType.includes(rawFile.type)) {
+    ElMessage.error('请选择正确的图标文件！')
+    validIcon = false
+  }
+  if (rawFile.size / 1024 / 1024 > 1) {
+    ElMessage.error('文件大小不能超过 1MB!')
+    validIcon = false
+  }
+  if (!validIcon) {
+    iconUpload.value?.clearFiles()
+    state.fileList.splice(0)
+    const customIcon = state.basicStyleForm.customIcon
+    if (customIcon) {
+      let file = ''
+      // 图片
+      if (customIcon.startsWith('data')) {
+        file = customIcon
+      } else {
+        // svg
+        file = svgStrToUrl(customIcon)
+      }
+      file && (state.fileList[0] = { url: file })
+    }
+  } else {
+    if (rawFile.type === 'image/svg+xml') {
+      state.basicStyleForm.customIcon = await rawFile.text()
+      changeBasicStyle('customIcon')
+    } else {
+      const fileReader = new FileReader()
+      fileReader.onloadend = () => {
+        state.basicStyleForm.customIcon = fileReader.result as string
+        changeBasicStyle('customIcon')
+      }
+      fileReader.readAsDataURL(rawFile)
+    }
+  }
+}
 
+const changeMapSymbol = () => {
+  const { mapSymbol, customIcon } = state.basicStyleForm
+  if (mapSymbol === 'custom' && customIcon) {
+    let file
+    if (customIcon.startsWith('data')) {
+      file = customIcon
+    } else {
+      file = svgStrToUrl(state.basicStyleForm.customIcon)
+    }
+    file && (state.fileList[0] = { url: file })
+  }
+  changeBasicStyle('mapSymbol')
+}
+
+const customSymbolicMapSizeRange = computed(() => {
+  let { extBubble } = JSON.parse(JSON.stringify(props.chart))
+  return ['symbolic-map'].includes(props.chart.type) && extBubble?.length > 0
+})
+const mapCustomRangeValidate = prop => {
+  const { mapSymbolSizeMax = '0', mapSymbolSizeMin = '1' } = state.basicStyleForm
+  let max = parseInt(mapSymbolSizeMax)
+  let min = parseInt(mapSymbolSizeMin)
+  state.basicStyleForm.mapSymbolSizeMin = Math.max(min, 0)
+  state.basicStyleForm.mapSymbolSizeMax = Math.max(max, 1)
+  if (max < min) {
+    ElMessage.warning('第二个区间值必须大于第一个区间值')
+    return
+  }
+  changeBasicStyle(prop)
+}
 onMounted(() => {
   init()
 })
@@ -370,7 +454,7 @@ onMounted(() => {
       <el-row style="flex: 1">
         <el-col>
           <el-form-item
-            :label="t('chart.chart_map') + t('chart.map_style')"
+            :label="t('chart.map_style')"
             class="form-item"
             :class="'form-item-' + themes"
           >
@@ -386,6 +470,22 @@ onMounted(() => {
                 :value="item.value"
               />
             </el-select>
+          </el-form-item>
+        </el-col>
+      </el-row>
+      <el-row style="flex: 1" v-if="state.basicStyleForm.mapStyle === 'custom'">
+        <el-col>
+          <el-form-item
+            :label="t('chart.map_style_url')"
+            class="form-item"
+            :class="'form-item-' + themes"
+          >
+            <el-input
+              :effect="themes"
+              v-model="state.basicStyleForm.mapStyleUrl"
+              maxlength="50"
+              @change="changeBasicStyle('mapStyleUrl')"
+            />
           </el-form-item>
         </el-col>
       </el-row>
@@ -447,11 +547,24 @@ onMounted(() => {
     <div class="map-flow-style" v-if="showProperty('symbolicMapStyle')">
       <el-row style="flex: 1">
         <el-col>
-          <el-form-item :label="'符号形状'" class="form-item" :class="'form-item-' + themes">
+          <el-form-item class="form-item" :class="'form-item-' + themes">
+            <template #label>
+              <span class="data-area-label">
+                <span style="margin-right: 4px">符号形状</span>
+                <el-tooltip class="item" effect="dark" placement="bottom">
+                  <template v-if="state.basicStyleForm.mapSymbol === 'custom'" #content>
+                    <div>支持 1MB 以内的 SVG, JPG, JPEG, PNG 文件</div>
+                  </template>
+                  <el-icon class="hint-icon" :class="{ 'hint-icon--dark': themes === 'dark' }">
+                    <Icon name="icon_info_outlined"><icon_info_outlined class="svg-icon" /></Icon>
+                  </el-icon>
+                </el-tooltip>
+              </span>
+            </template>
             <el-select
               :effect="themes"
               v-model="state.basicStyleForm.mapSymbol"
-              @change="changeBasicStyle('mapSymbol')"
+              @change="changeMapSymbol()"
             >
               <el-option
                 v-for="item in mapSymbolOptions"
@@ -460,6 +573,28 @@ onMounted(() => {
                 :value="item.value"
               />
             </el-select>
+          </el-form-item>
+        </el-col>
+      </el-row>
+      <el-row style="flex: 1" v-if="state.basicStyleForm.mapSymbol === 'custom'">
+        <el-col>
+          <el-form-item class="form-item uploader" :class="'form-item-' + themes">
+            <div class="avatar-uploader-container" :class="`img-area_${themes}`">
+              <el-upload
+                action="#"
+                accept=".svg,.png,.jpeg,.jpg"
+                class="avatar-uploader"
+                list-type="picture-card"
+                ref="iconUpload"
+                :effect="themes"
+                :auto-upload="false"
+                :file-list="state.fileList"
+                :on-change="onIconChange"
+                :limit="1"
+              >
+                <el-icon><Plus /></el-icon>
+              </el-upload>
+            </div>
           </el-form-item>
         </el-col>
       </el-row>
@@ -476,12 +611,51 @@ onMounted(() => {
                 :max="40"
                 v-model="state.basicStyleForm.mapSymbolSize"
                 @change="changeBasicStyle('mapSymbolSize')"
+                :disabled="customSymbolicMapSizeRange"
               />
             </el-form-item>
           </el-col>
         </el-row>
       </div>
       <div class="alpha-setting">
+        <label class="alpha-label" :class="{ dark: 'dark' === themes }">
+          {{ t('chart.size') }}区间
+        </label>
+        <el-row style="flex: 1">
+          <el-col :span="11">
+            <el-form-item class="form-item alpha-slider" :class="'form-item-' + themes">
+              <el-input
+                type="number"
+                :effect="themes"
+                v-model="state.basicStyleForm.mapSymbolSizeMin"
+                class="basic-input-number"
+                :controls="false"
+                @blur="mapCustomRangeValidate('mapSymbolSizeMin')"
+                :disabled="!customSymbolicMapSizeRange"
+              >
+              </el-input>
+            </el-form-item>
+          </el-col>
+          <el-col :span="1.2">
+            <span>-</span>
+          </el-col>
+          <el-col :span="11">
+            <el-form-item class="form-item alpha-slider" :class="'form-item-' + themes">
+              <el-input
+                type="number"
+                :effect="themes"
+                v-model="state.basicStyleForm.mapSymbolSizeMax"
+                class="basic-input-number"
+                :controls="false"
+                @blur="mapCustomRangeValidate('mapSymbolSizeMax')"
+                :disabled="!customSymbolicMapSizeRange"
+              >
+              </el-input>
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </div>
+      <div v-if="state.basicStyleForm.mapSymbol !== 'custom'" class="alpha-setting">
         <label class="alpha-label" :class="{ dark: 'dark' === themes }">
           {{ t('chart.not_alpha') }}
         </label>
@@ -499,7 +673,7 @@ onMounted(() => {
           </el-col>
         </el-row>
       </div>
-      <div class="alpha-setting">
+      <div v-if="state.basicStyleForm.mapSymbol !== 'custom'" class="alpha-setting">
         <label class="alpha-label" :class="{ dark: 'dark' === themes }">
           {{ t('visualization.borderWidth') }}
         </label>
@@ -539,6 +713,8 @@ onMounted(() => {
           />
         </el-form-item>
       </el-col>
+    </el-row>
+    <el-row :gutter="8">
       <el-col :span="12" v-if="showProperty('areaBaseColor')">
         <el-form-item
           :label="t('chart.area_base_color')"
@@ -558,12 +734,88 @@ onMounted(() => {
         </el-form-item>
       </el-col>
     </el-row>
+    <el-form-item class="form-item" :class="'form-item-' + themes" v-if="showProperty('showLabel')">
+      <el-checkbox
+        size="small"
+        :effect="themes"
+        v-model="state.basicStyleForm.showLabel"
+        @change="changeBasicStyle('showLabel')"
+      >
+        {{ t('chart.show_label') }}
+      </el-checkbox>
+    </el-form-item>
+    <el-form-item class="form-item" :class="'form-item-' + themes" v-if="showProperty('autoFit')">
+      <el-checkbox
+        size="small"
+        :effect="themes"
+        v-model="state.basicStyleForm.autoFit"
+        @change="changeBasicStyle('autoFit')"
+      >
+        {{ t('chart.auto_fit') }}
+      </el-checkbox>
+    </el-form-item>
+    <div
+      class="alpha-setting"
+      v-if="showProperty('zoomLevel') && state.basicStyleForm.autoFit === false"
+    >
+      <label class="alpha-label" :class="{ dark: 'dark' === themes }">
+        {{ t('chart.zoom_level') }}
+      </label>
+      <el-row style="flex: 1" :gutter="8">
+        <el-col>
+          <el-form-item class="form-item alpha-slider" :class="'form-item-' + themes">
+            <el-slider
+              :effect="themes"
+              :min="1"
+              :max="18"
+              v-model="state.basicStyleForm.zoomLevel"
+              @change="changeBasicStyle('zoomLevel')"
+            />
+          </el-form-item>
+        </el-col>
+      </el-row>
+    </div>
+    <template v-if="showProperty('mapCenter') && state.basicStyleForm.autoFit === false">
+      <el-row :gutter="8">
+        <el-col :span="12">
+          <el-form-item
+            class="form-item"
+            :class="'form-item-' + themes"
+            :label="t('chart.central_point') + t('chart.longitude')"
+          >
+            <el-input-number
+              controls-position="right"
+              :min="-180"
+              :max="180"
+              :effect="props.themes"
+              v-model.number="state.basicStyleForm.mapCenter.longitude"
+              @change="changeBasicStyle('mapCenter.longitude')"
+            />
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item
+            class="form-item"
+            :class="'form-item-' + themes"
+            :label="t('chart.central_point') + t('chart.latitude')"
+          >
+            <el-input-number
+              controls-position="right"
+              :min="-90"
+              :max="90"
+              :effect="props.themes"
+              v-model.number="state.basicStyleForm.mapCenter.latitude"
+              @change="changeBasicStyle('mapCenter.latitude')"
+            />
+          </el-form-item>
+        </el-col>
+      </el-row>
+    </template>
     <el-form-item class="form-item" :class="'form-item-' + themes" v-if="showProperty('zoom')">
       <el-checkbox
         size="small"
         :effect="themes"
         v-model="state.basicStyleForm.showZoom"
-        :predefine="predefineColors"
         @change="changeBasicStyle('showZoom')"
       >
         {{ t('chart.show_zoom') }}
@@ -620,8 +872,9 @@ onMounted(() => {
             :effect="themes"
             is-custom
             :trigger-width="108"
-            color-format="hex"
+            color-format="rgb"
             :predefine="predefineColors"
+            show-alpha
             @change="changeBasicStyle('tableBorderColor')"
           />
         </el-form-item>
@@ -797,6 +1050,20 @@ onMounted(() => {
         :max-length="10"
         @blur="changeBasicStyle('summaryLabel')"
       />
+    </el-form-item>
+    <el-form-item
+      v-if="showProperty('showHoverStyle')"
+      class="form-item"
+      :class="'form-item-' + themes"
+    >
+      <el-checkbox
+        size="small"
+        :effect="themes"
+        v-model="state.basicStyleForm.showHoverStyle"
+        @change="changeBasicStyle('showHoverStyle')"
+      >
+        {{ t('chart.show_hover_style') }}
+      </el-checkbox>
     </el-form-item>
     <!--table2 end-->
     <!--gauge start-->
@@ -1198,9 +1465,6 @@ onMounted(() => {
   </div>
 </template>
 <style scoped lang="less">
-.form-item {
-}
-
 .color-picker-style {
   cursor: pointer;
   z-index: 1003;
@@ -1276,5 +1540,100 @@ onMounted(() => {
   :deep(span) {
     font-size: 12px;
   }
+}
+.avatar-uploader-container {
+  :deep(.ed-upload--picture-card) {
+    background: #eff0f1;
+    border: 1px dashed #dee0e3;
+    border-radius: 4px;
+
+    .ed-icon {
+      color: #1f2329;
+    }
+
+    &:hover {
+      .ed-icon {
+        color: var(--ed-color-primary);
+      }
+    }
+  }
+
+  &.img-area_dark {
+    :deep(.ed-upload-list__item).is-ready {
+      border-color: #434343;
+    }
+    :deep(.ed-upload--picture-card) {
+      background: #373737;
+      border-color: #434343;
+      .ed-icon {
+        color: #ebebeb;
+      }
+    }
+  }
+
+  &.img-area_light {
+    :deep(.ed-upload-list__item).is-ready {
+      border-color: #dee0e3;
+    }
+  }
+  :deep(.ed-upload-list__item-preview) {
+    display: none !important;
+  }
+  :deep(.ed-upload-list__item-delete) {
+    margin-left: 0 !important;
+  }
+  :deep(.ed-upload-list__item-status-label) {
+    display: none !important;
+  }
+  :deep(.ed-icon--close-tip) {
+    display: none !important;
+  }
+}
+.avatar-uploader {
+  width: 90px;
+  height: 80px;
+  overflow: hidden;
+}
+.avatar-uploader {
+  width: 90px;
+  :deep(.ed-upload) {
+    width: 80px;
+    height: 80px;
+    line-height: 90px;
+  }
+
+  :deep(.ed-upload-list li) {
+    width: 80px !important;
+    height: 80px !important;
+  }
+
+  :deep(.ed-upload--picture-card) {
+    background: #eff0f1;
+    border: 1px dashed #dee0e3;
+    border-radius: 4px;
+
+    .ed-icon {
+      color: #1f2329;
+    }
+
+    &:hover {
+      .ed-icon {
+        color: var(--ed-color-primary);
+      }
+    }
+  }
+}
+.uploader {
+  :deep(.ed-form-item__content) {
+    justify-content: center;
+  }
+}
+.data-area-label {
+  text-align: left;
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
 }
 </style>

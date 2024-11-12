@@ -3,7 +3,9 @@
     <div class="custom-split-line"></div>
     <span v-show="!searchText" class="custom-category">{{ label }}</span>
     <span v-show="searchText" class="custom-search">{{ label }}</span>
-    <span v-if="searchText" class="custom-search-result">的搜索结果是{{ searchResult }}个</span>
+    <span v-if="searchText" class="custom-search-result">
+      {{ t('template_manage.search_result_count', [searchResult]) }}
+    </span>
   </el-col>
   <el-col
     v-for="(templateItem, index) in fullTemplateShowList"
@@ -28,7 +30,9 @@
 <script setup lang="ts">
 import TemplateMarketV2Item from '@/views/template-market/component/TemplateMarketV2Item.vue'
 import { computed } from 'vue'
+import { useI18n } from '@/hooks/web/useI18n'
 const emits = defineEmits(['templateApply', 'templatePreview'])
+const { t } = useI18n()
 
 const templateApply = params => {
   emits('templateApply', params)

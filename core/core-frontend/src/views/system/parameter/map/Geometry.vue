@@ -69,7 +69,7 @@
     </el-aside>
     <el-main class="geometry-main">
       <div class="geo-content-container" v-if="!selectedData">
-        <EmptyBackground img-type="noneWhite" description="请在左侧选择区域" />
+        <EmptyBackground img-type="noneWhite" :description="t('system.on_the_left')" />
       </div>
       <div v-else class="geo-content-container">
         <div class="geo-content-top">
@@ -77,13 +77,17 @@
         </div>
         <div class="geo-content-middle">
           <div class="geo-area">
-            <div class="area-label"><span>区域代码</span></div>
+            <div class="area-label">
+              <span>{{ t('system.region_code') }}</span>
+            </div>
             <div class="area-content">
               <span>{{ selectedData.id }}</span>
             </div>
           </div>
           <div class="geo-area">
-            <div class="area-label"><span>上级区域</span></div>
+            <div class="area-label">
+              <span>{{ t('system.superior_region') }}</span>
+            </div>
             <div class="area-content">
               <span>{{ selectedData.parentName || '-' }}</span>
               <span v-if="selectedData.pid" class="area-secondary">{{
@@ -93,7 +97,9 @@
           </div>
         </div>
         <div class="geo-content-bottom">
-          <div class="area-label"><span>坐标文件</span></div>
+          <div class="area-label">
+            <span>{{ t('system.coordinate_file') }}</span>
+          </div>
           <el-scrollbar class="area-content-geo">
             <span>{{ selectedData.geoJson }}</span>
           </el-scrollbar>
@@ -145,7 +151,7 @@ const handleNodeClick = async (data: Tree) => {
   }
 }
 const delHandler = data => {
-  ElMessageBox.confirm('确定删除此节点吗', {
+  ElMessageBox.confirm(t('system.delete_this_node'), {
     confirmButtonType: 'danger',
     type: 'warning',
     confirmButtonText: t('common.delete'),

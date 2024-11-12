@@ -21,7 +21,7 @@ import { cloneDeep, defaultsDeep } from 'lodash-es'
 import { ElButton, ElIcon } from 'element-plus-secondary'
 import Icon from '@/components/icon-custom/src/Icon.vue'
 const dvMainStore = dvMainStoreWithOut()
-const { batchOptStatus } = storeToRefs(dvMainStore)
+const { batchOptStatus, mobileInPc } = storeToRefs(dvMainStore)
 
 const { t } = useI18n()
 
@@ -131,7 +131,7 @@ watch(
         :label="t('chart.title')"
         class="form-item"
         :class="'form-item-' + themes"
-        v-if="!batchOptStatus"
+        v-if="!batchOptStatus && !mobileInPc"
       >
         <el-input
           :effect="themes"
@@ -383,7 +383,7 @@ watch(
             type="textarea"
             autosize
             v-model="tempRemark"
-            :maxlength="50"
+            :maxlength="512"
             clearable
             :placeholder="t('chart.remark_placeholder')"
           />

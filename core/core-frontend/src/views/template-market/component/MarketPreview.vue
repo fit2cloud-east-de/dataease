@@ -2,9 +2,9 @@
   <el-row style="width: 100%">
     <el-row style="display: table; width: 100%">
       <el-col style="float: left" :class="state.asideActive ? 'aside-active' : 'aside-inActive'">
-        <el-icon v-show="!state.asideActive" class="insert" @click="asideActiveChange(true)"
-          ><DArrowRight
-        /></el-icon>
+        <el-icon v-show="!state.asideActive" class="insert" @click="asideActiveChange(true)">
+          <DArrowRight />
+        </el-icon>
         <el-row v-show="state.asideActive" style="padding: 12px 12px 0">
           <el-row style="align-items: center">
             <el-icon class="insert" @click="closePreview()"><Close /></el-icon>
@@ -18,21 +18,22 @@
               prefix-icon="Search"
               class="title-name-search"
               :placeholder="t('visualization.enter_template_name_tips')"
-              clearable="true"
+              clearable
             />
             <el-icon
               class="insert-filter filter-icon-span"
               :class="state.extFilterActive ? 'filter-icon-active' : ''"
               @click="extFilterActiveChange()"
-              ><Filter
-            /></el-icon>
+            >
+              <Filter />
+            </el-icon>
           </el-row>
           <el-row v-show="state.extFilterActive">
             <el-select
               v-model="state.marketActiveTab"
               class="margin-top16"
               size="small"
-              placeholder="请选择"
+              :placeholder="t('common.selectText')"
             >
               <el-option v-for="item in state.marketTabs" :key="item" :label="item" :value="item" />
             </el-select>
@@ -56,9 +57,9 @@
           />
           <el-row v-show="!state.hasResult" class="custom-position">
             <div style="text-align: center">
-              <Icon name="no_result"
-                ><no_result style="margin-bottom: 16px; font-size: 75px" class="svg-icon"
-              /></Icon>
+              <Icon name="no_result">
+                <no_result style="margin-bottom: 16px; font-size: 75px" class="svg-icon" />
+              </Icon>
               <br />
               <span>{{ t('commons.no_result') }}</span>
             </div>
@@ -78,8 +79,9 @@
               type="primary"
               size="small"
               @click="templateApply(state.curTemplate)"
-              >{{ t('visualization.apply_this_template') }}</el-button
             >
+              {{ t('visualization.apply_this_template') }}
+            </el-button>
           </div>
         </el-row>
         <el-row class="img-main">

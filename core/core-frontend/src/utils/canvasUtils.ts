@@ -29,8 +29,15 @@ import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapsho
 import { deepCopy } from '@/utils/utils'
 import { ElMessage } from 'element-plus-secondary'
 const dvMainStore = dvMainStoreWithOut()
-const { curBatchOptComponents, dvInfo, canvasStyleData, componentData, canvasViewInfo, appData } =
-  storeToRefs(dvMainStore)
+const {
+  inMobile,
+  curBatchOptComponents,
+  dvInfo,
+  canvasStyleData,
+  componentData,
+  canvasViewInfo,
+  appData
+} = storeToRefs(dvMainStore)
 const snapshotStore = snapshotStoreWithOut()
 
 export function chartTransStr2Object(targetIn, copy) {
@@ -131,7 +138,7 @@ export function historyItemAdaptor(
   // 定时报告过滤组件适配 如果当前是定时报告默认切有设置对应的过滤组件默认值，则替换过滤组件
   if (
     componentItem.component === 'VQuery' &&
-    attachInfo.source === 'report' &&
+    attachInfo?.source === 'report' &&
     !!reportFilterInfo
   ) {
     componentItem.propValue.forEach((filterItem, index) => {
@@ -180,7 +187,7 @@ export function historyItemAdaptor(
     componentItem.actionSelection = componentItem.actionSelection || deepCopy(ACTION_SELECTION)
   }
   // 2 为基础版本 此处需要增加仪表板矩阵密度
-  if ((!canvasVersion || canvasVersion === 2) && canvasInfo.type === 'dashboard') {
+  if ((!canvasVersion || canvasVersion === 2) && canvasInfo?.type === 'dashboard') {
     matrixAdaptor(componentItem)
   }
   // 组件事件适配
@@ -217,6 +224,10 @@ export function historyAdaptor(
   //历史字段适配
   canvasStyleResult.component['seniorStyleSetting'] =
     canvasStyleResult.component['seniorStyleSetting'] || deepCopy(SENIOR_STYLE_SETTING_LIGHT)
+  canvasStyleResult['suspensionButtonAvailable'] =
+    canvasStyleResult['suspensionButtonAvailable'] === undefined
+      ? false
+      : canvasStyleResult['suspensionButtonAvailable']
   canvasStyleResult['screenAdaptor'] = canvasStyleResult['screenAdaptor'] || 'widthFirst'
   canvasStyleResult['refreshBrowserEnable'] =
     canvasStyleResult['refreshBrowserEnable'] === undefined
@@ -233,7 +244,7 @@ export function historyAdaptor(
     canvasStyleResult['popupButtonAvailable'] === undefined
       ? true
       : canvasStyleResult['popupButtonAvailable'] //兼容弹框区域按钮开关
-  const reportFilterInfo = canvasInfo.reportFilterInfo
+  const reportFilterInfo = canvasInfo?.reportFilterInfo
   canvasDataResult.forEach(componentItem => {
     historyItemAdaptor(componentItem, reportFilterInfo, attachInfo, canvasVersion, canvasInfo)
   })
@@ -258,12 +269,19 @@ export function refreshOtherComponent(dvId, busiFlag) {
       for (let i = 0; i < componentData.value.length; i++) {
         const component = componentData.value[i]
         if (refreshIdList.includes(component.id) && canvasDataResultMap[component.id]) {
-          const { top, left, height, width } = componentData.value[i].style
-          canvasDataResultMap[component.id].style.top = top
-          canvasDataResultMap[component.id].style.left = left
-          canvasDataResultMap[component.id].style.height = height
-          canvasDataResultMap[component.id].style.width = width
-          componentData.value[i] = canvasDataResultMap[component.id]
+          if (inMobile.value) {
+            componentData.value[i].propValue = canvasDataResultMap[component.id].propValue
+          } else {
+            const { top, left, height, width, fontSize } = componentData.value[i].style
+            canvasDataResultMap[component.id].style.top = top
+            canvasDataResultMap[component.id].style.left = left
+            canvasDataResultMap[component.id].style.height = height
+            canvasDataResultMap[component.id].style.width = width
+            if (fontSize) {
+              canvasDataResultMap[component.id].style.fontSize = fontSize
+            }
+            componentData.value[i] = canvasDataResultMap[component.id]
+          }
         }
       }
     })
@@ -348,46 +366,69 @@ export async function initCanvasData(dvId, busiFlag, callBack) {
   )
 }
 
-export async function backCanvasData(dvId, busiFlag, callBack) {
-  initCanvasDataPrepare(dvId, busiFlag, function ({ canvasDataResult, canvasStyleResult }) {
-    const componentDataCopy = canvasDataResult.filter(ele => !!ele.inMobile)
-    const componentDataId = componentDataCopy.map(ele => ele.id)
-    componentData.value.forEach(ele => {
-      ele.inMobile = componentDataId.includes(ele.id)
-      if (ele.inMobile) {
-        const { mx, my, mSizeX, mSizeY } = componentDataCopy.find(itx => itx.id === ele.id)
-        ele.mx = mx
-        ele.my = my
-        ele.mSizeX = mSizeX
-        ele.mSizeY = mSizeY
-        if (ele.component === 'DeTabs') {
-          ele.propValue.forEach(tabItem => {
-            tabItem.componentData.forEach(tabComponent => {
-              tabComponent.mx = tabComponent.mx
-              tabComponent.my = tabComponent.my
-              tabComponent.mSizeX = tabComponent.mSizeX
-              tabComponent.mSizeY = tabComponent.mSizeY
+export async function backCanvasData(dvId, mobileViewInfo, busiFlag, callBack) {
+  initCanvasDataPrepare(
+    dvId,
+    busiFlag,
+    function ({ canvasDataResult, canvasStyleResult, canvasViewInfoPreview }) {
+      const componentDataCopy = canvasDataResult.filter(ele => !!ele.inMobile)
+      const componentDataId = componentDataCopy.map(ele => ele.id)
+      componentData.value.forEach(ele => {
+        ele.inMobile = componentDataId.includes(ele.id)
+        if (ele.inMobile) {
+          const { mx, my, mSizeX, mSizeY, mPropValue, mEvents, mCommonBackground } =
+            componentDataCopy.find(itx => itx.id === ele.id)
+          ele.mx = mx
+          ele.my = my
+          ele.mSizeX = mSizeX
+          ele.mSizeY = mSizeY
+          ele.mEvents = mEvents
+          ele.mCommonBackground = mCommonBackground
+          if (ele.component === 'VQuery') {
+            ele.mPropValue = mPropValue
+          }
+          if (ele.component === 'DeTabs') {
+            ele.propValue.forEach(tabItem => {
+              tabItem.componentData.forEach(tabComponent => {
+                tabComponent.mx = tabComponent.mx
+                tabComponent.my = tabComponent.my
+                tabComponent.mSizeX = tabComponent.mSizeX
+                tabComponent.mSizeY = tabComponent.mSizeY
+                tabComponent.mEvents = tEvents
+                tabComponent.mCommonBackground = tCommonBackground
+                if (tabComponent.component === 'VQuery') {
+                  tabComponent.mPropValue = tPropValue
+                }
+              })
             })
-          })
+          }
         }
+      })
+      Object.keys(mobileViewInfo).forEach(key => {
+        if (canvasViewInfo.value[key] && mobileViewInfo[key]) {
+          const { customAttrMobile, customStyleMobile } = mobileViewInfo[key]
+          // 此处作为还原移动设计使用
+          canvasViewInfo.value[key]['customStyleMobile'] = customStyleMobile
+          canvasViewInfo.value[key]['customAttrMobile'] = customAttrMobile
+        }
+      })
+      dvMainStore.setComponentData(componentData.value)
+      const canvasStyleDataCopy = cloneDeep(canvasStyleData.value)
+      if (!canvasStyleDataCopy.mobileSetting) {
+        canvasStyleDataCopy.mobileSetting = {
+          backgroundColorSelect: false,
+          background: '',
+          color: '#ffffff',
+          backgroundImageEnable: false,
+          customSetting: false
+        }
+      } else {
+        canvasStyleDataCopy.mobileSetting = canvasStyleResult.mobileSetting
       }
-    })
-    dvMainStore.setComponentData(componentData.value)
-    const canvasStyleDataCopy = cloneDeep(canvasStyleData.value)
-    if (!canvasStyleDataCopy.mobileSetting) {
-      canvasStyleDataCopy.mobileSetting = {
-        backgroundColorSelect: false,
-        background: '',
-        color: '#ffffff',
-        backgroundImageEnable: false,
-        customSetting: false
-      }
-    } else {
-      canvasStyleDataCopy.mobileSetting = canvasStyleResult.mobileSetting
+      dvMainStore.setCanvasStyle(canvasStyleDataCopy)
+      callBack()
     }
-    dvMainStore.setCanvasStyle(canvasStyleDataCopy)
-    callBack()
-  })
+  )
 }
 
 export function initCanvasDataMobile(dvId, busiFlag, callBack) {
@@ -397,11 +438,28 @@ export function initCanvasDataMobile(dvId, busiFlag, callBack) {
     function ({ canvasDataResult, canvasStyleResult, dvInfo, canvasViewInfoPreview }) {
       const componentData = canvasDataResult.filter(ele => !!ele.inMobile)
       canvasDataResult.forEach(ele => {
-        const { mx, my, mSizeX, mSizeY } = ele
+        const {
+          mx,
+          my,
+          mSizeX,
+          mSizeY,
+          mStyle,
+          mPropValue,
+          mEvents,
+          mCommonBackground,
+          style,
+          propValue,
+          events,
+          commonBackground
+        } = ele
         ele.x = mx
         ele.y = my
         ele.sizeX = mSizeX
         ele.sizeY = mSizeY
+        ele.style = mStyle || style
+        ele.propValue = mPropValue || propValue
+        ele.events = mEvents || events
+        ele.commonBackground = mCommonBackground || commonBackground
         if (ele.component === 'DeTabs') {
           ele.propValue.forEach(tabItem => {
             tabItem.componentData.forEach(tabComponent => {
@@ -409,10 +467,23 @@ export function initCanvasDataMobile(dvId, busiFlag, callBack) {
               tabComponent.y = tabComponent.my
               tabComponent.sizeX = tabComponent.mSizeX
               tabComponent.sizeY = tabComponent.mSizeY
+              tabComponent.style = tabComponent.mStyle || tabComponent.style
+              tabComponent.propValue = tabComponent.mPropValue || tabComponent.propValue
+              tabComponent.events = tabComponent.mEvents || tabComponent.events
+              tabComponent.commonBackground =
+                tabComponent.mCommonBackground || tabComponent.commonBackground
             })
           })
         }
       })
+      if (!!canvasViewInfoPreview) {
+        Object.keys(canvasViewInfoPreview).forEach(key => {
+          const viewInfo = canvasViewInfoPreview[key]
+          const { customAttrMobile, customStyleMobile } = viewInfo
+          viewInfo['customAttr'] = customAttrMobile || viewInfo['customAttr']
+          viewInfo['customStyle'] = customStyleMobile || viewInfo['customStyle']
+        })
+      }
       dvMainStore.setComponentData(componentData)
       dvMainStore.setCanvasStyle(canvasStyleResult)
       dvMainStore.updateCurDvInfo(dvInfo)
@@ -657,6 +728,7 @@ export async function decompressionPre(params, callBack) {
       const deTemplateDataTemp = response.data
       const sourceComponentData = JSON.parse(deTemplateDataTemp['componentData'])
       const appData = deTemplateDataTemp['appData']
+      const sourceCanvasStyle = JSON.parse(deTemplateDataTemp['canvasStyleData'])
       sourceComponentData.forEach(componentItem => {
         // 2 为基础版本 此处需要增加仪表板矩阵密度
         if (
@@ -666,7 +738,6 @@ export async function decompressionPre(params, callBack) {
           matrixAdaptor(componentItem)
         }
       })
-      const sourceCanvasStyle = JSON.parse(deTemplateDataTemp['canvasStyleData'])
       //历史字段适配
       sourceCanvasStyle.component['seniorStyleSetting'] =
         sourceCanvasStyle.component['seniorStyleSetting'] || deepCopy(SENIOR_STYLE_SETTING_LIGHT)
@@ -685,6 +756,7 @@ export async function decompressionPre(params, callBack) {
     .catch(e => {
       console.error(e)
     })
+  historyAdaptor(deTemplateData.canvasStyleData, deTemplateData.componentData, null, null, null)
   callBack(deTemplateData)
 }
 
@@ -729,5 +801,68 @@ export function componentPreSort(componentData) {
         })
       }
     })
+  }
+}
+
+export function maxYComponentCount() {
+  if (componentData.value.length === 0) {
+    return 1
+  } else {
+    return componentData.value
+      .filter(item => item.y)
+      .map(item => item.y + item.sizeY) // 计算每个元素的 y + sizeY
+      .reduce((max, current) => Math.max(max, current), 0)
+  }
+}
+
+export function componentSwitch(componentData, changeComponent) {
+  componentData.map(obj => (obj.id === changeComponent.id ? changeComponent : obj))
+}
+
+export function findComponentById(componentId) {
+  let result
+  componentData.value.forEach(item => {
+    if (item.id === componentId) {
+      result = item
+    } else if (item.component === 'Group') {
+      item.propValue.forEach(groupItem => {
+        if (groupItem.id === componentId) {
+          result = groupItem
+        }
+      })
+    } else if (item.component === 'DeTabs') {
+      item.propValue.forEach(tabItem => {
+        tabItem.componentData.forEach(tabComponent => {
+          if (tabComponent.id === componentId) {
+            result = tabComponent
+          }
+        })
+      })
+    }
+  })
+  return result
+}
+
+export function onInitReady(params) {
+  try {
+    console.info('Canvas initReady')
+    const targetPm = {
+      type: 'dataease-embedded-interactive',
+      eventName: 'canvas_init_ready',
+      args: params
+    }
+    window.parent.postMessage(targetPm, '*')
+  } catch (e) {
+    console.warn('de_inner_params send error')
+  }
+}
+
+export function mobileViewStyleSwitch(component) {
+  if (component) {
+    const viewInfo = canvasViewInfo.value[component.id]
+    viewInfo.customStyle = component.customStyle
+    viewInfo.customAttr = component.customAttr
+    viewInfo.title = component.title
+    viewInfo.name = component.name
   }
 }

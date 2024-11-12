@@ -8,6 +8,7 @@ import { valueFormatter } from '@/views/chart/components/js/formatter'
 import { useI18n } from '@/hooks/web/useI18n'
 import { isEmpty, map } from 'lodash-es'
 import { cloneDeep, defaultTo } from 'lodash-es'
+import { configPlotTooltipEvent, getTooltipContainer, TOOLTIP_TPL } from '../../common/common_antv'
 
 const { t } = useI18n()
 /**
@@ -88,11 +89,11 @@ export class Quadrant extends G2PlotChartView<ScatterOptions, G2Scatter> {
     'extTooltip'
   ]
   axisConfig: AxisConfig = {
-    ...this['axisConfig'],
     extBubble: {
       name: `${t('chart.bubble_size')} / ${t('chart.quota')}`,
       type: 'q',
-      limit: 1
+      limit: 1,
+      allowEmpty: true
     },
     xAxis: {
       name: `${t('chart.form_type')} / ${t('chart.dimension')}`,
@@ -209,6 +210,7 @@ export class Quadrant extends G2PlotChartView<ScatterOptions, G2Scatter> {
     newChart.on('point:click', action)
     newChart.on('click', () => quadrantDefaultBaseline(defaultBaselineQuadrant))
     newChart.on('afterrender', () => quadrantDefaultBaseline(defaultBaselineQuadrant))
+    configPlotTooltipEvent(chart, newChart)
     return newChart
   }
 
@@ -295,6 +297,11 @@ export class Quadrant extends G2PlotChartView<ScatterOptions, G2Scatter> {
       if (customAttr.label) {
         const l = customAttr.label
         if (l.show) {
+          const layout = []
+          if (!l.fullDisplay) {
+            layout.push({ type: 'hide-overlap' })
+            layout.push({ type: 'limit-in-shape' })
+          }
           label = {
             offset: 0,
             style: {
@@ -304,7 +311,7 @@ export class Quadrant extends G2PlotChartView<ScatterOptions, G2Scatter> {
             content: datum => {
               return datum['name']
             },
-            layout: [{ type: 'limit-in-shape' }]
+            layout
           }
         } else {
           label = false
@@ -374,7 +381,10 @@ export class Quadrant extends G2PlotChartView<ScatterOptions, G2Scatter> {
           })
         }
         return result
-      }
+      },
+      container: getTooltipContainer(`tooltip-${chart.id}`),
+      itemTpl: TOOLTIP_TPL,
+      enterable: true
     }
     return {
       ...options,
@@ -401,6 +411,7 @@ export class Quadrant extends G2PlotChartView<ScatterOptions, G2Scatter> {
     }
     return chart
   }
+
   protected configColor(chart: Chart, options: ScatterOptions): ScatterOptions {
     const { xAxis, yAxis, yAxisExt } = chart
     if (!(xAxis?.length && yAxis?.length && yAxisExt?.length)) {
@@ -408,14 +419,30 @@ export class Quadrant extends G2PlotChartView<ScatterOptions, G2Scatter> {
     }
     return this.configSingleDimensionColor(chart, options)
   }
+
   public setupSeriesColor(chart: ChartObj, data?: any[]): ChartBasicStyle['seriesColor'] {
     const { xAxis, yAxis, yAxisExt } = chart
     if (!(xAxis?.length && yAxis?.length && yAxisExt?.length)) {
       return []
     }
-    const tmp = data[0].data
+    const tmp = data?.[0]?.data
     return setUpSingleDimensionSeriesColor(chart, tmp)
   }
+
+  protected configLegend(chart: Chart, options: ScatterOptions): ScatterOptions {
+    const optionTmp = super.configLegend(chart, options)
+    if (!optionTmp.legend) {
+      return optionTmp
+    }
+    optionTmp.legend.marker.style = style => {
+      return {
+        r: 4,
+        fill: style.fill
+      }
+    }
+    return optionTmp
+  }
+
   protected setupOptions(chart: Chart, options: ScatterOptions) {
     return flow(
       this.configTheme,

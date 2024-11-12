@@ -3,7 +3,13 @@ import {
   G2PlotDrawOptions
 } from '@/views/chart/components/js/panel/types/impl/g2plot'
 import type { Bar, BarOptions } from '@antv/g2plot/esm/plots/bar'
-import { getPadding, setGradientColor } from '@/views/chart/components/js/panel/common/common_antv'
+import {
+  configPlotTooltipEvent,
+  getPadding,
+  getTooltipContainer,
+  setGradientColor,
+  TOOLTIP_TPL
+} from '@/views/chart/components/js/panel/common/common_antv'
 import { cloneDeep } from 'lodash-es'
 import {
   flow,
@@ -31,6 +37,10 @@ const DEFAULT_DATA = []
 export class HorizontalBar extends G2PlotChartView<BarOptions, Bar> {
   axisConfig = {
     ...this['axisConfig'],
+    xAxis: {
+      name: `${t('chart.drag_block_type_axis')} / ${t('chart.dimension')}`,
+      type: 'd'
+    },
     yAxis: {
       name: `${t('chart.drag_block_value_axis')} / ${t('chart.quota')}`,
       type: 'q'
@@ -64,46 +74,7 @@ export class HorizontalBar extends G2PlotChartView<BarOptions, Bar> {
     xField: 'value',
     yField: 'field',
     seriesField: 'category',
-    isGroup: true,
-    interactions: [
-      {
-        type: 'legend-active',
-        cfg: {
-          start: [{ trigger: 'legend-item:mouseenter', action: ['element-active:reset'] }],
-          end: [{ trigger: 'legend-item:mouseleave', action: ['element-active:reset'] }]
-        }
-      },
-      {
-        type: 'legend-filter',
-        cfg: {
-          start: [
-            {
-              trigger: 'legend-item:click',
-              action: [
-                'list-unchecked:toggle',
-                'data-filter:filter',
-                'element-active:reset',
-                'element-highlight:reset'
-              ]
-            }
-          ]
-        }
-      },
-      {
-        type: 'tooltip',
-        cfg: {
-          start: [{ trigger: 'interval:mousemove', action: 'tooltip:show' }],
-          end: [{ trigger: 'interval:mouseleave', action: 'tooltip:hide' }]
-        }
-      },
-      {
-        type: 'active-region',
-        cfg: {
-          start: [{ trigger: 'interval:mousemove', action: 'active-region:show' }],
-          end: [{ trigger: 'interval:mouseleave', action: 'active-region:hide' }]
-        }
-      }
-    ]
+    isGroup: true
   }
 
   async drawChart(drawOptions: G2PlotDrawOptions<Bar>): Promise<Bar> {
@@ -128,7 +99,7 @@ export class HorizontalBar extends G2PlotChartView<BarOptions, Bar> {
     const newChart = new Bar(container, options)
 
     newChart.on('interval:click', action)
-
+    configPlotTooltipEvent(chart, newChart)
     return newChart
   }
 
@@ -301,6 +272,15 @@ export class HorizontalBar extends G2PlotChartView<BarOptions, Bar> {
  * 堆叠条形图
  */
 export class HorizontalStackBar extends HorizontalBar {
+  axisConfig = {
+    ...this['axisConfig'],
+    extStack: {
+      name: `${t('chart.stack_item')} / ${t('chart.dimension')}`,
+      type: 'd',
+      limit: 1,
+      allowEmpty: true
+    }
+  }
   propertyInner = {
     ...this['propertyInner'],
     'label-selector': ['color', 'fontSize', 'hPosition', 'labelFormatter'],
@@ -339,7 +319,10 @@ export class HorizontalStackBar extends HorizontalBar {
         const res = valueFormatter(param.value, tooltipAttr.tooltipFormatter)
         obj.value = res ?? ''
         return obj
-      }
+      },
+      container: getTooltipContainer(`tooltip-${chart.id}`),
+      itemTpl: TOOLTIP_TPL,
+      enterable: true
     }
     return {
       ...options,
@@ -360,7 +343,7 @@ export class HorizontalStackBar extends HorizontalBar {
     if (mainSort || subSort) {
       return options
     }
-    const quotaSort = yAxis?.[0].sort !== 'none'
+    const quotaSort = yAxis?.[0]?.sort !== 'none'
     if (!quotaSort || !extStack.length || !yAxis.length) {
       return options
     }
@@ -390,7 +373,12 @@ export class HorizontalStackBar extends HorizontalBar {
     this.baseOptions = {
       ...this.baseOptions,
       isGroup: false,
-      isStack: true
+      isStack: true,
+      meta: {
+        category: {
+          type: 'cat'
+        }
+      }
     }
     this.axis = [...this.axis, 'extStack']
   }
@@ -444,7 +432,10 @@ export class HorizontalPercentageStackBar extends HorizontalStackBar {
         const obj = { name: param.category, value: param.value }
         obj.value = (Math.round(param.value * 10000) / 100).toFixed(l.reserveDecimalCount) + '%'
         return obj
-      }
+      },
+      container: getTooltipContainer(`tooltip-${chart.id}`),
+      itemTpl: TOOLTIP_TPL,
+      enterable: true
     }
     return {
       ...options,
@@ -462,7 +453,8 @@ export class HorizontalPercentageStackBar extends HorizontalStackBar {
       this.configLegend,
       this.configXAxis,
       this.configYAxis,
-      this.configSlider
+      this.configSlider,
+      this.configAnalyseHorizontal
     )(chart, options, {}, this)
   }
 
@@ -472,6 +464,5 @@ export class HorizontalPercentageStackBar extends HorizontalStackBar {
       ...this.baseOptions,
       isPercent: true
     }
-    this.properties = this.properties.filter(item => item !== 'assist-line')
   }
 }

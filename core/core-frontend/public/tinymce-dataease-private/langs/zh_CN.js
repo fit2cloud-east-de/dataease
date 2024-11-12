@@ -415,5 +415,9 @@ tinymce.addI18n('zh_CN', {
   "Whole words": "\u5168\u5b57\u5339\u914d",
   "Spellcheck": "\u62fc\u5199\u68c0\u67e5",
   "Caption": "\u6807\u9898",
-  "Insert template": "\u63d2\u5165\u6a21\u677f"
+  "Insert template": "\u63d2\u5165\u6a21\u677f",
+  "Cut column": "\u526a\u5207\u5217",
+  "Copy column": "\u590d\u5236\u5217",
+  "Paste column before": "\u7c98\u8d34\u5230\u524d\u65b9",
+  "Paste column after": "\u7c98\u8d34\u5230\u540e\u65b9"
 });

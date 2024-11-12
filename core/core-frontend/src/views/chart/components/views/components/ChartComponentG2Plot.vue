@@ -62,6 +62,12 @@ const props = defineProps({
   terminal: {
     type: String,
     default: 'pc'
+  },
+  //图表渲染id后缀
+  suffixId: {
+    type: String,
+    required: false,
+    default: 'common'
   }
 })
 
@@ -76,7 +82,7 @@ const emit = defineEmits([
 const g2TypeSeries1 = ['bidirectional-bar']
 const g2TypeSeries0 = ['bar-range']
 
-const { view, showPosition, scale, terminal } = toRefs(props)
+const { view, showPosition, scale, terminal, suffixId } = toRefs(props)
 
 const isError = ref(false)
 const errMsg = ref('')
@@ -97,7 +103,7 @@ let chartData = shallowRef<Partial<Chart['data']>>({
   fields: []
 })
 
-const containerId = 'container-' + showPosition.value + '-' + view.value.id
+const containerId = 'container-' + showPosition.value + '-' + view.value.id + '-' + suffixId.value
 const viewTrack = ref(null)
 
 const clearLinkage = () => {
@@ -181,11 +187,7 @@ const calcData = async (view, callback) => {
             }
           }
           dvMainStore.setViewDataDetails(view.id, res)
-          if (
-            !res.drill &&
-            !res.chartExtRequest?.filter?.length &&
-            !res.chartExtRequest?.linkageFilters?.length
-          ) {
+          if (!res.drill && !res.chartExtRequest?.linkageFilters?.length) {
             dvMainStore.setViewOriginData(view.id, chartData.value)
             emitter.emit('chart-data-change')
           }
@@ -297,7 +299,6 @@ let mapL7Timer: number
 const renderL7 = async (chart: ChartObj, chartView: L7ChartView<any, any>, callback) => {
   mapL7Timer && clearTimeout(mapL7Timer)
   mapL7Timer = setTimeout(async () => {
-    myChart?.destroy()
     myChart = await chartView.drawChart({
       chartObj: myChart,
       container: containerId,
@@ -316,13 +317,24 @@ const pointClickTrans = () => {
   }
 }
 
-const action = param => {
+const actionDefault = param => {
   if (param.from === 'map') {
     emitter.emit('map-default-range', param)
-    return
   }
   if (param.from === 'word-cloud') {
     emitter.emit('word-cloud-default-data-range', param)
+  }
+  if (param.from === 'gauge') {
+    emitter.emit('gauge-default-data', param)
+  }
+  if (param.from === 'liquid') {
+    emitter.emit('liquid-default-data', param)
+  }
+}
+
+const action = param => {
+  if (param.from) {
+    actionDefault(param)
     return
   }
   state.pointParam = param.data

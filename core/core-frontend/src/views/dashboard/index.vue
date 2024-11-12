@@ -13,7 +13,7 @@ import ViewEditor from '@/views/chart/components/editor/index.vue'
 import { getDatasetTree } from '@/api/dataset'
 import { Tree } from '@/views/visualized/data/dataset/form/CreatDsGroup.vue'
 import DbCanvasAttr from '@/components/dashboard/DbCanvasAttr.vue'
-import { decompressionPre, initCanvasData } from '@/utils/canvasUtils'
+import { decompressionPre, initCanvasData, onInitReady } from '@/utils/canvasUtils'
 import ChartStyleBatchSet from '@/views/chart/components/editor/editor-style/ChartStyleBatchSet.vue'
 import DeCanvas from '@/views/canvas/DeCanvas.vue'
 import { check, compareStorage } from '@/utils/CrossPermission'
@@ -80,7 +80,7 @@ const otherEditorShow = computed(() => {
     curComponent.value &&
       (!['UserView', 'VQuery'].includes(curComponent.value?.component) ||
         (curComponent.value?.component === 'UserView' &&
-          curComponent.value?.innerType === 'Picture')) &&
+          curComponent.value?.innerType === 'picture-group')) &&
       !batchOptStatus.value
   )
 })
@@ -93,7 +93,7 @@ const viewEditorShow = computed(() => {
   return Boolean(
     curComponent.value &&
       ['UserView', 'VQuery'].includes(curComponent.value.component) &&
-      curComponent.value.innerType !== 'Picture' &&
+      curComponent.value.innerType !== 'picture-group' &&
       !batchOptStatus.value
   )
 })
@@ -122,6 +122,7 @@ const onMobileConfig = () => {
   dvMainStore.setCanvasStyle(canvasStyleDataCopy)
   nextTick(() => {
     mobileConfig.value = true
+    dvMainStore.setCurComponent({ component: null, index: null })
   })
 }
 
@@ -160,6 +161,7 @@ const initLocalCanvasData = () => {
         snapshotStore.recordSnapshotCache()
       }, 1500)
     }
+    onInitReady({ resourceId: resourceId })
   })
 }
 onMounted(async () => {
@@ -281,6 +283,7 @@ onUnmounted(() => {
         :width="420"
         :side-name="'componentProp'"
         :aside-position="'right'"
+        :view="canvasViewInfo[curComponent.id]"
         class="left-sidebar"
       >
         <component :is="findComponentAttr(curComponent)" :themes="'light'" />
@@ -330,7 +333,7 @@ onUnmounted(() => {
 
 <style lang="less">
 .dv-common-layout {
-  height: 100vh;
+  height: calc(100vh - 1px);
   width: 100vw;
 
   .dv-layout-container {

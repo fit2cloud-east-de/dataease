@@ -47,7 +47,8 @@ const dialogInfo = {
 }
 
 const dialogInit = initInfo => {
-  const canvasTypeName = initInfo.canvasType === 'dataV' ? '数据大屏' : '仪表板'
+  const canvasTypeName =
+    initInfo.canvasType === 'dataV' ? t('work_branch.big_data_screen') : t('work_branch.dashboard')
   dialogInfo.resourceId = initInfo.resourceId
   dialogInfo.title = '存在未保存的' + canvasTypeName
   dialogInfo.tips = canvasTypeName + '存在未保存的修改，立即恢复？'

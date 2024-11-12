@@ -353,7 +353,9 @@ const scrollSpeedList = [
   { name: '70', value: 70 },
   { name: '80', value: 80 },
   { name: '90', value: 90 },
-  { name: '100', value: 100 }
+  { name: '100', value: 100 },
+  { name: '150', value: 150 },
+  { name: '200', value: 200 }
 ]
 
 const opacitySizeList = [
@@ -647,7 +649,7 @@ watch(
   }
 }
 .custom-row-inner {
-  margin: 8px 0px 24px;
+  margin: 0 0 16px;
 }
 
 .dark-icon {

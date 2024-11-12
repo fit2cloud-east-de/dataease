@@ -10,7 +10,8 @@ import {
   getGeoJsonFile,
   hexColorToRGBA,
   parseJson,
-  getMaxAndMinValueByData
+  getMaxAndMinValueByData,
+  filterEmptyMinValue
 } from '@/views/chart/components/js/util'
 import {
   handleGeoJson,
@@ -46,7 +47,14 @@ export class Map extends L7PlotChartView<ChoroplethOptions, Choropleth> {
   properties: EditorProperty[] = [...MAP_EDITOR_PROPERTY, 'legend-selector']
   propertyInner: EditorPropertyInner = {
     ...MAP_EDITOR_PROPERTY_INNER,
-    'basic-style-selector': ['colors', 'alpha', 'areaBorderColor', 'zoom', 'gradient-color'],
+    'basic-style-selector': [
+      'colors',
+      'alpha',
+      'areaBorderColor',
+      'areaBaseColor',
+      'zoom',
+      'gradient-color'
+    ],
     'legend-selector': ['icon', 'fontSize', 'color'],
     'tooltip-selector': [...MAP_EDITOR_PROPERTY_INNER['tooltip-selector'], 'carousel']
   }
@@ -73,6 +81,7 @@ export class Map extends L7PlotChartView<ChoroplethOptions, Choropleth> {
     if (!areaId) {
       return
     }
+    chart.container = container
     const sourceData = JSON.parse(JSON.stringify(chart.data?.data || []))
     let data = []
     const { misc } = parseJson(chart.customAttr)
@@ -81,6 +90,12 @@ export class Map extends L7PlotChartView<ChoroplethOptions, Choropleth> {
     if (!misc.mapAutoLegend && legend.show) {
       let minValue = misc.mapLegendMin
       let maxValue = misc.mapLegendMax
+      let legendNumber = 9
+      if (misc.mapLegendRangeType === 'custom') {
+        maxValue = 0
+        minValue = 0
+        legendNumber = misc.mapLegendNumber
+      }
       getMaxAndMinValueByData(sourceData, 'value', maxValue, minValue, (max, min) => {
         maxValue = max
         minValue = min
@@ -88,8 +103,8 @@ export class Map extends L7PlotChartView<ChoroplethOptions, Choropleth> {
           from: 'map',
           data: {
             max: maxValue,
-            min: minValue,
-            legendNumber: 9
+            min: minValue ?? filterEmptyMinValue(sourceData, 'value'),
+            legendNumber: legendNumber
           }
         })
       })
@@ -132,7 +147,6 @@ export class Map extends L7PlotChartView<ChoroplethOptions, Choropleth> {
       label: {
         field: '_DE_LABEL_',
         style: {
-          textAllowOverlap: true,
           textAnchor: 'center'
         }
       },
@@ -164,7 +178,7 @@ export class Map extends L7PlotChartView<ChoroplethOptions, Choropleth> {
         })
       })
       chart.container = container
-      configCarouselTooltip(chart, view, data, null)
+      configCarouselTooltip(chart, view, data, null, areaId)
     })
     return view
   }
@@ -239,7 +253,10 @@ export class Map extends L7PlotChartView<ChoroplethOptions, Choropleth> {
     if (colorScale.length) {
       options.color['value'] = colorScale.map(item => (item.color ? item.color : item))
       if (colorScale[0].value && !misc.mapAutoLegend) {
-        options.color['scale']['domain'] = [minValue, maxValue]
+        options.color['scale']['domain'] = [
+          minValue ?? filterEmptyMinValue(sourceData, 'value'),
+          maxValue
+        ]
       }
     }
     return options
@@ -250,7 +267,8 @@ export class Map extends L7PlotChartView<ChoroplethOptions, Choropleth> {
     options: ChoroplethOptions,
     _context: Record<string, any>
   ): ChoroplethOptions {
-    const { basicStyle } = parseJson(chart.customAttr)
+    const { basicStyle, misc } = parseJson(chart.customAttr)
+    const colors = basicStyle.colors.map(item => hexColorToRGBA(item, basicStyle.alpha))
     if (basicStyle.suspension === false && basicStyle.showZoom === undefined) {
       return options
     }
@@ -258,12 +276,40 @@ export class Map extends L7PlotChartView<ChoroplethOptions, Choropleth> {
     if (!legend.show) {
       return options
     }
+    // 内部函数 创建自定义图例的内容
+    const createLegendCustomContent = showItems => {
+      const containerDom = createDom(CONTAINER_TPL) as HTMLElement
+      const listDom = containerDom.getElementsByClassName(LIST_CLASS)[0] as HTMLElement
+      showItems.forEach(item => {
+        let value = '-'
+        if (item.value !== '') {
+          if (Array.isArray(item.value)) {
+            item.value.forEach((v, i) => {
+              item.value[i] = Number.isNaN(v) || v === 'NaN' ? 'NaN' : parseFloat(v).toFixed(0)
+            })
+            value = item.value.join('-')
+          } else {
+            const tmp = item.value as string
+            value = Number.isNaN(tmp) || tmp === 'NaN' ? 'NaN' : parseFloat(tmp).toFixed(0)
+          }
+        }
+        const substituteObj = { ...item, value }
+
+        const domStr = substitute(ITEM_TPL, substituteObj)
+        const itemDom = createDom(domStr)
+        // 给 legend 形状用的
+        itemDom.style.setProperty('--bgColor', item.color)
+        listDom.appendChild(itemDom)
+      })
+      return listDom
+    }
     const LEGEND_SHAPE_STYLE_MAP = {
       circle: {
         borderRadius: '50%'
       },
       square: {},
       triangle: {
+        border: 'unset',
         borderLeft: '5px solid transparent',
         borderRight: '5px solid transparent',
         borderBottom: '10px solid var(--bgColor)',
@@ -275,48 +321,62 @@ export class Map extends L7PlotChartView<ChoroplethOptions, Choropleth> {
     }
     const customLegend = {
       position: 'bottomleft',
-      customContent: (_: string, items: CategoryLegendListItem[]) => {
-        const showItems = items?.length > 30 ? items.slice(0, 30) : items
-        if (showItems?.length) {
-          const containerDom = createDom(CONTAINER_TPL) as HTMLElement
-          const listDom = containerDom.getElementsByClassName(LIST_CLASS)[0] as HTMLElement
-          showItems.forEach(item => {
-            let value = '-'
-            if (item.value !== '') {
-              if (Array.isArray(item.value)) {
-                item.value.forEach((v, i) => {
-                  item.value[i] = Number.isNaN(v) || v === 'NaN' ? 'NaN' : parseFloat(v).toFixed(0)
-                })
-                value = item.value.join('-')
-              } else {
-                const tmp = item.value as string
-                value = Number.isNaN(tmp) || tmp === 'NaN' ? 'NaN' : parseFloat(tmp).toFixed(0)
-              }
-            }
-            const substituteObj = { ...item, value }
-
-            const domStr = substitute(ITEM_TPL, substituteObj)
-            const itemDom = createDom(domStr)
-            // 给 legend 形状用的
-            itemDom.style.setProperty('--bgColor', item.color)
-            listDom.appendChild(itemDom)
-          })
-          return listDom
-        }
-        return ''
-      },
       domStyles: {
         'l7plot-legend__category-value': {
           fontSize: legend.fontSize + 'px',
           color: legend.color
         },
         'l7plot-legend__category-marker': {
-          ...LEGEND_SHAPE_STYLE_MAP[legend.icon]
+          ...LEGEND_SHAPE_STYLE_MAP[legend.icon],
+          width: '9px',
+          height: '9px',
+          ...(legend.icon === 'triangle' ? {} : { border: '0.01px solid #f4f4f4' })
         }
+      }
+    }
+    if (!misc.mapAutoLegend && misc.mapLegendRangeType === 'custom') {
+      // 获取图例区间数据
+      const items = []
+      // 区间数组
+      const ranges = misc.mapLegendCustomRange
+        .slice(0, -1)
+        .map((item, index) => [item, misc.mapLegendCustomRange[index + 1]])
+      ranges.forEach((range, index) => {
+        const tmpRange = [range[0]?.toFixed(0), range[1]?.toFixed(0)]
+        const colorIndex = index % colors.length
+        // 当区间第一个值小于最小值时，颜色取地图底色
+        const isLessThanMin = range[0] < ranges[0][0]
+        let rangeColor = colors[colorIndex]
+        if (isLessThanMin) {
+          rangeColor = hexColorToRGBA(basicStyle.areaBaseColor, basicStyle.alpha)
+        }
+        items.push({
+          value: tmpRange,
+          color: rangeColor
+        })
+      })
+      customLegend['customContent'] = (_: string, _items: CategoryLegendListItem[]) => {
+        if (items?.length) {
+          return createLegendCustomContent(items)
+        }
+        return ''
+      }
+    } else {
+      customLegend['customContent'] = (_: string, items: CategoryLegendListItem[]) => {
+        const showItems = items?.length > 30 ? items.slice(0, 30) : items
+        if (showItems?.length) {
+          return createLegendCustomContent(showItems)
+        }
+        return ''
       }
     }
     defaultsDeep(options, { legend: customLegend })
     return options
+  }
+
+  setupDefaultOptions(chart: ChartObj): ChartObj {
+    chart.customAttr.basicStyle.areaBaseColor = '#f4f4f4'
+    return chart
   }
 
   protected setupOptions(

@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import copilot from '@/assets/svg/copilot.svg'
 import { onMounted, ref } from 'vue'
+import { useI18n } from '@/hooks/web/useI18n'
+const { t } = useI18n()
 const visible = ref(true)
 const emits = defineEmits(['confirm'])
 
@@ -21,13 +23,13 @@ onMounted(() => {
     show-arrow
   >
     <div class="copilot-popper-tips-content">
-      <p class="title">Copilot 对话分析</p>
+      <p class="title">{{ t('copilot.talking_analysis') }}</p>
       <p class="constant">
-        你好，我是 Copilot 对话分析
-        <br />点击一下，开启可视化图表解答模式～<br />&nbsp;
+        {{ t('copilot.hello') }}
+        <br />{{ t('copilot.click_talk') }}<br />&nbsp;
       </p>
       <div class="bottom">
-        <el-button size="middle" @click="confirm"> 我知道了 </el-button>
+        <el-button size="middle" @click="confirm"> {{ t('copilot.know') }} </el-button>
       </div>
     </div>
     <template #reference>

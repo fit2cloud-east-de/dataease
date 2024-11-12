@@ -36,7 +36,7 @@ const props = defineProps({
   }
 })
 const dvMainStore = dvMainStoreWithOut()
-const { batchOptStatus } = storeToRefs(dvMainStore)
+const { batchOptStatus, mobileInPc } = storeToRefs(dvMainStore)
 const predefineColors = COLOR_PANEL
 const toolTip = computed(() => {
   return props.themes === 'dark' ? 'ndark' : 'dark'
@@ -45,7 +45,12 @@ const emit = defineEmits(['onTooltipChange', 'onExtTooltipChange'])
 const curSeriesFormatter = ref<DeepPartial<SeriesFormatter>>({})
 const quotaData = ref<Axis[]>(inject('quotaData'))
 const showSeriesTooltipFormatter = computed(() => {
-  return showProperty('seriesTooltipFormatter') && !batchOptStatus.value && props.chart.id
+  return (
+    showProperty('seriesTooltipFormatter') &&
+    !batchOptStatus.value &&
+    !mobileInPc.value &&
+    props.chart.id
+  )
 })
 
 // 切换图表类型直接重置为默认
@@ -250,7 +255,7 @@ const init = () => {
 const showProperty = prop => {
   const instance = chartViewManager.getChartView(props.chart.render, props.chart.type)
   if (instance) {
-    return instance.propertyInner['tooltip-selector'].includes(prop)
+    return instance.propertyInner['tooltip-selector']?.includes(prop)
   }
   return props.propertyInner?.includes(prop)
 }
@@ -488,7 +493,7 @@ onMounted(() => {
       </el-form-item>
     </el-space>
 
-    <div v-if="showProperty('showFields') && !batchOptStatus">
+    <div v-if="showProperty('showFields') && !batchOptStatus && !mobileInPc">
       <el-form-item :label="t('chart.tooltip')" class="form-item" :class="'form-item-' + themes">
         <el-select
           size="small"

@@ -1,11 +1,17 @@
 <template>
-  <div class="pic-main" @click="onPictureClick">
+  <div class="pic-main">
     <img
       draggable="false"
       v-if="state.showUrl"
       :style="imageAdapter"
       :src="imgUrlTrans(state.showUrl)"
     />
+    <template v-else>
+      <chart-empty-info
+        :themes="canvasStyleData.dashboard.themeColor"
+        :view-icon="view.type"
+      ></chart-empty-info>
+    </template>
   </div>
 </template>
 
@@ -28,8 +34,9 @@ import { getData } from '@/api/chart'
 import { parseJson } from '@/views/chart/components/js/util'
 import { mappingColor } from '@/views/chart/components/js/panel/common/common_table'
 import { storeToRefs } from 'pinia'
+import ChartEmptyInfo from '@/views/chart/components/views/components/ChartEmptyInfo.vue'
 const dvMainStore = dvMainStoreWithOut()
-const { canvasViewInfo, editMode, mobileInPc } = storeToRefs(dvMainStore)
+const { canvasViewInfo, editMode, mobileInPc, canvasStyleData } = storeToRefs(dvMainStore)
 const state = reactive({
   emptyValue: '-',
   data: null,
@@ -185,16 +192,16 @@ const withInit = () => {
   initCarousel()
 }
 
-const calcData = (view: Chart, callback) => {
+const calcData = (viewCalc: Chart, callback) => {
   isError.value = false
-  const { threshold } = parseJson(view.senior)
+  const { threshold } = parseJson(viewCalc.senior)
   if (!threshold.enable) {
     withInit()
     callback?.()
     return
   }
-  if (view.tableId || view['dataFrom'] === 'template') {
-    const v = JSON.parse(JSON.stringify(view))
+  if (viewCalc.tableId || viewCalc['dataFrom'] === 'template') {
+    const v = JSON.parse(JSON.stringify(viewCalc))
     getData(v)
       .then(res => {
         if (res.code && res.code !== 0) {
@@ -223,7 +230,7 @@ const calcData = (view: Chart, callback) => {
         })
         callback?.()
       })
-  } else if (!view.tableId) {
+  } else if (!viewCalc.tableId) {
     initReady.value = true
     withInit()
     callback?.()

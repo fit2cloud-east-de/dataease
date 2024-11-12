@@ -9,6 +9,8 @@ import VanSticky from 'vant/es/sticky'
 import VanNavBar from 'vant/es/nav-bar'
 import 'vant/es/nav-bar/style'
 import 'vant/es/sticky/style'
+import { downloadCanvas2 } from '@/utils/imgUtils'
+import { useEmitt } from '@/hooks/web/useEmitt'
 const dvMainStore = dvMainStoreWithOut()
 const state = reactive({
   canvasDataPreview: null,
@@ -21,6 +23,8 @@ const state = reactive({
 })
 const dataInitState = ref(true)
 const dashboardPreview = ref(null)
+const previewCanvasContainer = ref(null)
+const downloadStatus = ref(false)
 
 const loadCanvasData = (dvId, weight?) => {
   dataInitState.value = false
@@ -58,7 +62,23 @@ onBeforeMount(() => {
   fromPage = route.query.from as unknown as string
   cache = route.query.cache as unknown as string
   loadCanvasData(dvId)
+  useEmitt({
+    name: 'canvasDownload',
+    callback: function () {
+      downloadH2('img')
+    }
+  })
 })
+
+const downloadH2 = type => {
+  downloadStatus.value = true
+  nextTick(() => {
+    const vueDom = previewCanvasContainer.value.querySelector('.canvas-container')
+    downloadCanvas2(type, vueDom, state.dvInfo.name, () => {
+      downloadStatus.value = false
+    })
+  })
+}
 
 const onClickLeft = () => {
   router.replace({
@@ -72,7 +92,7 @@ const onClickLeft = () => {
 </script>
 
 <template>
-  <div class="dv-common-layout-mobile">
+  <div class="dv-common-layout-mobile" ref="previewCanvasContainer">
     <van-sticky>
       <van-nav-bar :title="state.dvInfo.name" left-arrow @click-left="onClickLeft" />
     </van-sticky>
@@ -84,7 +104,7 @@ const onClickLeft = () => {
       :component-data="state.canvasDataPreview"
       :canvas-style-data="state.canvasStylePreview"
       :canvas-view-info="state.canvasViewInfoPreview"
-      :download-status="false"
+      :download-status="downloadStatus"
     ></de-preview>
   </div>
 </template>

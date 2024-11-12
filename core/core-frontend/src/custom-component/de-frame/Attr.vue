@@ -5,7 +5,7 @@
         :effect="themes"
         title="链接信息"
         name="frameLinks"
-        v-if="curComponent && curComponent.frameLinks"
+        v-if="curComponent && curComponent.frameLinks && !mobileInPc"
       >
         <frame-links :frame-links="curComponent.frameLinks" :themes="themes"></frame-links>
       </el-collapse-item>
@@ -19,7 +19,7 @@ import CommonAttr from '@/custom-component/common/CommonAttr.vue'
 import { storeToRefs } from 'pinia'
 import FrameLinks from '@/custom-component/de-frame/FrameLinks.vue'
 const dvMainStore = dvMainStoreWithOut()
-const { curComponent } = storeToRefs(dvMainStore)
+const { curComponent, mobileInPc } = storeToRefs(dvMainStore)
 const props = withDefaults(
   defineProps<{
     themes?: EditorTheme

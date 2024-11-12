@@ -98,6 +98,7 @@ const maskShow = ref(false)
 const loading = ref(false)
 const updateCustomTime = ref(false)
 const editerName = ref()
+const nameMap = ref({})
 const currentField = ref({
   dateFormat: '',
   id: '',
@@ -507,8 +508,8 @@ const deleteField = item => {
     pre = [...result, ...pre]
     return pre
   }, [])
-  tip = idArr.includes(item.id) ? `如果该字段被删除，与其相关的计算字段将被删除，确认删除？` : ''
-  ElMessageBox.confirm(`确认删除字段 ${item.name} 吗`, {
+  tip = idArr.includes(item.id) ? t('data_set.deleted_confirm_deletion') : ''
+  ElMessageBox.confirm(t('data_set.delete_field_a', { a: item.name }), {
     confirmButtonText: t('dataset.confirm'),
     tip,
     cancelButtonText: t('common.cancel'),
@@ -720,8 +721,18 @@ const dimensions = computed(() => {
   return allfields.value.filter(ele => ele.groupType === 'd')
 })
 
+const dfsGetName = (list, name) => {
+  list.forEach(ele => {
+    name[ele.id] = ele.tableName
+    if (ele.children?.length) {
+      dfsGetName(ele.children, name)
+    }
+  })
+}
+
 const tabChange = val => {
   if (val === 'preview') return
+  reGetName()
   allfields.value.forEach(ele => {
     if (!Array.isArray(ele.deTypeArr)) {
       ele.deTypeArr =
@@ -745,6 +756,11 @@ const addComplete = () => {
   }
   cancelMap['/datasetData/previewData']?.()
   datasetPreviewLoading.value = false
+  reGetName()
+}
+
+const reGetName = () => {
+  dfsGetName(datasetDrag.value.getNodeList(), nameMap.value)
 }
 
 const state = reactive({
@@ -901,14 +917,14 @@ const confirmEditUnion = () => {
       return pre
     }, [])
 
-    ElMessageBox.confirm('字段选择', {
+    ElMessageBox.confirm(t('data_set.field_selection'), {
       confirmButtonText: t('dataset.confirm'),
       cancelButtonText: t('common.cancel'),
       showCancelButton: true,
       tip: `${t('data_set.field')}: ${allfields.value
         .filter(ele => [...new Set(idArr)].includes(ele.id) && ele.extField !== 2)
         .map(ele => ele.name)
-        .join(',')}, 未被勾选, 与其相关的计算字段将被删除，确认删除？`,
+        .join(',')}, ${t('data_set.confirm_the_deletion')}`,
       confirmButtonType: 'danger',
       type: 'warning',
       autofocus: false,
@@ -1530,6 +1546,7 @@ const getDsIconName = data => {
           {{ t('data_set.be_reported_incorrectly') }}
         </div>
         <dataset-union
+          @reGetName="reGetName"
           @join-editor="joinEditor"
           @changeUpdate="changeUpdate"
           :maskShow="maskShow"
@@ -1747,7 +1764,15 @@ const getDsIconName = data => {
                         </div>
                       </template>
                     </el-table-column>
-
+                    <el-table-column
+                      prop="datasetTableId"
+                      :label="t('data_set.table_name_de')"
+                      width="240"
+                    >
+                      <template #default="scope">
+                        {{ scope.row.extField === 0 ? nameMap[scope.row.datasetTableId] : '' }}
+                      </template>
+                    </el-table-column>
                     <el-table-column prop="deType" :label="t('dataset.field_type')" width="200">
                       <template #default="scope">
                         <el-cascader
@@ -1777,10 +1802,11 @@ const getDsIconName = data => {
                         <span class="select-svg-icon">
                           <el-icon>
                             <Icon
-                              :className="`field-icon-${
-                                fieldType[[2, 3].includes(scope.row.deType) ? 2 : 0]
-                              }`"
                               ><component
+                                class="svg-icon"
+                                :class="`field-icon-${
+                                  fieldType[[2, 3].includes(scope.row.deType) ? 2 : 0]
+                                }`"
                                 :is="iconFieldMap[getIconName(scope.row.deType)]"
                               ></component
                             ></Icon>
@@ -1927,6 +1953,16 @@ const getDsIconName = data => {
                       </template>
                     </el-table-column>
 
+                    <el-table-column
+                      prop="datasetTableId"
+                      :label="t('data_set.table_name_de')"
+                      width="240"
+                    >
+                      <template #default="scope">
+                        {{ scope.row.extField === 0 ? nameMap[scope.row.datasetTableId] : '' }}
+                      </template>
+                    </el-table-column>
+
                     <el-table-column prop="deType" :label="t('dataset.field_type')" width="200">
                       <template #default="scope">
                         <el-cascader
@@ -1956,10 +1992,11 @@ const getDsIconName = data => {
                         <span class="select-svg-icon">
                           <el-icon>
                             <Icon
-                              :className="`field-icon-${
-                                fieldType[[2, 3].includes(scope.row.deType) ? 2 : 0]
-                              }`"
                               ><component
+                                class="svg-icon"
+                                :class="`field-icon-${
+                                  fieldType[[2, 3].includes(scope.row.deType) ? 2 : 0]
+                                }`"
                                 :is="iconFieldMap[getIconName(scope.row.deType)]"
                               ></component
                             ></Icon>

@@ -262,6 +262,9 @@ public class DatasetGroupManage {
         List<CoreDatasetTable> coreDatasetTables = coreDatasetTableMapper.selectList(wrapper);
         Set<Long> ids = new LinkedHashSet();
         coreDatasetTables.forEach(ele -> ids.add(ele.getDatasourceId()));
+        if (CollectionUtils.isEmpty(ids)) {
+            DEException.throwException("数据集因异常导致无法使用，请重新创建");
+        }
 
         QueryWrapper<CoreDatasource> datasourceQueryWrapper = new QueryWrapper<>();
         datasourceQueryWrapper.in("id", ids);
@@ -559,6 +562,9 @@ public class DatasetGroupManage {
             return;
         }
         fullName.add(parent.getName());
+        if (parent.getId().equals(parent.getPid())) {
+            return;
+        }
         if (parent.getPid() != null && parent.getPid() != 0) {
             geFullName(parent.getPid(), fullName);
         }

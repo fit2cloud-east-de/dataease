@@ -16,7 +16,6 @@ import GridTable from '@/components/grid-table/src/GridTable.vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import { shortcutOption } from './ShortcutOption'
-/* import { XpackComponent } from '@/components/plugin' */
 import { interactiveStoreWithOut } from '@/store/modules/interactive'
 import { storeApi } from '@/api/visualization/dataVisualization'
 import { useCache } from '@/hooks/web/useCache'
@@ -33,6 +32,9 @@ const interactiveStore = interactiveStoreWithOut()
 const { wsCache } = useCache()
 const appStore = useAppStoreWithOut()
 const embeddedStore = useEmbedded()
+
+import { useShareStoreWithOut } from '@/store/modules/share'
+const shareStore = useShareStoreWithOut()
 const { push } = useRouter()
 defineProps({
   expand: {
@@ -50,6 +52,9 @@ const state = reactive({
   tableColumn: []
 })
 const busiDataMap = computed(() => interactiveStore.getData)
+const shareDisable = computed(() => {
+  return shareStore.getShareDisable
+})
 const iconMap = {
   panel: icon_dashboard_outlined,
   panelMobile: dvDashboardSpineMobile,
@@ -134,14 +139,6 @@ const loadTableData = () => {
       loading.value = false
     })
 }
-
-/* const panelLoad = paneInfo => {
-  tablePaneList.value.push({
-    title: paneInfo.title,
-    name: paneInfo.name,
-    disabled: tablePaneList.value[1].disabled
-  })
-} */
 
 const tablePaneList = ref([
   { title: t('work_branch.recently_used'), name: 'recent', disabled: false },
@@ -258,7 +255,7 @@ const getEmptyDesc = (): string => {
   >
     <el-tabs v-model="activeName" class="dashboard-type-tabs" @tab-click="handleClick">
       <el-tab-pane
-        v-for="item in tablePaneList"
+        v-for="item in tablePaneList.filter(panel => !shareDisable || panel.name !== 'share')"
         :key="item.name"
         :disabled="item.disabled"
         :label="item.title"
@@ -278,9 +275,7 @@ const getEmptyDesc = (): string => {
         </template>
       </el-tab-pane>
     </el-tabs>
-    <!-- <XpackComponent jsname="c2hhcmUtcGFuZWw=" @loaded="panelLoad" /> -->
-    <!-- <XpackComponent :active-name="activeName" jsname="c2hhcmU=" @set-loading="setLoading" /> -->
-    <share-grid :active-name="activeName" @set-loading="setLoading" />
+    <share-grid v-if="!shareDisable" :active-name="activeName" @set-loading="setLoading" />
     <el-row v-if="activeName === 'recent' || activeName === 'store'">
       <el-col :span="12">
         <el-select
@@ -396,18 +391,12 @@ const getEmptyDesc = (): string => {
                 </el-icon>
               </el-tooltip>
               <ShareHandler
+                v-if="!shareDisable"
                 :in-grid="true"
                 :weight="scope.row.weight"
                 :resource-id="activeName === 'recent' ? scope.row.id : scope.row.resourceId"
                 :resource-type="scope.row.type"
               />
-              <!-- <XpackComponent
-                :in-grid="true"
-                jsname="c2hhcmUtaGFuZGxlcg=="
-                :weight="scope.row.weight"
-                :resource-id="activeName === 'recent' ? scope.row.id : scope.row.resourceId"
-                :resource-type="scope.row.type"
-              /> -->
               <el-tooltip
                 v-if="activeName === 'store'"
                 effect="dark"

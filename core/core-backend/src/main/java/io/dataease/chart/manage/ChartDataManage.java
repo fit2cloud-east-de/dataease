@@ -115,7 +115,6 @@ public class ChartDataManage {
         }
 
         var dillAxis = new ArrayList<ChartViewFieldDTO>();
-
         DatasetGroupInfoDTO table = datasetGroupManage.getDatasetGroupInfoDTO(view.getTableId(), null);
         if (table == null) {
             DEException.throwException(ResultCode.DATA_IS_WRONG.code(), Translator.get("i18n_no_ds"));
@@ -318,11 +317,15 @@ public class ChartDataManage {
                             ChartViewFieldDTO nextDrillField = drill.get(i + 1);
                             if (!fields.contains(nextDrillField.getId())) {
                                 nextDrillField.setSource(FieldSource.DRILL);
-                                nextDrillField.setSort(getDrillSort(xAxis, drill.get(0)));
                                 xAxis.add(nextDrillField);
                                 dillAxis.add(nextDrillField);
                                 fields.add(nextDrillField.getId());
                             } else {
+                                Optional<ChartViewFieldDTO> axis = xAxis.stream().filter(x -> Objects.equals(x.getId(), nextDrillField.getId())).findFirst();
+                                axis.ifPresent(field -> {
+                                    field.setSort(nextDrillField.getSort());
+                                    field.setCustomSort(nextDrillField.getCustomSort());
+                                });
                                 dillAxis.add(nextDrillField);
                             }
                         }
@@ -376,10 +379,7 @@ public class ChartDataManage {
             provider = ProviderFactory.getProvider(dsMap.entrySet().iterator().next().getValue().getType());
         }
 
-        if (ObjectUtils.isEmpty(view.getCalParams())) {
-            view.setCalParams(Utils.getParams(transFields(allFields)));
-        }
-
+        view.setCalParams(Utils.getParams(transFields(allFields)));
         SQLMeta sqlMeta = new SQLMeta();
         Table2SQLObj.table2sqlobj(sqlMeta, null, "(" + sql + ")", crossDs);
         CustomWhere2Str.customWhere2sqlObj(sqlMeta, fieldCustomFilter, transFields(allFields), crossDs, dsMap, Utils.getParams(transFields(allFields)), view.getCalParams(), pluginManage);
@@ -631,7 +631,9 @@ public class ChartDataManage {
                 || StringUtils.containsIgnoreCase(view.getType(), "group")
                 || ("antv".equalsIgnoreCase(view.getRender()) && "line".equalsIgnoreCase(view.getType()))
                 || StringUtils.equalsIgnoreCase(view.getType(), "flow-map")
-                || StringUtils.equalsIgnoreCase(view.getType(), "t-heatmap")) {
+                || StringUtils.equalsIgnoreCase(view.getType(), "t-heatmap")
+                || StringUtils.equalsIgnoreCase(view.getType(), "sankey")
+        ) {
             xAxis.addAll(xAxisExt);
         }
         List<ChartViewFieldDTO> yAxis = new ArrayList<>(view.getYAxis());
@@ -814,5 +816,25 @@ public class ChartDataManage {
                 chartViewManege.disuse(disuseChartIdList);
             }
         }
+    }
+
+    public List<String> getDrillFieldData(ChartViewDTO view, Long fieldId) throws Exception {
+        List<ChartViewFieldDTO> drillField = view.getDrillFields();
+        ChartViewFieldDTO targetField = null;
+        for (int i = 0; i < drillField.size(); i++) {
+            ChartViewFieldDTO tmp = drillField.get(i);
+            if (tmp.getId().equals(fieldId)) {
+                targetField = tmp;
+                break;
+            }
+        }
+        if (targetField == null) {
+            return Collections.emptyList();
+        }
+        view.setXAxis(Collections.singletonList(targetField));
+
+        List<String[]> sqlData = sqlData(view, view.getChartExtRequest(), fieldId);
+        List<String[]> result = customSort(Optional.ofNullable(targetField.getCustomSort()).orElse(new ArrayList<>()), sqlData, 0);
+        return result.stream().map(i -> i[0]).distinct().collect(Collectors.toList());
     }
 }

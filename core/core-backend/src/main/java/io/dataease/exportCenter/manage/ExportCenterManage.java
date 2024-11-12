@@ -42,6 +42,7 @@ import io.dataease.extensions.view.dto.DatasetRowPermissionsTreeObj;
 import io.dataease.i18n.Translator;
 import io.dataease.license.config.XpackInteract;
 import io.dataease.license.manage.F2CLicLimitedManage;
+import io.dataease.license.utils.LicenseUtil;
 import io.dataease.model.ExportTaskDTO;
 import io.dataease.system.manage.CoreUserManage;
 import io.dataease.system.manage.SysParameterManage;
@@ -65,6 +66,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.*;
 import java.net.InetAddress;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.concurrent.Future;
@@ -97,7 +100,7 @@ public class ExportCenterManage implements BaseExportApi {
     private int max;
 
     @Value("${dataease.export.dataset.limit:100000}")
-    private int limit;
+    private Long limit;
     private final static String DATA_URL_TITLE = "data:image/jpeg;base64,";
     private static final String exportData_path = "/opt/dataease2.0/data/exportData/";
     @Value("${dataease.export.page.size:50000}")
@@ -169,8 +172,14 @@ public class ExportCenterManage implements BaseExportApi {
         CoreExportTask exportTask = exportTaskMapper.selectById(id);
         OutputStream outputStream = response.getOutputStream();
         response.setContentType("application/vnd.ms-excel");
-        response.setHeader("Content-disposition", "attachment;filename=" + exportTask.getFileName());
-        InputStream fileInputStream = new FileInputStream(exportData_path + id + "/" + exportTask.getFileName());
+
+        response.setHeader("Content-disposition", "attachment;filename=" + URLEncoder.encode(exportTask.getFileName(), StandardCharsets.UTF_8));
+        InputStream fileInputStream;
+        if (exportTask.getExportTime() < 1730277243491L) {
+            fileInputStream = new FileInputStream(exportData_path + id + "/" + exportTask.getFileName());
+        } else {
+            fileInputStream = new FileInputStream(exportData_path + id + "/" + id + ".xlsx");
+        }
         byte[] buffer = new byte[4096];
         int bytesRead;
         while ((bytesRead = fileInputStream.read(buffer)) != -1) {
@@ -392,7 +401,7 @@ public class ExportCenterManage implements BaseExportApi {
                 exportTask.setExportStatus("IN_PROGRESS");
                 exportTaskMapper.updateById(exportTask);
 
-                getDataFillingApi().writeExcel(dataPath + "/" + exportTask.getFileName(),
+                getDataFillingApi().writeExcel(dataPath + "/" + exportTask.getId() + ".xlsx",
                         new DataFillFormTableDataRequest()
                                 .setId(Long.parseLong(exportTask.getExportFrom()))
                                 .setWithoutLogs(true)
@@ -402,7 +411,7 @@ public class ExportCenterManage implements BaseExportApi {
                 exportTask.setExportProgress("100");
                 exportTask.setExportStatus("SUCCESS");
 
-                setFileSize(dataPath + "/" + exportTask.getFileName(), exportTask);
+                setFileSize(dataPath + "/" + exportTask.getId() + ".xlsx", exportTask);
             } catch (Exception e) {
                 exportTask.setMsg(e.getMessage());
                 LogUtil.error("Failed to export data", e);
@@ -422,6 +431,7 @@ public class ExportCenterManage implements BaseExportApi {
 
         TokenUserBO tokenUserBO = AuthUtils.getUser();
         Future future = scheduledThreadPoolExecutor.submit(() -> {
+            LicenseUtil.validate();
             AuthUtils.setUser(tokenUserBO);
             try {
                 exportTask.setExportStatus("IN_PROGRESS");
@@ -496,97 +506,105 @@ public class ExportCenterManage implements BaseExportApi {
                 Field2SQLObj.field2sqlObj(sqlMeta, allFields, allFields, crossDs, dsMap, Utils.getParams(allFields), null, pluginManage);
                 WhereTree2Str.transFilterTrees(sqlMeta, rowPermissionsTree, allFields, crossDs, dsMap, Utils.getParams(allFields), null, pluginManage);
                 Order2SQLObj.getOrders(sqlMeta, dto.getSortFields(), allFields, crossDs, dsMap, Utils.getParams(allFields), null, pluginManage);
-
                 String replaceSql = provider.rebuildSQL(SQLProvider.createQuerySQL(sqlMeta, false, false, false), sqlMeta, crossDs, dsMap);
                 Long totalCount = datasetDataManage.getDatasetTotal(dto, replaceSql, null);
                 Long curLimit = getExportLimit();
                 totalCount = totalCount > curLimit ? curLimit : totalCount;
-                Long totalPage = (totalCount / extractPageSize) + (totalCount % extractPageSize > 0 ? 1 : 0);
-
+                Long sheetLimit = 1000000L;
+                Long sheetCount = (totalCount / sheetLimit) + (totalCount % sheetLimit > 0 ? 1 : 0);
                 Workbook wb = new SXSSFWorkbook();
-                FileOutputStream fileOutputStream = new FileOutputStream(dataPath + "/" + request.getFilename() + ".xlsx");
-                Sheet detailsSheet = wb.createSheet("数据");
-                List<List<String>> details = new ArrayList<>();
-
-                for (Integer p = 0; p < totalPage; p++) {
-                    String querySQL = SQLProvider.createQuerySQLWithLimit(sqlMeta, false, needOrder, false, p * extractPageSize + extractPageSize, extractPageSize);
-                    if (totalPage == 1) {
-                        querySQL = SQLProvider.createQuerySQLWithLimit(sqlMeta, false, needOrder, false, 0, totalCount.intValue());
+                FileOutputStream fileOutputStream = new FileOutputStream(dataPath + "/" + exportTask.getId() + ".xlsx");
+                for (Long s = 1L; s < sheetCount + 1; s++) {
+                    Long sheetSize;
+                    if (s.equals(sheetCount)) {
+                        sheetSize = totalCount - (s - 1) * sheetLimit;
+                    } else {
+                        sheetSize = sheetLimit;
                     }
-                    querySQL = provider.rebuildSQL(querySQL, sqlMeta, crossDs, dsMap);
-                    DatasourceRequest datasourceRequest = new DatasourceRequest();
-                    datasourceRequest.setQuery(querySQL);
-                    datasourceRequest.setDsList(dsMap);
-                    Map<String, Object> previewData = datasetDataManage.buildPreviewData(provider.fetchResultField(datasourceRequest), allFields, desensitizationList);
-                    List<Map<String, Object>> data = (List<Map<String, Object>>) previewData.get("data");
-                    if (p == 0L) {
-                        CellStyle cellStyle = wb.createCellStyle();
-                        Font font = wb.createFont();
-                        font.setFontHeightInPoints((short) 12);
-                        font.setBold(true);
-                        cellStyle.setFont(font);
-                        cellStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
-                        cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-                        List<String> header = new ArrayList<>();
-                        for (DatasetTableFieldDTO field : allFields) {
-                            header.add(field.getName());
+                    Long pageSize = (sheetSize / extractPageSize) + (sheetSize % extractPageSize > 0 ? 1 : 0);
+                    Sheet detailsSheet = null;
+                    List<List<String>> details = new ArrayList<>();
+                    for (Long p = 0L; p < pageSize; p++) {
+                        String querySQL = SQLProvider.createQuerySQLWithLimit(sqlMeta, false, needOrder, false, p.intValue() * extractPageSize, extractPageSize);
+                        if (pageSize == 1) {
+                            querySQL = SQLProvider.createQuerySQLWithLimit(sqlMeta, false, needOrder, false, 0, sheetSize.intValue());
                         }
-
-                        details.add(header);
-                        for (Map<String, Object> obj : data) {
-                            List<String> row = new ArrayList<>();
+                        querySQL = provider.rebuildSQL(querySQL, sqlMeta, crossDs, dsMap);
+                        DatasourceRequest datasourceRequest = new DatasourceRequest();
+                        datasourceRequest.setQuery(querySQL);
+                        datasourceRequest.setDsList(dsMap);
+                        Map<String, Object> previewData = datasetDataManage.buildPreviewData(provider.fetchResultField(datasourceRequest), allFields, desensitizationList);
+                        List<Map<String, Object>> data = (List<Map<String, Object>>) previewData.get("data");
+                        if (p.equals(0L)) {
+                            detailsSheet = wb.createSheet("数据-" + s);
+                            CellStyle cellStyle = wb.createCellStyle();
+                            Font font = wb.createFont();
+                            font.setFontHeightInPoints((short) 12);
+                            font.setBold(true);
+                            cellStyle.setFont(font);
+                            cellStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+                            cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+                            List<String> header = new ArrayList<>();
                             for (DatasetTableFieldDTO field : allFields) {
-                                String string = (String) obj.get(field.getDataeaseName());
-                                row.add(string);
+                                header.add(field.getName());
                             }
-                            details.add(row);
-                        }
-                        if (CollectionUtils.isNotEmpty(details)) {
-                            for (int i = 0; i < details.size(); i++) {
-                                Row row = detailsSheet.createRow(i);
-                                List<String> rowData = details.get(i);
-                                if (rowData != null) {
-                                    for (int j = 0; j < rowData.size(); j++) {
-                                        Cell cell = row.createCell(j);
-                                        if (i == 0) {
-                                            cell.setCellValue(rowData.get(j));
-                                            cell.setCellStyle(cellStyle);
-                                            detailsSheet.setColumnWidth(j, 255 * 20);
-                                        } else {
-                                            cell.setCellValue(rowData.get(j));
+                            details.add(header);
+                            for (Map<String, Object> obj : data) {
+                                List<String> row = new ArrayList<>();
+                                for (DatasetTableFieldDTO field : allFields) {
+                                    String string = (String) obj.get(field.getDataeaseName());
+                                    row.add(string);
+                                }
+                                details.add(row);
+                            }
+                            if (CollectionUtils.isNotEmpty(details)) {
+                                for (int i = 0; i < details.size(); i++) {
+                                    Row row = detailsSheet.createRow(i);
+                                    List<String> rowData = details.get(i);
+                                    if (rowData != null) {
+                                        for (int j = 0; j < rowData.size(); j++) {
+                                            Cell cell = row.createCell(j);
+                                            if (i == 0) {
+                                                cell.setCellValue(rowData.get(j));
+                                                cell.setCellStyle(cellStyle);
+                                                detailsSheet.setColumnWidth(j, 255 * 20);
+                                            } else {
+                                                cell.setCellValue(rowData.get(j));
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
-                    } else {
-                        details.clear();
-                        for (Map<String, Object> obj : data) {
-                            List<String> row = new ArrayList<>();
-                            for (DatasetTableFieldDTO field : allFields) {
-                                String string = (String) obj.get(field.getDataeaseName());
-                                row.add(string);
+                        } else {
+                            details.clear();
+                            for (Map<String, Object> obj : data) {
+                                List<String> row = new ArrayList<>();
+                                for (DatasetTableFieldDTO field : allFields) {
+                                    String string = (String) obj.get(field.getDataeaseName());
+                                    row.add(string);
+                                }
+                                details.add(row);
                             }
-                            details.add(row);
-                        }
-                        int lastNum = detailsSheet.getLastRowNum();
-                        for (int i = 0; i < details.size(); i++) {
-                            Row row = detailsSheet.createRow(i + lastNum + 1);
-                            List<String> rowData = details.get(i);
-                            if (rowData != null) {
-                                for (int j = 0; j < rowData.size(); j++) {
-                                    Cell cell = row.createCell(j);
-                                    cell.setCellValue(rowData.get(j));
+                            int lastNum = detailsSheet.getLastRowNum();
+                            for (int i = 0; i < details.size(); i++) {
+                                Row row = detailsSheet.createRow(i + lastNum + 1);
+                                List<String> rowData = details.get(i);
+                                if (rowData != null) {
+                                    for (int j = 0; j < rowData.size(); j++) {
+                                        Cell cell = row.createCell(j);
+                                        cell.setCellValue(rowData.get(j));
+                                    }
                                 }
                             }
                         }
+                        exportTask.setExportStatus("IN_PROGRESS");
+                        double exportRogress2 = (double) ((double) s - 1) / ((double) sheetCount);
+                        double exportRogress = (double) ((double) (p + 1) / (double) pageSize) * ((double) 1 / sheetCount);
+                        DecimalFormat df = new DecimalFormat("#.##");
+                        String formattedResult = df.format((exportRogress + exportRogress2) * 100);
+                        exportTask.setExportProgress(formattedResult);
+                        exportTaskMapper.updateById(exportTask);
                     }
-                    exportTask.setExportStatus("IN_PROGRESS");
-                    double exportRogress = (double) ((double) p / (double) totalPage);
-                    DecimalFormat df = new DecimalFormat("#.##");
-                    String formattedResult = df.format(exportRogress * 100);
-                    exportTask.setExportProgress(formattedResult);
-                    exportTaskMapper.updateById(exportTask);
                 }
                 wb.write(fileOutputStream);
                 fileOutputStream.flush();
@@ -594,7 +612,7 @@ public class ExportCenterManage implements BaseExportApi {
                 wb.close();
                 exportTask.setExportProgress("100");
                 exportTask.setExportStatus("SUCCESS");
-                setFileSize(dataPath + "/" + request.getFilename() + ".xlsx", exportTask);
+                setFileSize(dataPath + "/" + exportTask.getId() + ".xlsx", exportTask);
 
             } catch (Exception e) {
                 LogUtil.error("Failed to export data", e);
@@ -613,6 +631,7 @@ public class ExportCenterManage implements BaseExportApi {
         boolean isCreated = directory.mkdir();
         TokenUserBO tokenUserBO = AuthUtils.getUser();
         Future future = scheduledThreadPoolExecutor.submit(() -> {
+            LicenseUtil.validate();
             AuthUtils.setUser(tokenUserBO);
             try {
                 exportTask.setExportStatus("IN_PROGRESS");
@@ -663,14 +682,14 @@ public class ExportCenterManage implements BaseExportApi {
                         ChartDataServer.setExcelData(detailsSheet, cellStyle, header, details, detailFields, excelTypes);
                     }
                 }
-                try (FileOutputStream outputStream = new FileOutputStream(dataPath + "/" + request.getViewName() + ".xlsx")) {
+                try (FileOutputStream outputStream = new FileOutputStream(dataPath + "/" + exportTask.getId() + ".xlsx")) {
                     wb.write(outputStream);
                     outputStream.flush();
                 }
                 wb.close();
                 exportTask.setExportProgress("100");
                 exportTask.setExportStatus("SUCCESS");
-                setFileSize(dataPath + "/" + request.getViewName() + ".xlsx", exportTask);
+                setFileSize(dataPath + "/" + exportTask.getId() + ".xlsx", exportTask);
             } catch (Exception e) {
                 exportTask.setMsg(e.getMessage());
                 LogUtil.error("Failed to export data", e);

@@ -1,7 +1,7 @@
 import type { RadarOptions, Radar as G2Radar } from '@antv/g2plot/esm/plots/radar'
 import { G2PlotChartView, G2PlotDrawOptions } from '../../types/impl/g2plot'
 import { flow, parseJson } from '../../../util'
-import { getPadding } from '../../common/common_antv'
+import { configPlotTooltipEvent, getPadding } from '../../common/common_antv'
 import { valueFormatter } from '../../../formatter'
 import type { Datum } from '@antv/g2plot/esm/types/common'
 import { useI18n } from '@/hooks/web/useI18n'
@@ -27,7 +27,7 @@ export class Radar extends G2PlotChartView<RadarOptions, G2Radar> {
     'basic-style-selector': ['colors', 'alpha', 'radarShape', 'seriesColor'],
     'label-selector': ['seriesLabelFormatter'],
     'tooltip-selector': ['color', 'fontSize', 'backgroundColor', 'seriesTooltipFormatter', 'show'],
-    'misc-style-selector': ['showName', 'color', 'fontSize', 'axisColor'],
+    'misc-style-selector': ['showName', 'color', 'fontSize', 'axisColor', 'axisValue'],
     'title-selector': [
       'show',
       'title',
@@ -72,7 +72,7 @@ export class Radar extends G2PlotChartView<RadarOptions, G2Radar> {
       xField: 'field',
       yField: 'value',
       seriesField: 'category',
-      appendPadding: getPadding(chart),
+      appendPadding: [10, 10, 10, 10],
       point: {
         size: 4,
         shape: 'circle',
@@ -117,6 +117,7 @@ export class Radar extends G2PlotChartView<RadarOptions, G2Radar> {
     const { Radar: G2Radar } = await import('@antv/g2plot/esm/plots/radar')
     const newChart = new G2Radar(container, options)
     newChart.on('point:click', action)
+    configPlotTooltipEvent(chart, newChart)
     return newChart
   }
 
@@ -213,11 +214,41 @@ export class Radar extends G2PlotChartView<RadarOptions, G2Radar> {
         }
       }
     }
+    const axisValue = misc.axisValue
+    if (!axisValue?.auto) {
+      const axisYAxis = {
+        ...yAxis,
+        min: axisValue.min,
+        max: axisValue.max,
+        minLimit: axisValue.min,
+        maxLimit: axisValue.max,
+        tickCount: axisValue.splitCount
+      }
+      return {
+        ...options,
+        xAxis,
+        yAxis: axisYAxis
+      }
+    }
     return {
       ...options,
       xAxis,
       yAxis
     }
+  }
+
+  protected configLegend(chart: Chart, options: RadarOptions): RadarOptions {
+    const optionTmp = super.configLegend(chart, options)
+    if (!optionTmp.legend) {
+      return optionTmp
+    }
+    optionTmp.legend.marker.style = style => {
+      return {
+        r: 4,
+        fill: style.stroke
+      }
+    }
+    return optionTmp
   }
 
   protected setupOptions(chart: Chart, options: RadarOptions): RadarOptions {

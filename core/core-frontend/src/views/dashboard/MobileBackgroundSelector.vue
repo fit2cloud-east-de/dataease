@@ -228,6 +228,7 @@ watch(
 
 <style scoped lang="less">
 .mobile-background-selector {
+  padding-left: 16px;
   :deep(.ed-form-item) {
     display: block;
     margin-bottom: 8px;

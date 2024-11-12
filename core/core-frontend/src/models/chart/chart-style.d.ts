@@ -272,6 +272,10 @@ declare interface ChartMiscStyle {
   axisLabel: SplitAxisLabel
   splitLine: SplitAxisLine
   splitArea: SplitSplitArea
+  /**
+   *  轴值设置
+   */
+  axisValue: AxisValue
 }
 declare interface SplitLineStyle {
   color: string

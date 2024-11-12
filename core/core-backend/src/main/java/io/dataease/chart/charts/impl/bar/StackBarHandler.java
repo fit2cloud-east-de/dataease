@@ -52,10 +52,10 @@ public class StackBarHandler extends BarHandler {
             if (ObjectUtils.isNotEmpty(extStack) &&
                     Objects.equals(drillFields.get(0).getId(), extStack.get(0).getId())) {
                 fieldsToFilter.addAll(view.getXAxis());
+                groupStackDrill(noDrillFieldAxis, noDrillFilterList, fieldsToFilter, drillFields, drillRequestList);
+                formatResult.getAxisMap().put(ChartAxis.xAxis, noDrillFieldAxis);
+                result.setFilterList(noDrillFilterList);
             }
-            groupStackDrill(noDrillFieldAxis, noDrillFilterList, fieldsToFilter, drillFields, drillRequestList);
-            formatResult.getAxisMap().put(ChartAxis.xAxis, noDrillFieldAxis);
-            result.setFilterList(noDrillFilterList);
         }
         return (T) result;
     }

@@ -91,7 +91,7 @@ const onSubAlphaChange = v => {
     ) as MixChartBasicStyle
     state.basicStyleForm.subAlpha = oldForm.subAlpha
   }
-  changeBasicStyle('alpha')
+  changeBasicStyle('subAlpha')
 }
 
 const init = () => {
@@ -224,7 +224,7 @@ onMounted(() => {
                   :min="0"
                   :max="10"
                   controls-position="right"
-                  @change="changeBasicStyle('lineWidth')"
+                  @change="changeBasicStyle('leftLineWidth')"
                 />
               </el-form-item>
             </el-col>
@@ -241,7 +241,7 @@ onMounted(() => {
                   :effect="themes"
                   v-model="state.basicStyleForm.leftLineSymbol"
                   :placeholder="t('chart.line_symbol')"
-                  @change="changeBasicStyle('lineSymbol')"
+                  @change="changeBasicStyle('leftLineSymbol')"
                 >
                   <el-option
                     v-for="item in symbolOptions"
@@ -265,7 +265,7 @@ onMounted(() => {
                   :min="0"
                   :max="20"
                   controls-position="right"
-                  @change="changeBasicStyle('lineSymbolSize')"
+                  @change="changeBasicStyle('leftLineSymbolSize')"
                 />
               </el-form-item>
             </el-col>
@@ -279,7 +279,7 @@ onMounted(() => {
               size="small"
               :effect="themes"
               v-model="state.basicStyleForm.leftLineSmooth"
-              @change="changeBasicStyle('lineSmooth')"
+              @change="changeBasicStyle('leftLineSmooth')"
             >
               {{ t('chart.line_smooth') }}
             </el-checkbox>
@@ -308,7 +308,7 @@ onMounted(() => {
                 <el-slider
                   :effect="themes"
                   v-model="state.basicStyleForm.subAlpha"
-                  @change="changeBasicStyle('alpha')"
+                  @change="changeBasicStyle('subAlpha')"
                 />
               </el-form-item>
             </el-col>

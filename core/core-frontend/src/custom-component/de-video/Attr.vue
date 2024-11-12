@@ -5,7 +5,7 @@
         :effect="themes"
         title="链接信息"
         name="videoLinks"
-        v-if="curComponent && curComponent.videoLinks"
+        v-if="curComponent && curComponent.videoLinks && !mobileInPc"
       >
         <video-links :link-info="curComponent.videoLinks" :themes="themes"></video-links>
       </el-collapse-item>
@@ -19,7 +19,7 @@ import CommonAttr from '@/custom-component/common/CommonAttr.vue'
 import { storeToRefs } from 'pinia'
 import VideoLinks from '@/custom-component/de-video/VideoLinks.vue'
 const dvMainStore = dvMainStoreWithOut()
-const { curComponent } = storeToRefs(dvMainStore)
+const { curComponent, mobileInPc } = storeToRefs(dvMainStore)
 withDefaults(
   defineProps<{
     themes?: EditorTheme

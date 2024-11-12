@@ -28,9 +28,9 @@ import { XpackComponent } from '@/components/plugin'
 const { t } = useI18n()
 
 const tabArray = ref([
-  { label: '基础设置', name: 'basic' },
-  { label: '地图设置', name: 'map' },
-  { label: '引擎设置', name: 'engine' }
+  { label: t('system.basic_settings'), name: 'basic' },
+  { label: t('system.map_settings'), name: 'map' },
+  { label: t('system.engine_settings'), name: 'engine' }
 ])
 
 const activeName = ref('basic')

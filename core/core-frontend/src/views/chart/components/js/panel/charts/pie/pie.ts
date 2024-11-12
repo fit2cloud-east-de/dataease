@@ -10,8 +10,11 @@ import {
   setUpSingleDimensionSeriesColor
 } from '@/views/chart/components/js/util'
 import {
+  configPlotTooltipEvent,
   getPadding,
-  getTooltipSeriesTotalMap
+  getTooltipContainer,
+  getTooltipSeriesTotalMap,
+  TOOLTIP_TPL
 } from '@/views/chart/components/js/panel/common/common_antv'
 import { valueFormatter } from '@/views/chart/components/js/formatter'
 import {
@@ -54,6 +57,7 @@ export class Pie extends G2PlotChartView<PieOptions, G2Pie> {
       colorField: 'field',
       appendPadding: getPadding(chart),
       color,
+      animation: false,
       pieStyle: {
         lineWidth: 0
       },
@@ -117,6 +121,7 @@ export class Pie extends G2PlotChartView<PieOptions, G2Pie> {
     const { Pie: G2Pie } = await import('@antv/g2plot/esm/plots/pie')
     const newChart = new G2Pie(container, options)
     newChart.on('interval:click', action)
+    configPlotTooltipEvent(chart, newChart)
     return newChart
   }
 
@@ -128,9 +133,29 @@ export class Pie extends G2PlotChartView<PieOptions, G2Pie> {
         label: false
       }
     }
+    const layout = []
+    let textAlign = undefined
+    if (labelAttr.position === 'inner') {
+      textAlign = 'center'
+      if (labelAttr.fullDisplay) {
+        layout.push({ type: 'limit-in-plot' })
+      } else {
+        layout.push({ type: 'limit-in-canvas' })
+        layout.push({ type: 'hide-overlap' })
+      }
+    } else {
+      if (!labelAttr.fullDisplay) {
+        layout.push({ type: 'limit-in-plot' })
+      }
+    }
+    let labelType = labelAttr.position === 'outer' ? 'spider' : labelAttr.position
+    if (layout.length === 0) {
+      labelType = 'no'
+    }
     const label = {
-      type: labelAttr.position === 'outer' ? 'spider' : labelAttr.position,
-      layout: [{ type: 'limit-in-plot' }],
+      type: labelType,
+      textAlign,
+      layout,
       autoRotate: false,
       style: {
         fill: labelAttr.color,
@@ -216,7 +241,10 @@ export class Pie extends G2PlotChartView<PieOptions, G2Pie> {
           }
         })
         return result
-      }
+      },
+      container: getTooltipContainer(`tooltip-${chart.id}`),
+      itemTpl: TOOLTIP_TPL,
+      enterable: true
     }
     return {
       ...options,

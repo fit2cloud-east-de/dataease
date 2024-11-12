@@ -9,7 +9,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.Date;
 
 public class LinkTokenUtil {
-    private static final String defaultPwd = "link-pwd-fit2cloud";
+    public static final String defaultPwd = "link-pwd-fit2cloud";
     public static String generate(Long uid, Long resourceId, Long exp, String pwd, Long oid) {
         pwd = StringUtils.isBlank(pwd) ? defaultPwd : pwd;
         Algorithm algorithm = Algorithm.HMAC256(pwd);

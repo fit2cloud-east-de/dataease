@@ -4,7 +4,7 @@
     setting-key="basic"
     showValidate
     style="padding-bottom: 0"
-    setting-title="引擎设置"
+    :setting-title="t('system.engine_settings')"
     :setting-data="templateList"
     @edit="edit"
     @check="validateById"
@@ -91,7 +91,7 @@ const getEngine = () => {
 
     templateList.value = [
       {
-        pkey: '引擎类型',
+        pkey: t('system.engine_type'),
         pval: typeMap[type],
         type: '',
         sort: 0

@@ -205,7 +205,7 @@
                       <div class="select-filed">
                         <el-select
                           v-model="itemLinkage.targetField"
-                          :placeholder="'请选择'"
+                          :placeholder="t('common.selectText')"
                           style="width: 100%"
                         >
                           <el-option

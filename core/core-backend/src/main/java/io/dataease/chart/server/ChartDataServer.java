@@ -5,6 +5,7 @@ import io.dataease.api.chart.ChartDataApi;
 import io.dataease.api.chart.dto.ViewDetailField;
 import io.dataease.api.chart.request.ChartExcelRequest;
 import io.dataease.api.chart.request.ChartExcelRequestInner;
+import io.dataease.auth.DeLinkPermit;
 import io.dataease.chart.constant.ChartConstants;
 import io.dataease.chart.manage.ChartDataManage;
 import io.dataease.constant.AuthConstant;
@@ -17,6 +18,7 @@ import io.dataease.exportCenter.manage.ExportCenterManage;
 import io.dataease.extensions.datasource.dto.DatasetTableFieldDTO;
 import io.dataease.extensions.view.dto.ChartViewDTO;
 import io.dataease.extensions.view.dto.ChartViewFieldDTO;
+import io.dataease.extensions.view.dto.FormatterCfgDTO;
 import io.dataease.license.manage.F2CLicLimitedManage;
 import io.dataease.result.ResultCode;
 import io.dataease.utils.JsonUtil;
@@ -38,6 +40,10 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.io.OutputStream;
+import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -71,6 +77,7 @@ public class ChartDataServer implements ChartDataApi {
         return Math.toIntExact(Math.min(f2CLicLimitedManage.checkDatasetLimit(), limit));
     }
 
+    @DeLinkPermit("#p0.sceneId")
     @Override
     public ChartViewDTO getData(ChartViewDTO chartViewDTO) throws Exception {
         try {
@@ -111,7 +118,7 @@ public class ChartDataServer implements ChartDataApi {
             Integer curLimit = getExportLimit();
             if (ChartConstants.VIEW_RESULT_MODE.CUSTOM.equals(viewDTO.getResultMode())) {
                 Integer limitCount = viewDTO.getResultCount();
-                viewDTO.setResultCount(Math.min(curLimit,limitCount));
+                viewDTO.setResultCount(Math.min(curLimit, limitCount));
             } else {
                 viewDTO.setResultCount(curLimit);
             }
@@ -121,12 +128,101 @@ public class ChartDataServer implements ChartDataApi {
                 request.setHeader(dsHeader);
                 request.setExcelTypes(dsTypes);
             }
+            for (Object[] objects : tableRow) {
+                for (int i = 0; i < viewDTO.getXAxis().size(); i++) {
+                    if (viewDTO.getXAxis().get(i).getDeType().equals(DeTypeConstants.DE_INT) || viewDTO.getXAxis().get(i).getDeType().equals(DeTypeConstants.DE_FLOAT)) {
+                        try {
+                            objects[i] = valueFormatter(BigDecimal.valueOf(Double.valueOf(objects[i].toString())), viewDTO.getXAxis().get(i).getFormatterCfg());
+                        } catch (Exception ignore) {
+                        }
+                    }
+                }
+            }
             request.setDetails(tableRow);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
     }
+
+    public static String valueFormatter(BigDecimal value, FormatterCfgDTO formatter) {
+        if (value == null || formatter == null) {
+            return null;
+        }
+        String result;
+        if (formatter.getType().equals("auto")) {
+            result = transSeparatorAndSuffix(String.valueOf(transUnit(value, formatter)), formatter);
+        } else if (formatter.getType().equals("value")) {
+            result = transSeparatorAndSuffix(transDecimal(transUnit(value, formatter), formatter), formatter);
+        } else if (formatter.getType().equals("percent")) {
+            value = value.multiply(BigDecimal.valueOf(100));
+            result = transSeparatorAndSuffix(transDecimal(value, formatter), formatter);
+        } else {
+            result = value.toString();
+        }
+        return result;
+    }
+
+    private static BigDecimal transUnit(BigDecimal value, FormatterCfgDTO formatter) {
+        return value.divide(BigDecimal.valueOf(formatter.getUnit()));
+    }
+
+    private static String transDecimal(BigDecimal value, FormatterCfgDTO formatter) {
+        DecimalFormat df = new DecimalFormat("0." + new String(new char[formatter.getDecimalCount()]).replace('\0', '0'));
+        return df.format(value);
+    }
+
+    private static String transSeparatorAndSuffix(String value, FormatterCfgDTO formatter) {
+        StringBuilder sb = new StringBuilder(value);
+
+        if (formatter.getThousandSeparator()) {
+            String[] parts = value.split("\\.");
+            parts[0] = addThousandSeparators(parts[0]);
+            sb = new StringBuilder(String.join(".", parts));
+        }
+        if (formatter.getType().equals("percent")) {
+            sb.append('%');
+        } else {
+            switch (formatter.getUnit()) {
+                case 1000:
+                    sb.append("千");
+                    break;
+                case 10000:
+                    sb.append("万");
+                    break;
+                case 1000000:
+                    sb.append("百万");
+                    break;
+                case 100000000:
+                    sb.append('亿');
+                    break;
+                default:
+                    break;
+            }
+        }
+        String suffix = formatter.getSuffix().trim();
+        if (!suffix.isEmpty()) {
+            sb.append(suffix);
+        }
+        return sb.toString();
+    }
+
+    private static String addThousandSeparators(String number) {
+        StringBuilder sb = new StringBuilder();
+        int len = number.length();
+        int count = 0;
+        for (int i = len - 1; i >= 0; i--) {
+            sb.append(number.charAt(i));
+            count++;
+            if (count == 3 && i != 0) {
+                sb.append(',');
+                count = 0;
+            }
+        }
+
+        return sb.reverse().toString();
+    }
+
 
     @Override
     public void innerExportDetails(ChartExcelRequest request, HttpServletResponse response) throws Exception {
@@ -184,7 +280,7 @@ public class ChartDataServer implements ChartDataApi {
 
                 response.setContentType("application/vnd.ms-excel");
                 //文件名称
-                response.setHeader("Content-disposition", "attachment;filename=" + request.getViewName() + ".xlsx");
+                response.setHeader("Content-disposition", "attachment;filename=" + URLEncoder.encode(request.getViewName(), StandardCharsets.UTF_8) + ".xlsx");
                 wb.write(outputStream);
                 outputStream.flush();
                 outputStream.close();
@@ -300,5 +396,10 @@ public class ChartDataServer implements ChartDataApi {
     @Override
     public List<String> getFieldData(ChartViewDTO view, Long fieldId, String fieldType) throws Exception {
         return chartDataManage.getFieldData(view, fieldId, fieldType);
+    }
+
+    @Override
+    public List<String> getDrillFieldData(ChartViewDTO view, Long fieldId) throws Exception {
+        return chartDataManage.getDrillFieldData(view, fieldId);
     }
 }

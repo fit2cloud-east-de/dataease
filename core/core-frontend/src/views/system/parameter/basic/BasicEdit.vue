@@ -9,15 +9,15 @@ const dialogVisible = ref(false)
 const loadingInstance = ref(null)
 const basicForm = ref<FormInstance>()
 const options = [
-  { value: 'minute', label: '分钟（执行时间：0秒）' },
-  { value: 'hour', label: '小时（执行时间：0分0秒）' }
+  { value: 'minute', label: t('system.time_0_seconds') },
+  { value: 'hour', label: t('system.and_0_seconds_de') }
 ]
 const pvpOptions = [
-  { value: '0', label: '永久' },
-  { value: '1', label: '一年' },
-  { value: '2', label: '半年' },
-  { value: '3', label: '三个月' },
-  { value: '4', label: '一个月' }
+  { value: '0', label: t('commons.date.permanent') },
+  { value: '1', label: t('commons.date.one_year') },
+  { value: '2', label: t('commons.date.six_months') },
+  { value: '3', label: t('commons.date.three_months') },
+  { value: '4', label: t('commons.date.one_month') }
 ]
 
 const state = reactive({
@@ -30,7 +30,7 @@ const state = reactive({
   orgOptions: [],
   roleOptions: [],
   loginOptions: [
-    { value: '0', label: '普通登录' },
+    { value: '0', label: t('system.normal_login') },
     { value: '1', label: 'LDAP' },
     { value: '2', label: 'OIDC' },
     { value: '3', label: 'CAS' },
@@ -69,14 +69,14 @@ const submitForm = async (formEl: FormInstance | undefined) => {
         state.form.dsExecuteTime === 'minute' &&
         (Number(state.form.dsIntervalTime) < 1 || Number(state.form.dsIntervalTime) > 59)
       ) {
-        ElMessage.error('分钟超出范围【1-59】')
+        ElMessage.error(t('commons.date.of_range_1_59'))
         return
       }
       if (
         state.form.dsExecuteTime === 'hour' &&
         (Number(state.form.dsIntervalTime) < 1 || Number(state.form.dsIntervalTime) > 23)
       ) {
-        ElMessage.error('小时超出范围【1-23】')
+        ElMessage.error(t('commons.date.of_range_1_23'))
         return
       }
       const param = buildSettingList()
@@ -134,7 +134,7 @@ const edit = (list, orgOptions, roleOptions, loginOptions) => {
         }
       ]
     }
-    if (pkey === 'basic.exportFileLiveTime') {
+    if (pkey === 'basic.exportFileLiveTime' || pkey === 'basic.frontTimeOut') {
       rule[pkey.split('.')[1]] = [
         {
           required: true,
@@ -143,6 +143,7 @@ const edit = (list, orgOptions, roleOptions, loginOptions) => {
         }
       ]
     }
+
     item['label'] = `setting_${pkey}`
     item['pkey'] = pkey.split('.')[1]
     let pval = item.pval
@@ -209,7 +210,7 @@ defineExpose({
 
 <template>
   <el-drawer
-    title="基础设置"
+    :title="t('system.basic_settings')"
     v-model="dialogVisible"
     custom-class="basic-param-drawer"
     size="600px"
@@ -233,14 +234,18 @@ defineExpose({
         <el-switch
           class="de-basic-switch"
           v-if="
-            item.pkey === 'autoCreateUser' || item.pkey === 'pwdStrategy' || item.pkey === 'dip'
+            item.pkey === 'autoCreateUser' ||
+            item.pkey === 'pwdStrategy' ||
+            item.pkey === 'dip' ||
+            item.pkey === 'shareDisable' ||
+            item.pkey === 'sharePeRequire'
           "
           active-value="true"
           inactive-value="false"
           v-model="state.form[item.pkey]"
         />
         <div v-else-if="item.pkey === 'dsIntervalTime'" class="ds-task-form-inline">
-          <span>每</span>
+          <span>{{ t('cron.every') }}</span>
           <el-input-number
             v-model="state.form.dsIntervalTime"
             autocomplete="off"
@@ -259,7 +264,7 @@ defineExpose({
               :value="item.value"
             />
           </el-select>
-          <span class="ds-span">执行一次</span>
+          <span class="ds-span">{{ t('cron.every_exec') }}</span>
         </div>
         <div v-else-if="item.pkey === 'frontTimeOut'">
           <el-input-number

@@ -5,6 +5,8 @@ import eventBus from '@/utils/eventBus'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { XpackComponent } from '@/components/plugin'
 import DePreviewMobile from './MobileInPc.vue'
+import { findComponentById, mobileViewStyleSwitch } from '@/utils/canvasUtils'
+import { deepCopy } from '@/utils/utils'
 const panelInit = ref(false)
 const dvMainStore = dvMainStoreWithOut()
 
@@ -21,21 +23,34 @@ const hanedleMessage = event => {
   if (event.data.type === 'panelInit') {
     const { componentData, canvasStyleData, dvInfo, canvasViewInfo, isEmbedded } = event.data.value
     componentData.forEach(ele => {
-      const { mx, my, mSizeX, mSizeY } = ele
+      const { mx, my, mSizeX, mSizeY, mStyle, mCommonBackground, mEvents, mPropValue } = ele
       ele.x = mx
       ele.y = my
       ele.sizeX = mSizeX
       ele.sizeY = mSizeY
+      ele.style = deepCopy(mStyle || ele.style)
+      ele.commonBackground = deepCopy(mCommonBackground || ele.commonBackground)
+      ele.events = deepCopy(mEvents || ele.events)
+      if (ele.component === 'VQuery') {
+        ele.propValue = deepCopy(mPropValue || ele.propValue)
+      }
 
       if (ele.component === 'DeTabs') {
         ele.propValue.forEach(tabItem => {
           tabItem.componentData.forEach(tabComponent => {
-            const { mx: tx, my: ty, mSizeX: tSizeX, mSizeY: tSizeY } = tabComponent
-            if (tSizeX && tSizeY) {
-              tabComponent.x = tx
-              tabComponent.y = ty
-              tabComponent.sizeX = tSizeX
-              tabComponent.sizeY = tSizeY
+            const {
+              mStyle: tStyle,
+              mCommonBackground: tCommonBackground,
+              mEvents: tEvents,
+              mPropValue: tPropValue
+            } = tabComponent
+            tabComponent.style = deepCopy(tStyle || tabComponent.style)
+            tabComponent.commonBackground = deepCopy(
+              tCommonBackground || tabComponent.commonBackground
+            )
+            tabComponent.events = deepCopy(tEvents || tabComponent.events)
+            if (tabComponent.component === 'VQuery') {
+              tabComponent.propValue = deepCopy(tPropValue || tabComponent.propValue)
             }
           })
         })
@@ -49,6 +64,31 @@ const hanedleMessage = event => {
     eventBus.emit('doCanvasInit-canvas-main')
     if (isEmbedded) return
     panelInit.value = true
+  }
+  // 进行内部组件渲染 type render 渲染 calcData 计算  主组件渲染
+  if (event.data.type === 'componentStyleChange') {
+    const { type, component, otherComponent } = event.data.value
+    if (type === 'renderChart') {
+      mobileViewStyleSwitch(component)
+      useEmitt().emitter.emit('renderChart-' + component.id, component)
+    } else if (type === 'calcData') {
+      mobileViewStyleSwitch(component)
+      useEmitt().emitter.emit('calcData-' + component.id, component)
+    } else if (type === 'updateTitle') {
+      mobileViewStyleSwitch(component)
+      useEmitt().emitter.emit('updateTitle-' + component.id)
+    } else if (['style', 'commonBackground', 'events', 'propValue'].includes(type)) {
+      const mobileComponent = findComponentById(component.id)
+      mobileComponent[type] = component[type]
+    } else if (['syncPcDesign'].includes(type)) {
+      const mobileComponent = findComponentById(component.id)
+      mobileComponent['style'] = component['style']
+      mobileComponent['commonBackground'] = component['commonBackground']
+      mobileComponent['events'] = component['events']
+      mobileComponent['propValue'] = component['propValue']
+      mobileViewStyleSwitch(otherComponent)
+      useEmitt().emitter.emit('renderChart-' + component.id, otherComponent)
+    }
   }
 
   if (event.data.type === 'addToMobile') {
@@ -67,18 +107,43 @@ const hanedleMessage = event => {
       {
         type: `${event.data.type}FromMobile`,
         value: dvMainStore.componentData.reduce((pre, next) => {
-          const { x, y, sizeX, sizeY, id, component } = next
-          pre[id] = { x, y, sizeX, sizeY, component }
+          const { x, y, sizeX, sizeY, id, component, propValue, style, events, commonBackground } =
+            next
+          pre[id] = {
+            x,
+            y,
+            sizeX,
+            sizeY,
+            component,
+            events: deepCopy(events),
+            propValue: deepCopy(propValue),
+            style: JSON.parse(JSON.stringify(style)),
+            commonBackground: JSON.parse(JSON.stringify(commonBackground))
+          }
           if (next.component === 'DeTabs') {
             pre[id].tab = {}
             next.propValue.forEach(tabItem => {
               tabItem.componentData.forEach(tabComponent => {
-                const { x: tx, y: ty, sizeX: tSizeX, sizeY: tSizeY, id: tId } = tabComponent
+                const {
+                  x: tx,
+                  y: ty,
+                  sizeX: tSizeX,
+                  sizeY: tSizeY,
+                  id: tId,
+                  style: tStyle,
+                  events: tEvents,
+                  propValue: tPropValue,
+                  commonBackground: tCommonBackground
+                } = tabComponent
                 pre[id].tab[tId] = {
                   x: tx,
                   y: ty,
                   sizeX: tSizeX,
-                  sizeY: tSizeY
+                  sizeY: tSizeY,
+                  style: JSON.parse(JSON.stringify(tStyle)),
+                  events: deepCopy(tEvents),
+                  propValue: deepCopy(tPropValue),
+                  commonBackground: JSON.parse(JSON.stringify(tCommonBackground))
                 }
               })
             })
@@ -97,7 +162,9 @@ const initIframe = () => {
     panelInit.value = true
   })
 }
-
+const curComponentChangeHandle = (type, value) => {
+  window.parent.postMessage({ type: type, value: value }, '*')
+}
 onBeforeMount(() => {
   window.parent.postMessage({ type: 'panelInit', value: true }, '*')
   window.addEventListener('message', hanedleMessage)
@@ -105,6 +172,12 @@ onBeforeMount(() => {
     name: 'onMobileStatusChange',
     callback: ({ type, value }) => {
       mobileStatusChange(type, value)
+    }
+  })
+  useEmitt({
+    name: 'curComponentChange',
+    callback: ({ type, value }) => {
+      curComponentChangeHandle(type, value)
     }
   })
 })

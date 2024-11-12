@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { ref, onBeforeMount, reactive, inject } from 'vue'
-import { initCanvasData } from '@/utils/canvasUtils'
+import { ref, onBeforeMount, reactive, inject, nextTick } from 'vue'
+import { initCanvasData, onInitReady } from '@/utils/canvasUtils'
 import { interactiveStoreWithOut } from '@/store/modules/interactive'
 import { useEmbedded } from '@/store/modules/embedded'
 import { check } from '@/utils/CrossPermission'
@@ -10,10 +10,11 @@ import { ElMessage } from 'element-plus-secondary'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { useI18n } from '@/hooks/web/useI18n'
 import { XpackComponent } from '@/components/plugin'
+import EmptyBackground from '../../components/empty-background/src/EmptyBackground.vue'
 const { wsCache } = useCache()
 const interactiveStore = interactiveStoreWithOut()
 const embeddedStore = useEmbedded()
-const embeddedParams = inject('embeddedParams') as object
+const embeddedParamsDiv = inject('embeddedParams') as object
 const config = ref()
 const viewInfo = ref()
 const userViewEnlargeRef = ref()
@@ -25,18 +26,28 @@ const state = reactive({
   canvasStylePreview: null,
   canvasViewInfoPreview: null,
   dvInfo: null,
-  chartId: null
+  chartId: null,
+  suffixId: 'common',
+  initState: true
 })
+
+const embeddedParams = embeddedParamsDiv?.chartId ? embeddedParamsDiv : embeddedStore
 
 // 目标校验： 需要校验targetSourceId 是否是当前可视化资源ID
 const winMsgHandle = event => {
   const msgInfo = event.data
+
   // 校验targetSourceId
-  if (msgInfo && msgInfo.type === 'attachParams' && msgInfo.targetSourceId === state.chartId + '') {
+  if (
+    msgInfo &&
+    msgInfo.type === 'attachParams' &&
+    msgInfo.targetSourceId === state.chartId + '' &&
+    (!msgInfo.suffixId || msgInfo.suffixId === state.suffixId)
+  ) {
     const attachParams = msgInfo.params
-    if (attachParams) {
-      dvMainStore.addOuterParamsFilter(attachParams, state.canvasDataPreview, 'outer')
-    }
+    state.initState = false
+    dvMainStore.addOuterParamsFilter(attachParams, state.canvasDataPreview, 'outer')
+    state.initState = true
   }
 }
 
@@ -44,29 +55,30 @@ const checkPer = async resourceId => {
   if (!window.DataEaseBi || !resourceId) {
     return true
   }
-  const request = { busiFlag: embeddedStore.busiFlag }
+  const request = { busiFlag: embeddedParams.busiFlag }
   await interactiveStore.setInteractive(request)
-  const key = embeddedStore.busiFlag === 'dataV' ? 'screen-weight' : 'panel-weight'
+  const key = embeddedParams.busiFlag === 'dataV' ? 'screen-weight' : 'panel-weight'
   return check(wsCache.get(key), resourceId, 1)
 }
 onBeforeMount(async () => {
-  const checkResult = await checkPer(embeddedStore.dvId)
+  const checkResult = await checkPer(embeddedParams.dvId)
   if (!checkResult) {
     return
   }
-  state.chartId = embeddedStore.dvId
+  state.chartId = embeddedParams.dvId
+  state.suffixId = embeddedParams.suffixId || 'common'
   window.addEventListener('message', winMsgHandle)
 
   // 添加外部参数
   let attachParams
-  await getOuterParamsInfo(embeddedStore.dvId).then(rsp => {
+  await getOuterParamsInfo(embeddedParams.dvId).then(rsp => {
     dvMainStore.setNowPanelOuterParamsInfo(rsp.data)
   })
 
   // div嵌入
-  if (embeddedStore.outerParams) {
+  if (embeddedParams.outerParams) {
     try {
-      const outerPramsParse = JSON.parse(embeddedStore.outerParams)
+      const outerPramsParse = JSON.parse(embeddedParams.outerParams)
       attachParams = outerPramsParse.attachParams
       dvMainStore.setEmbeddedCallBack(outerPramsParse.callBackFlag || 'no')
     } catch (e) {
@@ -75,19 +87,20 @@ onBeforeMount(async () => {
       return
     }
   }
-  const chartId = embeddedParams?.chartId || embeddedStore.chartId
+  const chartId = embeddedParams?.chartId
 
   initCanvasData(
-    embeddedStore.dvId,
-    embeddedStore.busiFlag,
+    embeddedParams.dvId,
+    embeddedParams.busiFlag,
     function ({ canvasDataResult, canvasStyleResult, dvInfo, canvasViewInfoPreview }) {
       state.canvasDataPreview = canvasDataResult
       state.canvasStylePreview = canvasStyleResult
       state.canvasViewInfoPreview = canvasViewInfoPreview
       state.dvInfo = dvInfo
-      if (attachParams) {
-        dvMainStore.addOuterParamsFilter(attachParams, canvasDataResult)
-      }
+      state.initState = false
+      dvMainStore.addOuterParamsFilter(attachParams, canvasDataResult)
+      state.initState = true
+
       viewInfo.value = canvasViewInfoPreview[chartId]
       ;(
         (canvasDataResult as unknown as Array<{
@@ -111,6 +124,9 @@ onBeforeMount(async () => {
           })
         }
         return false
+      })
+      nextTick(() => {
+        onInitReady({ resourceId: chartId })
       })
     }
   )
@@ -147,7 +163,7 @@ const onPointClick = param => {
 </script>
 
 <template>
-  <div class="de-view-wrapper" v-if="!!config">
+  <div class="de-view-wrapper" v-if="!!config && state.initState">
     <ComponentWrapper
       style="width: 100%; height: 100%"
       :view-info="viewInfo"
@@ -157,9 +173,11 @@ const onPointClick = param => {
       :canvas-view-info="state.canvasViewInfoPreview"
       @userViewEnlargeOpen="userViewEnlargeOpen"
       @onPointClick="onPointClick"
+      :suffix-id="state.suffixId"
     />
     <user-view-enlarge ref="userViewEnlargeRef"></user-view-enlarge>
   </div>
+  <empty-background v-if="!state.initState" description="参数不能为空" img-type="noneWhite" />
   <XpackComponent ref="openHandler" jsname="L2NvbXBvbmVudC9lbWJlZGRlZC1pZnJhbWUvT3BlbkhhbmRsZXI=" />
 </template>
 

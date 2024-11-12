@@ -2,7 +2,6 @@
 import { computed, nextTick, onMounted, ref, toRefs } from 'vue'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { storeToRefs } from 'pinia'
-import { styleData } from '@/utils/attr'
 import ComponentPosition from '@/components/visualization/common/ComponentPosition.vue'
 import BackgroundOverallCommon from '@/components/visualization/component-background/BackgroundOverallCommon.vue'
 import { useI18n } from '@/hooks/web/useI18n'
@@ -35,26 +34,13 @@ const props = withDefaults(
   }
 )
 
-const { themes, element, showStyle } = toRefs(props)
+const { themes, element } = toRefs(props)
 const dvMainStore = dvMainStoreWithOut()
-const { dvInfo, batchOptStatus } = storeToRefs(dvMainStore)
+const { dvInfo, batchOptStatus, mobileInPc } = storeToRefs(dvMainStore)
 const activeName = ref(element.value.collapseName)
-
-const styleKeys = computed(() => {
-  if (element.value) {
-    const curComponentStyleKeys = Object.keys(element.value.style)
-    return styleData.filter(item => curComponentStyleKeys.includes(item.key))
-  } else {
-    return []
-  }
-})
 
 const onChange = () => {
   element.value.collapseName = activeName
-}
-
-const isIncludesColor = str => {
-  return str.toLowerCase().includes('color')
 }
 
 const positionComponentShow = computed(() => {
@@ -67,34 +53,17 @@ const dashboardActive = computed(() => {
 
 const onBackgroundChange = val => {
   element.value.commonBackground = val
+  snapshotStore.recordSnapshotCacheToMobile('commonBackground')
   emits('onAttrChange', { custom: 'commonBackground' })
 }
 
 const onStyleAttrChange = ({ key, value }) => {
-  snapshotStore.recordSnapshotCache()
+  snapshotStore.recordSnapshotCacheToMobile('style')
   emits('onAttrChange', { custom: 'style', property: key, value: value })
 }
 
 const containerRef = ref()
 const containerWidth = ref()
-
-const colSpan = computed(() => {
-  if (containerWidth.value <= 240) {
-    return 24
-  } else {
-    return 12
-  }
-})
-
-const colorPickerWidth = computed(() => {
-  if (containerWidth.value <= 280) {
-    return 125
-  } else if (containerWidth.value <= 240) {
-    return 108
-  } else {
-    return 197
-  }
-})
 
 const borderSettingShow = computed(() => {
   return !!element.value.style['borderStyle']
@@ -110,7 +79,7 @@ const eventsShow = computed(() => {
 })
 
 const carouselShow = computed(() => {
-  return element.value.component === 'DeTabs' && element.value.carousel
+  return element.value.component === 'DeTabs' && element.value.carousel && !mobileInPc.value
 })
 
 const backgroundCustomShow = computed(() => {
@@ -129,12 +98,6 @@ onMounted(() => {
     })
   })
 })
-const stopEvent = e => {
-  if (e && e.code === 'Enter') {
-    e.stopPropagation()
-    e.preventDefault()
-  }
-}
 </script>
 
 <template>
@@ -143,7 +106,6 @@ const stopEvent = e => {
       <el-collapse-item :effect="themes" title="位置" name="position" v-if="positionComponentShow">
         <component-position :themes="themes" />
       </el-collapse-item>
-
       <el-collapse-item
         :effect="themes"
         title="背景"
@@ -197,6 +159,8 @@ const stopEvent = e => {
           @onStyleAttrChange="onStyleAttrChange"
         ></common-border-setting>
       </collapse-switch-item>
+      <slot name="threshold" />
+      <slot name="carousel" />
       <CarouselSetting v-if="carouselShow" :element="element" :themes="themes"></CarouselSetting>
     </el-collapse>
   </div>

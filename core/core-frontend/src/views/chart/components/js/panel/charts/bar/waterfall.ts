@@ -2,8 +2,17 @@ import type { WaterfallOptions, Waterfall as G2Waterfall } from '@antv/g2plot/es
 import { G2PlotChartView, G2PlotDrawOptions } from '../../types/impl/g2plot'
 import { flow, hexColorToRGBA, parseJson } from '../../../util'
 import { valueFormatter } from '../../../formatter'
-import { getPadding, getTooltipSeriesTotalMap, setGradientColor } from '../../common/common_antv'
+import {
+  configPlotTooltipEvent,
+  getPadding,
+  getTooltipContainer,
+  getTooltipSeriesTotalMap,
+  setGradientColor,
+  TOOLTIP_TPL
+} from '../../common/common_antv'
 import { isEmpty } from 'lodash-es'
+import { useI18n } from '@/hooks/web/useI18n'
+const { t } = useI18n()
 
 /**
  * 瀑布图
@@ -62,6 +71,17 @@ export class Waterfall extends G2PlotChartView<WaterfallOptions, G2Waterfall> {
     ]
   }
   axis: AxisType[] = ['xAxis', 'yAxis', 'filter', 'drill', 'extLabel', 'extTooltip']
+  axisConfig = {
+    xAxis: {
+      name: `${t('chart.drag_block_type_axis')} / ${t('chart.dimension')}`,
+      type: 'd'
+    },
+    yAxis: {
+      name: `${t('chart.drag_block_value_axis')} / ${t('chart.quota')}`,
+      type: 'q',
+      limit: 1
+    }
+  }
   async drawChart(drawOptions: G2PlotDrawOptions<G2Waterfall>): Promise<G2Waterfall> {
     const { chart, container, action } = drawOptions
     if (!chart.data?.data) {
@@ -73,21 +93,13 @@ export class Waterfall extends G2PlotChartView<WaterfallOptions, G2Waterfall> {
       xField: 'field',
       yField: 'value',
       seriesField: 'category',
-      appendPadding: getPadding(chart),
-      interactions: [
-        {
-          type: 'tooltip',
-          cfg: {
-            start: [{ trigger: 'interval:mousemove', action: 'tooltip:show' }],
-            end: [{ trigger: 'interval:mouseleave', action: 'tooltip:hide' }]
-          }
-        }
-      ]
+      appendPadding: getPadding(chart)
     }
     const options = this.setupOptions(chart, baseOptions)
     const { Waterfall: G2Waterfall } = await import('@antv/g2plot/esm/plots/waterfall')
     const newChart = new G2Waterfall(container, options)
     newChart.on('interval:click', action)
+    configPlotTooltipEvent(chart, newChart)
     return newChart
   }
 
@@ -220,7 +232,10 @@ export class Waterfall extends G2PlotChartView<WaterfallOptions, G2Waterfall> {
           }
         })
         return result
-      }
+      },
+      container: getTooltipContainer(`tooltip-${chart.id}`),
+      itemTpl: TOOLTIP_TPL,
+      enterable: true
     }
     return {
       ...options,

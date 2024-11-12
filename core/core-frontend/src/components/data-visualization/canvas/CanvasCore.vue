@@ -349,7 +349,7 @@ const coordinates = ref([]) //坐标点集合
 
 let lastTask = undefined
 let isOverlay = false //是否正在交换位置
-let moveTime = 200 //移动动画时间
+let moveTime = 100 //移动动画时间
 
 const itemMaxY = ref(0)
 let itemMaxX = 0
@@ -874,6 +874,11 @@ function removeItemById(componentId) {
         removeItem(index)
       }
     })
+    if (!isMainCanvas(canvasId.value)) {
+      nextTick(() => {
+        canvasInit()
+      })
+    }
   }
 }
 
@@ -1586,6 +1591,7 @@ defineExpose({
         @input="handleInput"
         :dv-info="dvInfo"
         :canvas-active="canvasActive"
+        :show-position="'canvas'"
       />
       <component
         v-else-if="item.component.includes('Svg')"
@@ -1603,6 +1609,7 @@ defineExpose({
         :dv-info="dvInfo"
         :active="item.id === curComponentId"
         :canvas-active="canvasActive"
+        :show-position="'edit'"
       />
       <component
         v-else
@@ -1620,6 +1627,7 @@ defineExpose({
         :dv-info="dvInfo"
         :active="item.id === curComponentId"
         :canvas-active="canvasActive"
+        :show-position="'edit'"
       />
     </Shape>
     <!-- 右击菜单 -->

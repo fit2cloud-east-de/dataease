@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { toRefs, computed, PropType } from 'vue'
 import { type TimeRange } from './time-format'
+import { useI18n } from '@/hooks/web/useI18n'
 import DynamicTime from './DynamicTimeFiltering.vue'
 import DynamicTimeRange from './DynamicTimeRangeFiltering.vue'
 const props = defineProps({
@@ -27,21 +28,23 @@ const props = defineProps({
     default: 'yearrange'
   }
 })
+
+const { t } = useI18n()
 const intervalTypeList = [
   {
-    label: '无',
+    label: t('chart.line_symbol_none'),
     value: 'none'
   },
   {
-    label: '开始于',
+    label: t('v_query.start_at'),
     value: 'start'
   },
   {
-    label: '结束于',
+    label: t('v_query.end_at'),
     value: 'end'
   },
   {
-    label: '时间区间',
+    label: t('v_query.time_interval'),
     value: 'timeInterval'
   }
 ]
@@ -60,11 +63,11 @@ const filterTypeCom = computed(() => {
 
 const aroundList = [
   {
-    label: '前',
+    label: t('dynamic_time.before'),
     value: 'f'
   },
   {
-    label: '后',
+    label: t('dynamic_time.after'),
     value: 'b'
   }
 ]
@@ -76,15 +79,15 @@ const relativeToCurrentTypeList = computed(() => {
     ) + 1
   return [
     {
-      label: '年',
+      label: t('dynamic_time.year'),
       value: 'year'
     },
     {
-      label: '月',
+      label: t('dynamic_time.month'),
       value: 'month'
     },
     {
-      label: '日',
+      label: t('dynamic_time.date'),
       value: 'day'
     }
   ].slice(0, index)
@@ -100,11 +103,11 @@ const relativeToCurrentList = computed(() => {
     case 'yearrange':
       list = [
         {
-          label: '今年',
+          label: t('dynamic_year.current'),
           value: 'thisYear'
         },
         {
-          label: '去年',
+          label: t('dynamic_year.last'),
           value: 'lastYear'
         }
       ]
@@ -112,11 +115,11 @@ const relativeToCurrentList = computed(() => {
     case 'monthrange':
       list = [
         {
-          label: '本月',
+          label: t('cron.this_month'),
           value: 'thisMonth'
         },
         {
-          label: '上月',
+          label: t('dynamic_month.last'),
           value: 'lastMonth'
         }
       ]
@@ -124,19 +127,19 @@ const relativeToCurrentList = computed(() => {
     case 'daterange':
       list = [
         {
-          label: '今天',
+          label: t('dynamic_time.today'),
           value: 'today'
         },
         {
-          label: '昨天',
+          label: t('dynamic_time.yesterday'),
           value: 'yesterday'
         },
         {
-          label: '月初',
+          label: t('dynamic_time.firstOfMonth'),
           value: 'monthBeginning'
         },
         {
-          label: '年初',
+          label: t('dynamic_time.firstOfYear'),
           value: 'yearBeginning'
         }
       ]
@@ -144,19 +147,19 @@ const relativeToCurrentList = computed(() => {
     case 'datetimerange':
       list = [
         {
-          label: '今天',
+          label: t('dynamic_time.today'),
           value: 'today'
         },
         {
-          label: '昨天',
+          label: t('dynamic_time.yesterday'),
           value: 'yesterday'
         },
         {
-          label: '月初',
+          label: t('dynamic_time.firstOfMonth'),
           value: 'monthBeginning'
         },
         {
-          label: '年初',
+          label: t('dynamic_time.firstOfYear'),
           value: 'yearBeginning'
         }
       ]
@@ -169,7 +172,7 @@ const relativeToCurrentList = computed(() => {
   return [
     ...list,
     {
-      label: '自定义',
+      label: t('dynamic_time.custom'),
       value: 'custom'
     }
   ]
@@ -182,11 +185,11 @@ const relativeToCurrentListRange = computed(() => {
     case 'yearrange':
       list = [
         {
-          label: '今年',
+          label: t('dynamic_year.current'),
           value: 'thisYear'
         },
         {
-          label: '去年',
+          label: t('dynamic_year.last'),
           value: 'lastYear'
         }
       ]
@@ -194,23 +197,23 @@ const relativeToCurrentListRange = computed(() => {
     case 'monthrange':
       list = [
         {
-          label: '本月',
+          label: t('cron.this_month'),
           value: 'thisMonth'
         },
         {
-          label: '上月',
+          label: t('dynamic_month.dynamic_month'),
           value: 'lastMonth'
         },
         {
-          label: '最近 3 个 月',
+          label: t('v_query.last_3_months'),
           value: 'LastThreeMonths'
         },
         {
-          label: '最近 6 个 月',
+          label: t('v_query.last_6_months'),
           value: 'LastSixMonths'
         },
         {
-          label: '最近 12 个 月',
+          label: t('v_query.last_12_months'),
           value: 'LastTwelveMonths'
         }
       ]
@@ -219,23 +222,23 @@ const relativeToCurrentListRange = computed(() => {
     case 'datetimerange':
       list = [
         {
-          label: '今天',
+          label: t('dynamic_time.today'),
           value: 'today'
         },
         {
-          label: '昨天',
+          label: t('dynamic_time.yesterday'),
           value: 'yesterday'
         },
         {
-          label: '最近 3 天',
+          label: t('v_query.last_3_days'),
           value: 'LastThreeDays'
         },
         {
-          label: '月初至今',
+          label: t('v_query.month_to_date'),
           value: 'monthBeginning'
         },
         {
-          label: '年初至今',
+          label: t('v_query.year_to_date'),
           value: 'yearBeginning'
         }
       ]
@@ -248,7 +251,7 @@ const relativeToCurrentListRange = computed(() => {
   return [
     ...list,
     {
-      label: '自定义',
+      label: t('dynamic_time.custom'),
       value: 'custom'
     }
   ]
@@ -257,9 +260,9 @@ const relativeToCurrentListRange = computed(() => {
 
 <template>
   <div class="set-time-filtering-range">
-    <div class="title">设置时间筛选范围</div>
+    <div class="title">{{ t('v_query.time_filter_range') }}</div>
     <div class="list-item">
-      <div class="label">区间类型</div>
+      <div class="label">{{ t('v_query.interval_type') }}</div>
       <div class="setting-content">
         <div class="setting">
           <el-radio-group v-model="timeRange.intervalType">
@@ -275,13 +278,13 @@ const relativeToCurrentListRange = computed(() => {
       <div class="setting-content">
         <div class="setting">
           <el-radio-group v-model="timeRange.regularOrTrends">
-            <el-radio label="fixed">固定时间</el-radio>
-            <el-radio label="dynamic">动态时间</el-radio>
+            <el-radio label="fixed">{{ t('dynamic_time.fix') }}</el-radio>
+            <el-radio label="dynamic">{{ t('dynamic_time.dynamic') }}</el-radio>
           </el-radio-group>
         </div>
         <template v-if="dynamicTime && timeRange.intervalType !== 'timeInterval'">
           <div class="setting" v-if="timeRange.intervalType !== 'timeInterval'">
-            <div class="setting-label">相对当前</div>
+            <div class="setting-label">{{ t('dynamic_time.relative') }}</div>
             <div class="setting-value select">
               <el-select v-model="timeRange.relativeToCurrent">
                 <el-option
@@ -317,7 +320,7 @@ const relativeToCurrentListRange = computed(() => {
         </template>
         <template v-else-if="dynamicTime && timeRange.intervalType === 'timeInterval'">
           <div class="setting">
-            <div class="setting-label">相对当前</div>
+            <div class="setting-label">{{ t('dynamic_time.relative') }}</div>
             <div class="setting-value select">
               <el-select v-model="timeRange.relativeToCurrentRange">
                 <el-option
@@ -337,7 +340,7 @@ const relativeToCurrentListRange = computed(() => {
                 'is-year-month-range'
               "
             >
-              <div class="setting-label">开始时间</div>
+              <div class="setting-label">{{ t('datasource.start_time') }}</div>
               <div class="setting-input range">
                 <el-input-number
                   step-strictly
@@ -370,7 +373,7 @@ const relativeToCurrentListRange = computed(() => {
                 'is-year-month-range'
               "
             >
-              <div class="setting-label">结束时间</div>
+              <div class="setting-label">{{ t('datasource.end_time') }}</div>
               <div class="setting-input range">
                 <el-input-number
                   v-model="timeRange.timeNumRange"
@@ -400,7 +403,7 @@ const relativeToCurrentListRange = computed(() => {
         </template>
       </div>
       <div class="parameters" :class="dynamicTime && 'setting'">
-        <div class="setting-label" v-if="dynamicTime">预览</div>
+        <div class="setting-label" v-if="dynamicTime">{{ t('template_manage.preview') }}</div>
         <div :class="dynamicTime ? 'setting-value' : 'w100'">
           <component
             :config="timeRange"
@@ -413,10 +416,10 @@ const relativeToCurrentListRange = computed(() => {
     </div>
     <div class="list-item">
       <div class="label">
-        <el-checkbox v-model="timeRange.dynamicWindow" label="动态查询时间窗口" />
+        <el-checkbox v-model="timeRange.dynamicWindow" :label="t('v_query.query_time_window')" />
       </div>
       <div v-if="timeRange.dynamicWindow" class="setting-content maximum-single-query">
-        单次查询最多
+        {{ t('v_query.maximum_single_query') }}
         <el-input-number
           v-model="timeRange.maximumSingleQuery"
           :min="1"

@@ -4,7 +4,7 @@ import { nextTick, onMounted, reactive, ref } from 'vue'
 import DePreview from '@/components/data-visualization/canvas/DePreview.vue'
 import router from '@/router'
 import { useEmitt } from '@/hooks/web/useEmitt'
-import { initCanvasData } from '@/utils/canvasUtils'
+import { initCanvasData, onInitReady } from '@/utils/canvasUtils'
 import { queryTargetVisualizationJumpInfo } from '@/api/visualization/linkJump'
 import { Base64 } from 'js-base64'
 import { getOuterParamsInfo } from '@/api/visualization/outerParams'
@@ -15,6 +15,7 @@ import { XpackComponent } from '@/components/plugin'
 import { propTypes } from '@/utils/propTypes'
 import { downloadCanvas2 } from '@/utils/imgUtils'
 import { setTitle } from '@/utils/utils'
+import EmptyBackground from '../../components/empty-background/src/EmptyBackground.vue'
 
 const dvMainStore = dvMainStoreWithOut()
 const { t } = useI18n()
@@ -26,7 +27,8 @@ const state = reactive({
   canvasStylePreview: null,
   canvasViewInfoPreview: null,
   dvInfo: null,
-  curPreviewGap: 0
+  curPreviewGap: 0,
+  initState: true
 })
 
 const props = defineProps({
@@ -42,7 +44,7 @@ const props = defineProps({
   ticketArgs: propTypes.string.def(null)
 })
 
-const loadCanvasDataAsync = async (dvId, dvType) => {
+const loadCanvasDataAsync = async (dvId, dvType, ignoreParams = false) => {
   const jumpInfoParam = embeddedStore.jumpInfoParam || router.currentRoute.value.query.jumpInfoParam
   let jumpParam
   // 获取外部跳转参数
@@ -104,7 +106,7 @@ const loadCanvasDataAsync = async (dvId, dvType) => {
     }
   }
 
-  initCanvasData(
+  await initCanvasData(
     dvId,
     dvType,
     function ({
@@ -122,8 +124,10 @@ const loadCanvasDataAsync = async (dvId, dvType) => {
       if (jumpParam) {
         dvMainStore.addViewTrackFilter(jumpParam)
       }
-      if (attachParam) {
+      if (!ignoreParams) {
+        state.initState = false
         dvMainStore.addOuterParamsFilter(attachParam)
+        state.initState = true
       }
       if (props.publicLinkStatus) {
         // 设置浏览器title为当前仪表板名称
@@ -131,9 +135,13 @@ const loadCanvasDataAsync = async (dvId, dvType) => {
         setTitle(dvInfo.name)
       }
       initBrowserTimer()
+      nextTick(() => {
+        onInitReady({ resourceId: dvId })
+      })
     }
   )
 }
+
 const downloadH2 = type => {
   downloadStatus.value = true
   nextTick(() => {
@@ -155,12 +163,14 @@ onMounted(async () => {
   })
   await new Promise(r => (p = r))
   const dvId = embeddedStore.dvId || router.currentRoute.value.query.dvId
+  // 检查外部参数
+  const ignoreParams = router.currentRoute.value.query.ignoreParams === 'true'
   const { dvType, callBackFlag, taskId, showWatermark } = router.currentRoute.value.query
   if (!!taskId) {
     dvMainStore.setCanvasAttachInfo({ taskId, showWatermark })
   }
   if (dvId) {
-    loadCanvasDataAsync(dvId, dvType)
+    await loadCanvasDataAsync(dvId, dvType, ignoreParams)
     return
   }
   dvMainStore.setEmbeddedCallBack(callBackFlag || 'no')
@@ -176,7 +186,7 @@ defineExpose({
   <div class="content" ref="previewCanvasContainer">
     <de-preview
       ref="dvPreview"
-      v-if="state.canvasStylePreview"
+      v-if="state.canvasStylePreview && state.initState"
       :component-data="state.canvasDataPreview"
       :canvas-style-data="state.canvasStylePreview"
       :canvas-view-info="state.canvasViewInfoPreview"
@@ -184,7 +194,9 @@ defineExpose({
       :cur-gap="state.curPreviewGap"
       :is-selector="props.isSelector"
       :download-status="downloadStatus"
+      :show-pop-bar="true"
     ></de-preview>
+    <empty-background v-if="!state.initState" description="参数不能为空" img-type="noneWhite" />
   </div>
   <XpackComponent
     jsname="L2NvbXBvbmVudC9lbWJlZGRlZC1pZnJhbWUvTmV3V2luZG93SGFuZGxlcg=="
@@ -193,7 +205,10 @@ defineExpose({
   />
 </template>
 
-<style lang="less">
+<style lang="less" scoped>
+::-webkit-scrollbar {
+  display: none;
+}
 .content {
   background-color: #ffffff;
   width: 100%;
@@ -201,9 +216,5 @@ defineExpose({
   align-items: center;
   overflow-x: hidden;
   overflow-y: auto;
-  ::-webkit-scrollbar {
-    width: 0px !important;
-    height: 0px !important;
-  }
 }
 </style>

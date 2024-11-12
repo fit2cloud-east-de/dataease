@@ -202,13 +202,13 @@ onMounted(() => {
     <van-sticky>
       <van-nav-bar
         safe-area-inset-top
-        :title="activeDirectName || '仪表板'"
+        :title="activeDirectName || t('work_branch.dashboard')"
         :left-arrow="!!activeDirectName"
         @click-left="onClickLeft"
       />
       <div class="direct-name-arr" v-if="directName.length">
-        <div @click="onClickPanel" key="仪表板">
-          <span class="label primary-name">仪表板</span>
+        <div @click="onClickPanel" :key="t('work_branch.dashboard')">
+          <span class="label primary-name">{{ t('work_branch.dashboard') }}</span>
           <el-icon>
             <Icon name="icon_right_outlined"><icon_right_outlined class="svg-icon" /></Icon>
           </el-icon>

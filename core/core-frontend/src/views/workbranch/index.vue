@@ -22,6 +22,11 @@ import DeResourceCreateOptV2 from '@/views/common/DeResourceCreateOptV2.vue'
 import { Base64 } from 'js-base64'
 import { useEmbedded } from '@/store/modules/embedded'
 import { useAppStoreWithOut } from '@/store/modules/app'
+import { useShareStoreWithOut } from '@/store/modules/share'
+import { queryShareBaseApi } from '@/api/visualization/dataVisualization'
+
+const shareStore = useShareStoreWithOut()
+
 const userStore = useUserStoreWithOut()
 const interactiveStore = interactiveStoreWithOut()
 const permissionStore = usePermissionStoreWithOut()
@@ -281,8 +286,19 @@ const toTemplateMarketAdd = () => {
   }
 }
 
+const loadShareBase = () => {
+  queryShareBaseApi().then(res => {
+    const param = {
+      shareDisable: res.data?.disable,
+      sharePeRequire: res.data?.peRequire
+    }
+    shareStore.setData(param)
+  })
+}
+
 fillCardInfo()
 initMarketTemplate()
+loadShareBase()
 </script>
 
 <template>

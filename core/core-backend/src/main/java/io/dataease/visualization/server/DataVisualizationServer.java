@@ -11,6 +11,7 @@ import io.dataease.api.visualization.request.DataVisualizationBaseRequest;
 import io.dataease.api.visualization.request.VisualizationAppExportRequest;
 import io.dataease.api.visualization.request.VisualizationWorkbranchQueryRequest;
 import io.dataease.api.visualization.vo.*;
+import io.dataease.auth.DeLinkPermit;
 import io.dataease.chart.dao.auto.entity.CoreChartView;
 import io.dataease.chart.dao.auto.mapper.CoreChartViewMapper;
 import io.dataease.chart.manage.ChartDataManage;
@@ -51,6 +52,7 @@ import io.dataease.visualization.dao.auto.entity.VisualizationWatermark;
 import io.dataease.visualization.dao.auto.mapper.DataVisualizationInfoMapper;
 import io.dataease.visualization.dao.auto.mapper.VisualizationWatermarkMapper;
 import io.dataease.visualization.dao.ext.mapper.ExtDataVisualizationMapper;
+import io.dataease.visualization.manage.CoreBusiManage;
 import io.dataease.visualization.manage.CoreVisualizationManage;
 import io.dataease.visualization.utils.VisualizationUtils;
 import jakarta.annotation.Resource;
@@ -128,6 +130,9 @@ public class DataVisualizationServer implements DataVisualizationApi {
     @Autowired
     private CoreDatasourceMapper coreDatasourceMapper;
 
+    @Resource
+    private CoreBusiManage coreBusiManage;
+
     @Override
     public DataVisualizationVO findCopyResource(Long dvId, String busiFlag) {
         DataVisualizationVO result = findById(new DataVisualizationBaseRequest(dvId, busiFlag));
@@ -138,6 +143,7 @@ public class DataVisualizationServer implements DataVisualizationApi {
         }
     }
 
+    @DeLinkPermit("#p0.id")
     @DeLog(id = "#p0.id", ot = LogOT.READ, stExp = "#p0.busiFlag")
     @Override
     @XpackInteract(value = "dataVisualizationServer", original = true)
@@ -296,7 +302,7 @@ public class DataVisualizationServer implements DataVisualizationApi {
                     coreDatasetTableFieldMapper.insert(dsTableFields);
                 });
 
-
+                List<String> dsGroupNameSave = new ArrayList<>();
                 // 持久化数据集
                 newDsGroupInfo.forEach(dsGroup -> {
                     dsTableIdMap.forEach((key, value) -> {
@@ -321,8 +327,10 @@ public class DataVisualizationServer implements DataVisualizationApi {
                         }
 
                     });
-
-
+                    if(dsGroupNameSave.contains(dsGroup.getName())){
+                        dsGroup.setName(dsGroup.getName()+"-"+UUID.randomUUID().toString());
+                    }
+                    dsGroupNameSave.add(dsGroup.getName());
                     datasetGroupManage.innerSave(dsGroup);
                 });
 
@@ -482,6 +490,11 @@ public class DataVisualizationServer implements DataVisualizationApi {
     @Override
     public List<BusiNodeVO> tree(BusiNodeRequest request) {
         return coreVisualizationManage.tree(request);
+    }
+
+    @Override
+    public Map<String, List<BusiNodeVO>> interactiveTree(Map<String, BusiNodeRequest> requestMap) {
+        return coreBusiManage.interactiveTree(requestMap);
     }
 
     @DeLog(id = "#p0.id", pid = "#p0.pid", ot = LogOT.MODIFY, stExp = "#p0.type")
@@ -743,7 +756,6 @@ public class DataVisualizationServer implements DataVisualizationApi {
         wrapper.eq("name", request.getName().trim());
         wrapper.eq("node_type", request.getNodeType());
         wrapper.eq("type", request.getType());
-        wrapper.eq("org_id", AuthUtils.getUser().getDefaultOid());
         if (visualizationInfoMapper.exists(wrapper)) {
             DEException.throwException("当前名称已经存在");
         }
@@ -772,6 +784,9 @@ public class DataVisualizationServer implements DataVisualizationApi {
         List<DataVisualizationInfo> list = new ArrayList<>();
         DataVisualizationInfo dataVisualizationInfo = visualizationInfoMapper.selectById(id);
         list.add(dataVisualizationInfo);
+        if (dataVisualizationInfo.getPid().equals(dataVisualizationInfo.getId())) {
+            return list;
+        }
         getParent(list, dataVisualizationInfo);
         Collections.reverse(list);
         return list;

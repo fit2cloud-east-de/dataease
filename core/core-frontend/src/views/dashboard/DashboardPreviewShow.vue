@@ -7,7 +7,7 @@ import DePreview from '@/components/data-visualization/canvas/DePreview.vue'
 import PreviewHead from '@/views/data-visualization/PreviewHead.vue'
 import EmptyBackground from '@/components/empty-background/src/EmptyBackground.vue'
 import ArrowSide from '@/views/common/DeResourceArrow.vue'
-import { initCanvasData, initCanvasDataPrepare } from '@/utils/canvasUtils'
+import { initCanvasData, initCanvasDataPrepare, onInitReady } from '@/utils/canvasUtils'
 import { useAppStoreWithOut } from '@/store/modules/app'
 import { useRequestStoreWithOut } from '@/store/modules/request'
 import { usePermissionStoreWithOut } from '@/store/modules/permission'
@@ -16,9 +16,12 @@ import { Icon } from '@/components/icon-custom'
 import { download2AppTemplate, downloadCanvas2 } from '@/utils/imgUtils'
 import { storeToRefs } from 'pinia'
 import { ElMessage } from 'element-plus-secondary'
-import { personInfoApi } from '@/api/user'
 import AppExportForm from '@/components/de-app/AppExportForm.vue'
 import { useEmitt } from '@/hooks/web/useEmitt'
+import { useUserStoreWithOut } from '@/store/modules/user'
+const userStore = useUserStoreWithOut()
+
+const userName = computed(() => userStore.getName)
 const appExportFormRef = ref(null)
 
 const dvMainStore = dvMainStoreWithOut()
@@ -35,8 +38,7 @@ const state = reactive({
   canvasStylePreview: null,
   canvasViewInfoPreview: null,
   dvInfo: null,
-  curPreviewGap: 0,
-  userLoginInfo: {}
+  curPreviewGap: 0
 })
 
 const { fullscreenFlag, canvasViewDataInfo } = storeToRefs(dvMainStore)
@@ -108,6 +110,7 @@ const loadCanvasData = (dvId, weight?) => {
       dataInitState.value = true
       nextTick(() => {
         dashboardPreview.value.restore()
+        onInitReady({ resourceId: dvId })
       })
     }
   )
@@ -140,7 +143,7 @@ const downLoadToAppPre = () => {
       appName: state.dvInfo.name,
       icon: null,
       version: '2.0',
-      creator: state.userLoginInfo?.name,
+      creator: userName.value,
       required: '2.9.0',
       description: null
     })
@@ -188,18 +191,11 @@ const resourceNodeClick = data => {
 }
 
 const previewShowFlag = computed(() => !!dvMainStore.dvInfo?.name)
-const findUserData = callback => {
-  personInfoApi().then(rsp => {
-    callback(rsp)
-  })
-}
+
 onBeforeMount(() => {
   if (showPosition.value === 'preview') {
     dvMainStore.canvasDataInit()
   }
-  findUserData(res => {
-    state.userLoginInfo = res.data
-  })
 })
 const sideTreeStatus = ref(true)
 const changeSideTreeStatus = val => {

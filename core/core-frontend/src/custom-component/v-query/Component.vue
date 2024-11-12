@@ -18,7 +18,8 @@ import {
   onBeforeMount,
   CSSProperties,
   shallowRef,
-  provide
+  provide,
+  nextTick
 } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from '@/hooks/web/useI18n'
@@ -57,12 +58,15 @@ const props = defineProps({
 })
 const { element, view, scale } = toRefs(props)
 const { t } = useI18n()
+const vQueryRef = ref()
 const dvMainStore = dvMainStoreWithOut()
 const { curComponent, canvasViewInfo, mobileInPc, firstLoadMap } = storeToRefs(dvMainStore)
 const canEdit = ref(false)
 const queryConfig = ref()
 const defaultStyle = {
   border: '',
+  placeholderSize: 14,
+  placeholderShow: true,
   background: '',
   text: '',
   layout: 'horizontal',
@@ -111,6 +115,27 @@ const btnStyle = computed(() => {
 
   return style
 })
+
+const btnPlainStyle = computed(() => {
+  const style = {
+    backgroundColor: 'transparent',
+    borderColor: customStyle.btnColor,
+    color: customStyle.btnColor
+  } as CSSProperties
+  if (customStyle.fontSizeBtn) {
+    style.fontSize = customStyle.fontSizeBtn + 'px'
+  }
+
+  if (customStyle.fontWeightBtn) {
+    style.fontWeight = customStyle.fontWeightBtn
+  }
+
+  if (customStyle.fontStyleBtn) {
+    style.fontStyle = customStyle.fontStyleBtn
+  }
+
+  return style
+})
 const curComponentView = computed(() => {
   return (canvasViewInfo.value[element.value.id] || {}).customStyle
 })
@@ -130,7 +155,6 @@ const setCustomStyle = val => {
     layout,
     titleShow,
     titleColor,
-    textColorShow,
     title,
     fontSize,
     fontWeight,
@@ -143,12 +167,22 @@ const setCustomStyle = val => {
     queryConditionSpacing,
     labelColorBtn,
     btnColor,
+    placeholderSize,
+    placeholderShow,
     labelShow
   } = val
   customStyle.background = bgColorShow ? bgColor || '' : ''
   customStyle.border = borderShow ? borderColor || '' : ''
   customStyle.btnList = [...btnList]
   customStyle.layout = layout
+  customStyle.placeholderShow = placeholderShow ?? true
+  customStyle.placeholderSize = placeholderSize ?? 14
+  nextTick(() => {
+    vQueryRef.value.style.setProperty(
+      '--ed-component-size',
+      `${customStyle.placeholderSize + 18}px`
+    )
+  })
   customStyle.titleShow = titleShow
   customStyle.titleColor = titleColor
   customStyle.labelColor = labelShow ? labelColor || '' : ''
@@ -156,7 +190,7 @@ const setCustomStyle = val => {
   customStyle.fontWeight = labelShow ? fontWeight || '' : ''
   customStyle.fontStyle = labelShow ? fontStyle || '' : ''
   customStyle.title = title
-  customStyle.text = textColorShow ? text || '' : ''
+  customStyle.text = customStyle.placeholderShow ? text || '' : ''
   customStyle.titleLayout = titleLayout
   customStyle.fontSizeBtn = fontSizeBtn || '14'
   customStyle.fontWeightBtn = fontWeightBtn
@@ -240,6 +274,13 @@ const queryDataForId = id => {
                 ? next.name
                 : ''
           }
+        } else if (next.displayType === '22') {
+          if (
+            (next.numValueStart !== 0 && !next.numValueStart) ||
+            (next.numValueEnd !== 0 && !next.numValueEnd)
+          ) {
+            requiredName = next.name
+          }
         } else if (
           (Array.isArray(next.selectValue) && !next.selectValue.length) ||
           (next.selectValue !== 0 && !next.selectValue)
@@ -255,7 +296,7 @@ const queryDataForId = id => {
       return pre
     }, [])
   if (!!requiredName) {
-    ElMessage.error(`【${requiredName}】查询条件是必填项，请设置选项值后，再进行查询！`)
+    ElMessage.error(`【${requiredName}】${t('v_query.before_querying')}`)
     return
   }
   if (!emitterList.length) return
@@ -271,6 +312,12 @@ const getCascadeList = () => {
   return props.element.cascade
 }
 
+const getPlaceholder = computed(() => {
+  return {
+    placeholderShow: customStyle.placeholderShow
+  }
+})
+
 const isConfirmSearch = id => {
   if (componentWithSure.value) return
   queryDataForId(id)
@@ -282,6 +329,7 @@ provide('release-unmount-select', releaseSelect)
 provide('query-data-for-id', queryDataForId)
 provide('com-width', getQueryConditionWidth)
 provide('cascade-list', getCascadeList)
+provide('placeholder', getPlaceholder)
 
 onBeforeUnmount(() => {
   emitter.off(`addQueryCriteria${element.value.id}`)
@@ -393,6 +441,11 @@ const resetData = () => {
     next.conditionValueS = next.defaultConditionValueS
     next.conditionValueOperatorS = next.defaultConditionValueOperatorS
 
+    if (next.displayType === '22') {
+      next.numValueEnd = next.defaultNumValueEnd
+      next.numValueStart = next.defaultNumValueStart
+    }
+
     if (!next.defaultValueCheck) {
       next.defaultValue = next.multiple || +next.displayType === 7 ? [] : undefined
     }
@@ -402,6 +455,19 @@ const resetData = () => {
         ? [...next.defaultMapValue]
         : next.defaultMapValue
     }
+
+    ;(props.element.cascade || []).forEach(ele => {
+      ele.forEach(item => {
+        const comId = item.datasetId.split('--')[1]
+        if (next.id === comId) {
+          item.currentSelectValue = Array.isArray(next.selectValue)
+            ? next.selectValue
+            : [next.selectValue].filter(itx => ![null, undefined].includes(itx))
+          useEmitt().emitter.emit(`${item.datasetId.split('--')[1]}-select`)
+        }
+      })
+    })
+
     const keyList = Object.entries(next.checkedFieldsMap)
       .filter(ele => next.checkedFields.includes(ele[0]))
       .filter(ele => !!ele[1])
@@ -413,13 +479,29 @@ const resetData = () => {
 }
 
 const clearData = () => {
+  ;(props.element.cascade || []).forEach(ele => {
+    ele.forEach(item => {
+      if (item.currentSelectValue?.length) {
+        useEmitt().emitter.emit(`${item.datasetId.split('--')[1]}-select`)
+        item.currentSelectValue = []
+      }
+    })
+  })
   ;(list.value || []).reduce((pre, next) => {
+    if (!next.visible) {
+      return pre
+    }
     next.selectValue = next.multiple || +next.displayType === 7 ? [] : undefined
     if (next.optionValueSource === 1 && next.defaultMapValue?.length) {
       next.mapValue = next.multiple ? [] : undefined
     }
     next.conditionValueF = ''
     next.conditionValueS = ''
+
+    if (next.displayType === '22') {
+      next.numValueEnd = undefined
+      next.numValueStart = undefined
+    }
     const keyList = Object.entries(next.checkedFieldsMap)
       .filter(ele => next.checkedFields.includes(ele[0]))
       .filter(ele => !!ele[1])
@@ -449,8 +531,13 @@ watch(
   }
 )
 
+const boxWidth = computed(() => {
+  return `${customStyle.placeholderSize}px`
+})
+
 const queryData = () => {
   let requiredName = ''
+  let numName = ''
   const emitterList = (element.value.propValue || []).reduce((pre, next) => {
     if (next.required) {
       if (!next.defaultValueCheck) {
@@ -467,9 +554,32 @@ const queryData = () => {
               ? next.name
               : ''
         }
+      } else if (next.displayType === '22') {
+        if (
+          (next.numValueEnd !== 0 && !next.numValueEnd) ||
+          (next.numValueStart !== 0 && !next.numValueStart)
+        ) {
+          requiredName = next.name
+        }
       } else if (
         (Array.isArray(next.selectValue) && !next.selectValue.length) ||
         (next.selectValue !== 0 && !next.selectValue)
+      ) {
+        requiredName = next.name
+      }
+    }
+
+    if (next.displayType === '22') {
+      if (
+        !isNaN(next.numValueEnd) &&
+        !isNaN(next.numValueStart) &&
+        next.numValueEnd < next.numValueStart
+      ) {
+        numName = next.name
+      }
+      if (
+        [next.numValueEnd, next.numValueStart].filter(itx => ![null, undefined, ''].includes(itx))
+          .length === 1
       ) {
         requiredName = next.name
       }
@@ -482,7 +592,12 @@ const queryData = () => {
     return pre
   }, [])
   if (!!requiredName) {
-    ElMessage.error(`【${requiredName}】查询条件是必填项，请设置选项值后，再进行查询！`)
+    ElMessage.error(`【${requiredName}】${t('v_query.before_querying')}`)
+    return
+  }
+
+  if (!!numName) {
+    ElMessage.error(`【${numName}】数值区间最大值必须大于最小值`)
     return
   }
   if (!emitterList.length) return
@@ -530,20 +645,12 @@ const marginRight = computed<CSSProperties>(() => {
 })
 
 const autoStyle = computed(() => {
-  return {
-    position: 'absolute',
-    height: 100 / scale.value + '%!important',
-    width: 100 / scale.value + '%!important',
-    left: 50 * (1 - 1 / scale.value) + '%', // 放大余量 除以 2
-    top: 50 * (1 - 1 / scale.value) + '%', // 放大余量 除以 2
-    transform: 'scale(' + scale.value + ')',
-    opacity: element.value?.style?.opacity || 1
-  } as CSSProperties
+  return { zoom: scale.value }
 })
 </script>
 
 <template>
-  <div class="v-query-container" :style="autoStyle" @keydown.stop @keyup.stop>
+  <div class="v-query-container" ref="vQueryRef" :style="autoStyle" @keydown.stop @keyup.stop>
     <p v-if="customStyle.titleShow" class="title" :style="titleStyle">
       {{ customStyle.title }}
     </p>
@@ -558,13 +665,13 @@ const autoStyle = computed(() => {
     >
       <div v-if="!listVisible.length" class="no-list-label flex-align-center">
         <div class="container flex-align-center">
-          将右侧的字段拖拽到这里 或 点击
+          {{ t('v_query.here_or_click') }}
           <el-button
             :disabled="showPosition === 'preview' || mobileInPc"
             @click="addCriteriaConfigOut"
             text
           >
-            添加查询条件
+            {{ t('v_query.add_query_condition') }}
           </el-button>
         </div>
       </div>
@@ -595,12 +702,16 @@ const autoStyle = computed(() => {
                 class="label-wrapper-tooltip"
                 v-if="showPosition !== 'preview' && !dvMainStore.mobileInPc"
               >
-                <el-tooltip effect="dark" content="设置过滤条件" placement="top">
+                <el-tooltip
+                  effect="dark"
+                  :content="t('v_query.set_filter_condition')"
+                  placement="top"
+                >
                   <el-icon @click="editeQueryConfig(ele.id)">
                     <Icon name="icon_edit_outlined"><icon_edit_outlined class="svg-icon" /></Icon>
                   </el-icon>
                 </el-tooltip>
-                <el-tooltip effect="dark" content="删除条件" placement="top">
+                <el-tooltip effect="dark" :content="t('v_query.delete_condition')" placement="top">
                   <el-icon style="margin-left: 8px" @click="delQueryConfig(index)">
                     <Icon name="icon_delete-trash_outlined"
                       ><icon_deleteTrash_outlined class="svg-icon"
@@ -619,10 +730,20 @@ const autoStyle = computed(() => {
           </div>
         </div>
         <div class="query-button" v-if="!!listVisible.length">
-          <el-button @click.stop="clearData" v-if="customStyle.btnList.includes('clear')" secondary>
+          <el-button
+            @click.stop="clearData"
+            :style="btnPlainStyle"
+            v-if="customStyle.btnList.includes('clear')"
+            plain
+          >
             {{ t('commons.clear') }}
           </el-button>
-          <el-button @click.stop="resetData" v-if="customStyle.btnList.includes('reset')" secondary>
+          <el-button
+            @click.stop="resetData"
+            :style="btnPlainStyle"
+            v-if="customStyle.btnList.includes('reset')"
+            plain
+          >
             {{ t('chart.reset') }}
           </el-button>
           <el-button
@@ -653,6 +774,15 @@ const autoStyle = computed(() => {
   height: 100%;
   overflow: auto;
   position: relative;
+  --ed-font-size-base: v-bind(boxWidth);
+
+  :deep(.ed-tag) {
+    --ed-tag-font-size: v-bind(boxWidth);
+  }
+
+  :deep(.ed-select-v2) {
+    font-size: v-bind(boxWidth);
+  }
 
   .no-list-label {
     width: 100%;
@@ -764,6 +894,7 @@ const autoStyle = computed(() => {
           height: 16px;
           line-height: 16px;
           color: #575757;
+          white-space: nowrap;
         }
       }
 
@@ -801,6 +932,13 @@ const autoStyle = computed(() => {
           .label-wrapper-tooltip {
             display: inline-flex !important;
             cursor: pointer;
+            padding: 4px 8px;
+            height: 26px;
+            width: 58px;
+            border-radius: 4px;
+            border: 1px solid #dee0e3;
+            background: #fff;
+            box-shadow: 0px 4px 8px 0px rgba(31, 35, 41, 0.1);
           }
         }
         .label {
@@ -812,6 +950,7 @@ const autoStyle = computed(() => {
           position: absolute;
           right: 0;
           top: 0;
+          overflow: visible;
         }
       }
     }

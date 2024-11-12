@@ -1,7 +1,7 @@
 import type { FunnelOptions, Funnel as G2Funnel } from '@antv/g2plot/esm/plots/funnel'
 import { G2PlotChartView, G2PlotDrawOptions } from '../../types/impl/g2plot'
 import { flow, parseJson, setUpSingleDimensionSeriesColor } from '@/views/chart/components/js/util'
-import { getPadding } from '../../common/common_antv'
+import { configPlotTooltipEvent, getPadding } from '../../common/common_antv'
 import { useI18n } from '@/hooks/web/useI18n'
 import { Datum } from '@antv/g2plot/esm/types/common'
 import { valueFormatter } from '@/views/chart/components/js/formatter'
@@ -110,6 +110,7 @@ export class Funnel extends G2PlotChartView<FunnelOptions, G2Funnel> {
     const { Funnel: G2Funnel } = await import('@antv/g2plot/esm/plots/funnel')
     const newChart = new G2Funnel(container, options)
     newChart.on('interval:click', action)
+    configPlotTooltipEvent(chart, newChart)
     return newChart
   }
 
@@ -124,9 +125,13 @@ export class Funnel extends G2PlotChartView<FunnelOptions, G2Funnel> {
       if (customAttr.label?.show) {
         // label
         if (showQuota) {
+          const layout = []
+          if (!l.fullDisplay) {
+            layout.push(...[{ type: 'hide-overlap' }, { type: 'limit-in-plot' }])
+          }
           label = {
             position: l.position,
-            layout: [{ type: 'limit-in-canvas' }],
+            layout,
             style: {
               fill: l.color,
               fontSize: l.fontSize

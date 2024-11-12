@@ -3,6 +3,7 @@ package io.dataease.api.system;
 import com.github.xiaoymin.knife4j.annotations.ApiSupport;
 import io.dataease.api.system.request.OnlineMapEditor;
 import io.dataease.api.system.vo.SettingItemVO;
+import io.dataease.api.system.vo.ShareBaseVO;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,7 +31,7 @@ public interface SysParameterApi {
 
     @Operation(summary = "查询在线地图")
     @GetMapping("/queryOnlineMap")
-    String queryOnlineMap();
+    OnlineMapEditor queryOnlineMap();
 
     @Operation(summary = "查询基础设置(非xpack)")
     @GetMapping("basic/query")
@@ -51,5 +52,9 @@ public interface SysParameterApi {
     @Hidden
     @GetMapping("/defaultLogin")
     Integer defaultLogin();
+
+    @GetMapping("/shareBase")
+    @Operation(summary = "查询分享设置")
+    ShareBaseVO shareBase();
 
 }

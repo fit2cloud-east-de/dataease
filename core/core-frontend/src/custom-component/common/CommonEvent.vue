@@ -29,11 +29,11 @@ const curSupportEvents = computed(() => {
   }
 })
 const onEventChange = () => {
-  snapshotStore.recordSnapshotCache('renderChart')
+  snapshotStore.recordSnapshotCacheToMobile('events')
 }
 
 const onJumpValueChange = () => {
-  snapshotStore.recordSnapshotCache('renderChart')
+  snapshotStore.recordSnapshotCacheToMobile('events')
 }
 </script>
 

@@ -4,12 +4,13 @@ import icon_add_outlined from '@/assets/svg/icon_add_outlined.svg'
 import { onMounted, ref, computed } from 'vue'
 import UploadDetail from './UploadDetail.vue'
 import { useAppearanceStoreWithOut } from '@/store/modules/appearance'
+import { useI18n } from '@/hooks/web/useI18n'
 import { deleteById, edit, defaultFont } from '@/api/font'
 import { ElMessage, ElMessageBox } from 'element-plus-secondary'
 import { cloneDeep } from 'lodash-es'
 
 const appearanceStore = useAppearanceStoreWithOut()
-
+const { t } = useI18n()
 const fontKeyword = ref('')
 const fontList = ref([])
 const basePath = import.meta.env.VITE_API_BASEPATH
@@ -35,10 +36,10 @@ const fontListComputed = computed(() => {
 
 const deleteFont = item => {
   if (item.isDefault) {
-    ElMessage.warning('请先将其他字体设置为默认字体，再进行删除。')
+    ElMessage.warning(t('system.fonts_before_deleting'))
     return
   }
-  ElMessageBox.confirm('当前字体被删除后，使用该字体的组件将会使用默认字体，确定删除?', {
+  ElMessageBox.confirm(t('system.sure_to_delete'), {
     confirmButtonType: 'danger',
     type: 'warning',
     autofocus: false,
@@ -47,7 +48,7 @@ const deleteFont = item => {
     loading.value = true
     deleteById(item.id)
       .then(() => {
-        ElMessage.success('删除成功')
+        ElMessage.success(t('common.delete_success'))
         listFont()
         getDefaultFont()
       })
@@ -62,7 +63,7 @@ const setToDefault = item => {
   loading.value = true
   edit(item)
     .then(() => {
-      ElMessage.success('设置成功')
+      ElMessage.success(t('system.setting_successful'))
       getDefaultFont()
       listFont()
     })
@@ -115,9 +116,14 @@ onMounted(() => {
 <template>
   <div class="font-management_system" v-loading="loading">
     <div class="route-title">
-      字体管理
+      {{ t('system.font_management') }}
       <div class="search-font">
-        <el-input v-model="fontKeyword" clearable style="width: 240px" placeholder="搜索字体名称">
+        <el-input
+          v-model="fontKeyword"
+          clearable
+          style="width: 240px"
+          :placeholder="t('system.search_font_name')"
+        >
           <template #prefix>
             <el-icon>
               <Icon name="icon_search-outline_outlined"
@@ -127,42 +133,45 @@ onMounted(() => {
           </template>
         </el-input>
 
-        <el-button type="primary" @click="uploadFont('新建字体', 'create', {})">
+        <el-button type="primary" @click="uploadFont(t('system.a_new_font'), 'create', {})">
           <template #icon>
             <Icon name="icon_add_outlined"><icon_add_outlined class="svg-icon" /></Icon>
           </template>
-          添加字体
+          {{ t('system.add_font') }}
         </el-button>
       </div>
     </div>
     <div class="font-content_overflow">
       <div class="font-content_list">
         <div class="font-content_item" v-for="ele in fontListComputed" :key="ele">
-          <span v-if="ele.isDefault" class="font-default">默认字体</span>
+          <span v-if="ele.isDefault" class="font-default">{{ t('system.default_font') }}</span>
           <div class="font-name">
-            {{ ele.name }} <span v-if="ele.isBuiltin" class="font-type"> 系统内置 </span>
+            {{ ele.name }}
+            <span v-if="ele.isBuiltin" class="font-type"> {{ t('system.system_built_in') }} </span>
           </div>
           <div :title="ele.fileName" class="font-update_time">
-            更新时间： {{ new Date(ele.updateTime).toLocaleString() }}
-            <span class="line"></span> 字库文件： {{ ele.fileName }}
+            {{ t('system.update_time') }} {{ new Date(ele.updateTime).toLocaleString() }}
+            <span class="line"></span> {{ t('system.font_file') }} {{ ele.fileName }}
           </div>
           <div class="font-upload_btn">
             <el-button
               v-if="!ele.fileTransName"
-              @click="uploadFont('上传字库文件', 'uploadFile', ele)"
+              @click="uploadFont(t('system.upload_font_file'), 'uploadFile', ele)"
               secondary
-              >上传字库文件</el-button
+              >{{ t('system.upload_font_file') }}</el-button
             >
             <el-button
               v-if="ele.fileTransName"
-              @click="uploadFont('替换字库文件', 'uploadFile', ele)"
+              @click="uploadFont(t('system.replace_font_file'), 'uploadFile', ele)"
               secondary
-              >替换字库文件</el-button
+              >{{ t('system.replace_font_file') }}</el-button
             >
-            <el-button v-if="!ele.isDefault" @click="setToDefault(ele)" secondary
-              >设为默认字体</el-button
-            >
-            <el-button v-if="ele.id !== '1'" @click="deleteFont(ele)" secondary>删除</el-button>
+            <el-button v-if="!ele.isDefault" @click="setToDefault(ele)" secondary>{{
+              t('system.as_default_font')
+            }}</el-button>
+            <el-button v-if="ele.id !== '1'" @click="deleteFont(ele)" secondary>{{
+              t('common.delete')
+            }}</el-button>
           </div>
         </div>
       </div>

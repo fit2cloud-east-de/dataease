@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import icon_info_outlined from '@/assets/svg/icon_info_outlined.svg'
-import { computed, toRefs } from 'vue'
+import { computed, nextTick, toRefs } from 'vue'
 import { ElFormItem, ElIcon, ElInputNumber } from 'element-plus-secondary'
 import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapshot'
 import CollapseSwitchItem from '../../components/collapse-switch-item/src/CollapseSwitchItem.vue'
 import Icon from '../../components/icon-custom/src/Icon.vue'
+import { useEmitt } from '@/hooks/web/useEmitt'
 
 const snapshotStore = snapshotStoreWithOut()
 
@@ -28,6 +29,13 @@ const onSettingChange = () => {
   if (!carouselInfo.value.time || carouselInfo.value.time < 1) {
     carouselInfo.value.time = 1
   }
+  if (carouselInfo.value.enable) {
+    useEmitt().emitter.emit('carouselValueChange')
+  }
+
+  nextTick(() => {
+    useEmitt().emitter.emit('calcData-' + element.value.id)
+  })
   snapshotStore.recordSnapshotCache('renderChart')
 }
 
@@ -52,12 +60,12 @@ const handleInput = value => {
     @modelChange="onSettingChange"
     title="轮播"
   >
-    <el-row class="custom-row">
+    <el-row class="custom-row" style="margin-top: -8px">
       <el-form label-position="top" @submit.prevent>
         <el-form-item
           class="form-item"
           :class="'form-item-' + themes"
-          style="width: 50%; margin-bottom: 8px"
+          style="width: 50%; margin-bottom: 0"
         >
           <span style="font-size: 12px">轮播时间（秒）</span>
           <el-tooltip class="item" :effect="themes" placement="top">
@@ -79,6 +87,7 @@ const handleInput = value => {
             :disabled="!carouselInfo.enable"
             controls-position="right"
             @input="handleInput"
+            @blur="onSettingChange"
             @change="onSettingChange"
           >
           </el-input-number>

@@ -29,6 +29,7 @@ import { deepCopy } from '@/utils/utils'
 import { useEmitt } from '@/hooks/web/useEmitt'
 import { trackBarStyleCheck } from '@/utils/canvasUtils'
 import { type SpreadSheet } from '@antv/s2'
+import { parseJson } from '../../js/util'
 
 const dvMainStore = dvMainStoreWithOut()
 const {
@@ -76,12 +77,18 @@ const props = defineProps({
     type: Number,
     required: false,
     default: 0
+  },
+  //图表渲染id后缀
+  suffixId: {
+    type: String,
+    required: false,
+    default: 'common'
   }
 })
 
 const emit = defineEmits(['onPointClick', 'onChartClick', 'onDrillFilters', 'onJumpClick'])
 
-const { view, showPosition, scale, terminal, drillLength } = toRefs(props)
+const { view, showPosition, scale, terminal, drillLength, suffixId } = toRefs(props)
 
 const isError = ref(false)
 const errMsg = ref('')
@@ -116,7 +123,7 @@ let chartData = shallowRef<Partial<Chart['data']>>({
   fields: []
 })
 
-const containerId = 'container-' + showPosition.value + '-' + view.value.id
+const containerId = 'container-' + showPosition.value + '-' + view.value.id + '-' + suffixId.value
 const viewTrack = ref(null)
 
 const calcData = (view: Chart, callback, resetPageInfo = true) => {
@@ -159,10 +166,19 @@ const renderChartFromDialog = (viewInfo: Chart, chartDataInfo) => {
   chartData.value = chartDataInfo
   renderChart(viewInfo, false)
 }
+// 处理存量图表的默认值
+const handleDefaultVal = (chart: Chart) => {
+  const customAttr = parseJson(chart.customAttr)
+  // 明细表默认合并单元格，存量的不合并
+  if (customAttr.tableCell.mergeCells === undefined) {
+    customAttr.tableCell.mergeCells = false
+  }
+}
 const renderChart = (viewInfo: Chart, resetPageInfo: boolean) => {
   if (!viewInfo) {
     return
   }
+  handleDefaultVal(viewInfo)
   // view 为引用对象 需要存库 view.data 直接赋值会导致保存不必要的数据
   actualChart = deepCopy({
     ...defaultsDeep(viewInfo, cloneDeep(BASE_VIEW_CONFIG)),
@@ -172,11 +188,11 @@ const renderChart = (viewInfo: Chart, resetPageInfo: boolean) => {
   recursionTransObj(customAttrTrans, actualChart.customAttr, scale.value, terminal.value)
   recursionTransObj(customStyleTrans, actualChart.customStyle, scale.value, terminal.value)
 
-  setupPage(actualChart, resetPageInfo)
   myChart?.facet?.timer?.stop()
   myChart?.facet?.cancelScrollFrame()
   myChart?.destroy()
   myChart = null
+  setupPage(actualChart, resetPageInfo)
   const chartView = chartViewManager.getChartView(
     viewInfo.render,
     viewInfo.type
@@ -227,52 +243,58 @@ const mouseLeave = () => {
   initScroll()
 }
 
+let scrollTimer
 const initScroll = () => {
-  // 首先回到最顶部，然后计算行高*行数作为top，最后判断：如果top<数据量*行高，继续滚动，否则回到顶部
-  const customAttr = actualChart?.customAttr
-  const senior = actualChart?.senior
-  if (
-    myChart &&
-    senior?.scrollCfg?.open &&
-    chartData.value.tableRow?.length &&
-    (view.value.type === 'table-normal' || (view.value.type === 'table-info' && !state.showPage))
-  ) {
-    // 防止多次渲染
-    myChart.facet.timer?.stop()
-    // 已滚动的距离
-    let scrolledOffset = myChart.store.get('scrollY') || 0
-    // 平滑滚动，兼容原有的滚动速率设置
-    // 假设原设定为 2 行间隔 2 秒，换算公式为: 滚动到底部的时间 = 未展示部分行数 / 2行 * 2秒
-    const offsetHeight = document.getElementById(containerId).offsetHeight
-    // 没显示就不滚了
-    if (!offsetHeight) {
-      return
+  scrollTimer && clearTimeout(scrollTimer)
+  scrollTimer = setTimeout(() => {
+    // 首先回到最顶部，然后计算行高*行数作为top，最后判断：如果top<数据量*行高，继续滚动，否则回到顶部
+    const customAttr = actualChart?.customAttr
+    const senior = actualChart?.senior
+    if (
+      myChart &&
+      senior?.scrollCfg?.open &&
+      chartData.value.tableRow?.length &&
+      (view.value.type === 'table-normal' || (view.value.type === 'table-info' && !state.showPage))
+    ) {
+      // 防止多次渲染
+      myChart.facet.timer?.stop()
+      // 已滚动的距离
+      let scrolledOffset = myChart.store.get('scrollY') || 0
+      // 平滑滚动，兼容原有的滚动速率设置
+      // 假设原设定为 2 行间隔 2 秒，换算公式为: 滚动到底部的时间 = 未展示部分行数 / 2行 * 2秒
+      const offsetHeight = document.getElementById(containerId).offsetHeight
+      // 没显示就不滚了
+      if (!offsetHeight) {
+        return
+      }
+      const rowHeight = customAttr.tableCell.tableItemHeight
+      const headerHeight =
+        customAttr.tableHeader.showTableHeader === false
+          ? 1
+          : customAttr.tableHeader.tableTitleHeight
+      const scrollBarSize = myChart.theme.scrollBar.size
+      const scrollHeight =
+        rowHeight * chartData.value.tableRow.length + headerHeight - offsetHeight + scrollBarSize
+      // 显示内容没撑满
+      if (scrollHeight < scrollBarSize) {
+        return
+      }
+      // 到底了重置一下,1是误差
+      if (scrolledOffset >= scrollHeight - 1) {
+        myChart.store.set('scrollY', 0)
+        myChart.render()
+        scrolledOffset = 0
+      }
+      const viewedHeight = offsetHeight - headerHeight - scrollBarSize + scrolledOffset
+      const scrollViewCount = chartData.value.tableRow.length - viewedHeight / rowHeight
+      const duration = (scrollViewCount / senior.scrollCfg.row) * senior.scrollCfg.interval
+      myChart.facet.scrollWithAnimation(
+        { offsetY: { value: scrollHeight, animate: false } },
+        duration,
+        initScroll
+      )
     }
-    const rowHeight = customAttr.tableCell.tableItemHeight
-    const headerHeight =
-      customAttr.tableHeader.showTableHeader === false ? 1 : customAttr.tableHeader.tableTitleHeight
-    const scrollBarSize = myChart.theme.scrollBar.size
-    const scrollHeight =
-      rowHeight * chartData.value.tableRow.length + headerHeight - offsetHeight + scrollBarSize
-    // 显示内容没撑满
-    if (scrollHeight < scrollBarSize) {
-      return
-    }
-    // 到底了重置一下,1是误差
-    if (scrolledOffset >= scrollHeight - 1) {
-      myChart.store.set('scrollY', 0)
-      myChart.render()
-      scrolledOffset = 0
-    }
-    const viewedHeight = offsetHeight - headerHeight - scrollBarSize + scrolledOffset
-    const scrollViewCount = chartData.value.tableRow.length - viewedHeight / rowHeight
-    const duration = (scrollViewCount / senior.scrollCfg.row) * senior.scrollCfg.interval
-    myChart.facet.scrollWithAnimation(
-      { offsetY: { value: scrollHeight, animate: false } },
-      duration,
-      initScroll
-    )
-  }
+  }, 1500)
 }
 
 const showPage = computed(() => {
@@ -592,12 +614,7 @@ onBeforeUnmount(() => {
 })
 
 const autoStyle = computed(() => {
-  return {
-    height: 20 * scale.value + 8 + 'px',
-    width: 100 / scale.value + '%!important',
-    left: 50 * (1 - 1 / scale.value) + '%', // 放大余量 除以 2
-    transform: 'scale(' + scale.value + ')'
-  }
+  return { zoom: scale.value }
 })
 
 const autoHeightStyle = computed(() => {

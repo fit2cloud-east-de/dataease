@@ -7,12 +7,16 @@
       :rules="state.templateInfoRules"
       label-position="top"
     >
-      <el-form-item :label="'模板名称'" prop="name">
+      <el-form-item :label="t('template_manage.template_name')" prop="name">
         <div class="flex-template">
-          <el-input v-model="state.templateInfo.name" placeholder="请输入模板名称" clearable />
-          <el-button style="margin-left: 10px" icon="Upload" secondary @click="goFile"
-            >导入模板</el-button
-          >
+          <el-input
+            v-model="state.templateInfo.name"
+            :placeholder="t('common.inputText') + t('template_manage.template_name')"
+            clearable
+          />
+          <el-button style="margin-left: 10px" icon="Upload" secondary @click="goFile">
+            {{ t('template_manage.import_template') }}
+          </el-button>
           <input
             id="input"
             ref="filesRef"
@@ -24,11 +28,14 @@
         </div>
       </el-form-item>
       <el-row v-show="!!state.templateInfo.snapshot" class="preview" :style="classBackground" />
-      <el-form-item :label="'选择分类'" prop="categories" style="margin-top: 16px">
+      <el-form-item
+        :label="t('template_manage.select_catalog')"
+        prop="categories"
+        style="margin-top: 16px"
+      >
         <el-select
           v-model="state.templateInfo.categories"
           multiple
-          placeholder="可多选"
           style="width: 100%"
           :popper-class="
             templateCategories.length
@@ -43,14 +50,14 @@
             :value="option.id"
           />
           <div class="custom-dropdown__empty">
-            <span>暂无可选分类</span>
+            <span>{{ t('template_manage.no_selectable_catalog') }}</span>
           </div>
           <div class="custom-option-line">
             <div @click="doAddCategory" class="flex-align-center">
               <el-icon>
                 <Plus></Plus>
               </el-icon>
-              添加分类
+              {{ t('template_manage.add_catalog') }}
             </div>
           </div>
         </el-select>
@@ -169,7 +176,7 @@ const saveTemplate = () => {
   }
 
   if (!state.templateInfo.categories.length) {
-    ElMessage.warning('请选择分类')
+    ElMessage.warning(t('template_manage.please_select_catalog'))
     return false
   }
 
@@ -191,10 +198,10 @@ const editTemplate = () => {
   // 全局名称校验
   nameCheck(nameCheckRequest).then(response => {
     if (response.data.indexOf('exist') > -1) {
-      ElMessage.warning('当前名称已在模版管理中存在，请修改')
+      ElMessage.warning(t('template_manage.exists_name_hint'))
     } else {
       save(state.templateInfo).then(response => {
-        ElMessage.success(t('编辑成功'))
+        ElMessage.success(t('template_manage.edit_success'))
         emits('refresh', getRefreshPInfo())
         emits('closeEditTemplateDialog')
       })
@@ -226,15 +233,15 @@ const importTemplate = () => {
   }
   categoryTemplateNameCheck(nameCheckRequest).then(response => {
     if (response.data.indexOf('exist') > -1) {
-      ElMessageBox.confirm('提示', {
-        tip: '当前分类存在相同模板名称，是否覆盖？',
+      ElMessageBox.confirm(t('template_manage.hint'), {
+        tip: t('template_manage.cover_exists_hint'),
         confirmButtonType: 'danger',
         type: 'warning',
         autofocus: false,
         showClose: false
       }).then(() => {
         save(state.templateInfo).then(() => {
-          ElMessage.success(t('覆盖成功'))
+          ElMessage.success(t('template_manage.cover_success'))
           emits('refresh', getRefreshPInfo())
           emits('closeEditTemplateDialog')
         })
@@ -243,10 +250,10 @@ const importTemplate = () => {
       // 全局名称校验
       nameCheck(nameCheckRequest).then(response => {
         if (response.data.indexOf('exist') > -1) {
-          ElMessage.warning('当前名称已在模版管理中存在，请修改')
+          ElMessage.warning(t('template_manage.exists_name_hint'))
         } else {
           save(state.templateInfo).then(rsp => {
-            ElMessage.success(t('导入成功'))
+            ElMessage.success(t('template_manage.import_success'))
             emits('refresh', getRefreshPInfo())
             emits('closeEditTemplateDialog')
           })
@@ -260,7 +267,7 @@ const handleFileChange = e => {
   const file = e.target.files[0]
   const reader = new FileReader()
   if (file.size > maxImageSize) {
-    ElMessage.success('模板大小需小于35MB')
+    ElMessage.success(t('template_manage.template_size_hint'))
     return
   }
   reader.onload = res => {

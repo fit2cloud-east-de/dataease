@@ -27,7 +27,15 @@ export class HeatMap extends L7ChartView<Scene, L7Config> {
   ]
   propertyInner: EditorPropertyInner = {
     ...MAP_EDITOR_PROPERTY_INNER,
-    'basic-style-selector': ['colors', 'heatMapStyle', 'zoom']
+    'basic-style-selector': [
+      'colors',
+      'heatMapStyle',
+      'zoom',
+      'showLabel',
+      'autoFit',
+      'mapCenter',
+      'zoomLevel'
+    ]
   }
   axis: AxisType[] = ['xAxis', 'yAxis', 'filter']
   axisConfig: AxisConfig = {
@@ -48,27 +56,57 @@ export class HeatMap extends L7ChartView<Scene, L7Config> {
 
   async drawChart(drawOption: L7DrawConfig<L7Config>) {
     const { chart, container } = drawOption
+    const containerDom = document.getElementById(container)
+    const rect = containerDom?.getBoundingClientRect()
+    if (rect?.height <= 0) {
+      return new L7Wrapper(drawOption.chartObj?.getScene(), [])
+    }
     const xAxis = deepCopy(chart.xAxis)
     const yAxis = deepCopy(chart.yAxis)
-    let basicStyle
-    let miscStyle
+    let basicStyle: DeepPartial<ChartBasicStyle>
+    let miscStyle: DeepPartial<ChartMiscAttr>
     if (chart.customAttr) {
       basicStyle = parseJson(chart.customAttr).basicStyle
       miscStyle = parseJson(chart.customAttr).misc
     }
-    const mapStyle = `amap://styles/${basicStyle.mapStyle ? basicStyle.mapStyle : 'normal'}`
-    const key = await this.getMapKey()
+    let center: [number, number] = [
+      DEFAULT_BASIC_STYLE.mapCenter.longitude,
+      DEFAULT_BASIC_STYLE.mapCenter.latitude
+    ]
+    if (basicStyle.autoFit === false) {
+      center = [basicStyle.mapCenter.longitude, basicStyle.mapCenter.latitude]
+    }
+    let mapStyle = basicStyle.mapStyleUrl
+    if (basicStyle.mapStyle !== 'custom') {
+      mapStyle = `amap://styles/${basicStyle.mapStyle ? basicStyle.mapStyle : 'normal'}`
+    }
+    const mapKey = await this.getMapKey()
     // 底层
-    const scene = new Scene({
-      id: container,
-      logoVisible: false,
-      map: new GaodeMap({
-        token: key ?? undefined,
-        style: mapStyle,
-        pitch: miscStyle.mapPitch,
-        zoom: 2.5
+    const chartObj = drawOption.chartObj as unknown as L7Wrapper<L7Config, Scene>
+    let scene = chartObj?.getScene()
+    if (!scene) {
+      scene = new Scene({
+        id: container,
+        logoVisible: false,
+        map: new GaodeMap({
+          token: mapKey?.key ?? undefined,
+          style: mapStyle,
+          pitch: miscStyle.mapPitch,
+          center,
+          zoom: basicStyle.autoFit === false ? basicStyle.zoomLevel : 2.5,
+          showLabel: !(basicStyle.showLabel === false)
+        })
       })
-    })
+    } else {
+      if (scene.getLayers()?.length) {
+        await scene.removeAllLayer()
+        scene.setCenter(center)
+        scene.setPitch(miscStyle.mapPitch)
+        scene.setZoom(basicStyle.autoFit === false ? basicStyle.zoomLevel : 2.5)
+        scene.setMapStyle(mapStyle)
+        scene.map.showLabel = !(basicStyle.showLabel === false)
+      }
+    }
     mapRendering(container)
     scene.once('loaded', () => {
       mapRendered(container)
@@ -79,7 +117,7 @@ export class HeatMap extends L7ChartView<Scene, L7Config> {
     const config: L7Config = new HeatmapLayer({
       name: 'line',
       blend: 'normal',
-      autoFit: true
+      autoFit: !(basicStyle.autoFit === false)
     })
       .source(chart.data?.data, {
         parser: {

@@ -254,7 +254,7 @@ defineExpose({
 
 <template>
   <el-drawer
-    title="引擎设置"
+    :title="t('system.engine_settings')"
     v-model="dialogVisible"
     custom-class="basic-param-drawer"
     size="600px"

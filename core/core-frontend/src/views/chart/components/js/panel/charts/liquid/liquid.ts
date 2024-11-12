@@ -53,8 +53,8 @@ export class Liquid extends G2PlotChartView<LiquidOptions, G2Liquid> {
   }
 
   async drawChart(drawOptions: G2PlotDrawOptions<G2Liquid>): Promise<G2Liquid> {
-    const { chart, container } = drawOptions
-    if (!chart.data?.series) {
+    const { chart, container, action } = drawOptions
+    if (!chart.data?.series || !chart.yAxis.length) {
       return
     }
     const initOptions: LiquidOptions = {
@@ -62,8 +62,17 @@ export class Liquid extends G2PlotChartView<LiquidOptions, G2Liquid> {
     }
     const options = this.setupOptions(chart, initOptions)
     const { Liquid: G2Liquid } = await import('@antv/g2plot/esm/plots/liquid')
-    // 开始渲染
-    return new G2Liquid(container, options)
+    const newChart = new G2Liquid(container, options)
+    newChart.on('afterrender', () => {
+      action({
+        from: 'liquid',
+        data: {
+          type: 'liquid',
+          max: chart.data?.series[chart.data?.series.length - 1]?.data[0]
+        }
+      })
+    })
+    return newChart
   }
 
   protected configTheme(chart: Chart, options: LiquidOptions): LiquidOptions {
@@ -100,10 +109,11 @@ export class Liquid extends G2PlotChartView<LiquidOptions, G2Liquid> {
     let max, radius, shape
     if (customAttr.misc) {
       const misc = customAttr.misc
+      const defaultLiquidMax = chart.data?.series[chart.data?.series.length - 1]?.data[0]
       if (misc.liquidMaxType === 'dynamic') {
-        max = chart.data?.series[chart.data?.series.length - 1]?.data[0]
+        max = defaultLiquidMax
       } else {
-        max = misc.liquidMax ? misc.liquidMax : DEFAULT_MISC.liquidMax
+        max = misc.liquidMax ? misc.liquidMax : defaultLiquidMax
       }
       radius = (misc.liquidSize ? misc.liquidSize : DEFAULT_MISC.liquidSize) / 100
       shape = misc.liquidShape ?? DEFAULT_MISC.liquidShape

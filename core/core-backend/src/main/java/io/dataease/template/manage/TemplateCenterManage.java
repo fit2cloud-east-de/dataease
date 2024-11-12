@@ -11,6 +11,7 @@ import io.dataease.api.template.vo.MarketLatestReleaseVO;
 import io.dataease.api.template.vo.MarketMetaDataVO;
 import io.dataease.constant.CommonConstants;
 import io.dataease.exception.DEException;
+import io.dataease.i18n.Translator;
 import io.dataease.operation.manage.CoreOptRecentManage;
 import io.dataease.system.manage.SysParameterManage;
 import io.dataease.template.dao.auto.entity.VisualizationTemplateCategoryMap;
@@ -166,11 +167,11 @@ public class TemplateCenterManage {
     public MarketPreviewBaseResponse searchTemplatePreview() {
         try {
             MarketBaseResponse baseContentRsp = searchTemplate();
-            List<MarketMetaDataVO> categories = baseContentRsp.getCategories().stream().filter(category -> !"最近使用".equals(category.getLabel())).collect(Collectors.toList());
+            List<MarketMetaDataVO> categories = baseContentRsp.getCategories().stream().filter(category -> !Translator.get("i18n_template_recent").equals(category.getLabel())).toList();
             List<TemplateMarketDTO> contents = baseContentRsp.getContents();
             List<TemplateMarketPreviewInfoDTO> previewContents = new ArrayList<>();
             categories.forEach(category -> {
-                if ("推荐".equals(category.getLabel())) {
+                if (Translator.get("i18n_template_recommend").equals(category.getLabel())) {
                     previewContents.add(new TemplateMarketPreviewInfoDTO(category, contents.stream().filter(template -> "Y".equals(template.getSuggest())).collect(Collectors.toList())));
                 } else {
                     previewContents.add(new TemplateMarketPreviewInfoDTO(category, contents.stream().filter(template -> checkCategoryMatch(template, category.getLabel())).collect(Collectors.toList())));
@@ -235,7 +236,7 @@ public class TemplateCenterManage {
         List<MarketMetaDataVO> categoryVO = getCategoriesObject().stream().filter(node -> !"全部".equalsIgnoreCase(node.getLabel())).collect(Collectors.toList());
         Map<String, String> categoriesMap = categoryVO.stream()
                 .collect(Collectors.toMap(MarketMetaDataVO::getValue, MarketMetaDataVO::getLabel));
-        List<String> activeCategoriesName = new ArrayList<>(Arrays.asList("最近使用", "推荐"));
+        List<String> activeCategoriesName = new ArrayList<>(Arrays.asList(Translator.get("i18n_template_recent"), Translator.get("i18n_template_recommend")));
         contents.stream().forEach(templateMarketDTO -> {
             Long recentUseTime = useTime.get(templateMarketDTO.getId());
             templateMarketDTO.setRecentUseTime(recentUseTime == null ? 0 : recentUseTime);
@@ -264,7 +265,7 @@ public class TemplateCenterManage {
 
     public List<MarketMetaDataVO> getCategoriesObject() {
         List<MarketMetaDataVO> result = getCategoriesV2();
-        result.add(0, new MarketMetaDataVO("recent", "最近使用", CommonConstants.TEMPLATE_SOURCE.PUBLIC));
+        result.add(0, new MarketMetaDataVO("recent", Translator.get("i18n_template_recent"), CommonConstants.TEMPLATE_SOURCE.PUBLIC));
         return result;
     }
 
@@ -285,7 +286,7 @@ public class TemplateCenterManage {
             String resultStr = marketGet(templateParams.get("template.url") + TEMPLATE_META_DATA_URL, null);
             MarketMetaDataBaseResponse metaData = JsonUtil.parseObject(resultStr, MarketMetaDataBaseResponse.class);
             allCategories.addAll(metaData.getLabels());
-            allCategories.add(0, new MarketMetaDataVO("suggest", "推荐", CommonConstants.TEMPLATE_SOURCE.PUBLIC));
+            allCategories.add(0, new MarketMetaDataVO("suggest", Translator.get("i18n_template_recommend"), CommonConstants.TEMPLATE_SOURCE.PUBLIC));
         } catch (Exception e) {
             LogUtil.error("模板市场分类获取错误", e);
         }

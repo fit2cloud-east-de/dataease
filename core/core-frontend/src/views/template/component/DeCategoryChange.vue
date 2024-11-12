@@ -7,13 +7,12 @@
       :rules="state.templateInfoRules"
       label-position="top"
     >
-      <el-form-item :label="'选择分类'" prop="categories" style="margin-top: 16px">
-        <el-select
-          v-model="state.templateInfo.categories"
-          placeholder="可多选"
-          multiple
-          style="width: 100%"
-        >
+      <el-form-item
+        :label="t('template_manage.select_catalog')"
+        prop="categories"
+        style="margin-top: 16px"
+      >
+        <el-select v-model="state.templateInfo.categories" multiple style="width: 100%">
           <el-option
             v-for="option in templateCategories"
             :key="option.id"
@@ -58,7 +57,7 @@ const state = reactive({
     categories: [
       {
         required: true,
-        message: '请选择分类',
+        message: t('template_manage.please_select_catalog'),
         trigger: 'change'
       }
     ]
@@ -86,12 +85,12 @@ const saveChange = () => {
     categories: state.templateInfo.categories
   }
   if (!state.templateInfo.categories.length) {
-    ElMessage.warning('请选择分类')
+    ElMessage.warning(t('template_manage.please_select_catalog'))
     return false
   }
   batchUpdate(params).then(() => {
     ElMessage({
-      message: '修改成功',
+      message: t('template_manage.edit_success'),
       type: 'success',
       showClose: true
     })

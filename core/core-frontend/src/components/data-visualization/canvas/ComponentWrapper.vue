@@ -100,13 +100,29 @@ const props = defineProps({
   isSelector: {
     type: Boolean,
     default: false
+  },
+  //图表渲染id后缀
+  suffixId: {
+    type: String,
+    required: false,
+    default: 'common'
   }
 })
-const { config, showPosition, index, canvasStyleData, canvasViewInfo, dvInfo, searchCount, scale } =
-  toRefs(props)
+const {
+  config,
+  showPosition,
+  index,
+  canvasStyleData,
+  canvasViewInfo,
+  dvInfo,
+  searchCount,
+  scale,
+  suffixId
+} = toRefs(props)
 let currentInstance
 const component = ref(null)
 const emits = defineEmits(['userViewEnlargeOpen', 'datasetParamsInit', 'onPointClick'])
+const wrapperId = 'wrapper-outer-id-' + config.value.id
 
 const viewDemoInnerId = computed(() => 'enlarge-inner-content-' + config.value.id)
 const htmlToImage = () => {
@@ -129,7 +145,7 @@ const handleInnerMouseDown = e => {
     e.stopPropagation()
     e.preventDefault()
   }
-  if (showPosition.value.includes('popEdit')) {
+  if (showPosition.value.includes('popEdit') || dvMainStore.mobileInPc) {
     onClick(e)
   }
 }
@@ -195,7 +211,13 @@ const componentBackgroundStyle = computed(() => {
     if (backgroundColorSelect && backgroundColor) {
       colorRGBA = backgroundColor
     }
-    if (backgroundImageEnable) {
+    if (config.value.innerType === 'VQuery' && backgroundColorSelect) {
+      if (backgroundType === 'outerImage' && typeof outerImage === 'string') {
+        style['background'] = `url(${imgUrlTrans(outerImage)}) no-repeat`
+      } else {
+        style['background-color'] = colorRGBA
+      }
+    } else if (backgroundImageEnable) {
       if (backgroundType === 'outerImage' && typeof outerImage === 'string') {
         style['background'] = `url(${imgUrlTrans(outerImage)}) no-repeat ${colorRGBA}`
       } else {
@@ -228,7 +250,24 @@ const commonBackgroundSvgInner = computed(() => {
 const slotStyle = computed(() => {
   // 3d效果支持
   if (config.value['multiDimensional'] && config.value['multiDimensional']?.enable) {
+    const width = config.value.style.width // 原始元素宽度
+    const height = config.value.style.height // 原始元素高度
+    const rotateX = config.value['multiDimensional'].x // 旋转X角度
+    const rotateY = config.value['multiDimensional'].y // 旋转Y角度
+
+    // 将角度转换为弧度
+    const radX = (rotateX * Math.PI) / 180
+    const radY = (rotateY * Math.PI) / 180
+
+    // 计算旋转后新宽度和高度
+    const newWidth = Math.abs(width * Math.cos(radY)) + Math.abs(height * Math.sin(radX))
+    const newHeight = Math.abs(height * Math.cos(radX)) + Math.abs(width * Math.sin(radY))
+
+    // 计算需要的 padding
+    const paddingX = (newWidth - width) / 2
+    const paddingY = (newHeight - height) / 2
     return {
+      padding: `${paddingY}px ${paddingX}px`,
       transform: `rotateX(${config.value['multiDimensional'].x}deg) rotateY(${config.value['multiDimensional'].y}deg) rotateZ(${config.value['multiDimensional'].z}deg)`
     }
   } else {
@@ -299,12 +338,14 @@ const initOpenHandler = newWindow => {
   }
 }
 const deepScale = computed(() => scale.value / 100)
+const showActive = computed(() => props.popActive || (dvMainStore.mobileInPc && props.active))
 </script>
 
 <template>
   <div
     class="wrapper-outer"
     :class="showPosition + '-' + config.component"
+    :id="wrapperId"
     @mousedown="handleInnerMouseDown"
     @mouseenter="onMouseEnter"
     v-loading="downLoading"
@@ -337,16 +378,10 @@ const deepScale = computed(() => scale.value / 100)
       :id="viewDemoInnerId"
       :style="componentBackgroundStyle"
     >
-      <!--边框背景-->
-      <Board
-        v-if="svgInnerEnable"
-        :style="{ color: config.commonBackground.innerImageColor }"
-        :name="commonBackgroundSvgInner"
-      ></Board>
       <div
         class="wrapper-inner-adaptor"
         :style="slotStyle"
-        :class="{ 'pop-wrapper-inner': popActive, 'event-active': eventEnable }"
+        :class="{ 'pop-wrapper-inner': showActive, 'event-active': eventEnable }"
         @mousedown="onWrapperClick"
       >
         <component
@@ -368,9 +403,16 @@ const deepScale = computed(() => scale.value / 100)
           :scale="deepScale"
           :disabled="true"
           :is-edit="false"
+          :suffix-id="suffixId"
           @onPointClick="onPointClick"
         />
       </div>
+      <!--边框背景-->
+      <Board
+        v-if="svgInnerEnable"
+        :style="{ color: config.commonBackground.innerImageColor, pointerEvents: 'none' }"
+        :name="commonBackgroundSvgInner"
+      ></Board>
     </div>
   </div>
 </template>

@@ -9,7 +9,21 @@
     element-loading-background="rgba(255, 255, 255, 1)"
     @dblclick="handleDbClick"
   >
-    <div v-if="showCheck" class="del-from-mobile" @click="delFromMobile">
+    <div
+      title="同步PC设计"
+      v-if="showCheck && ['VQuery'].includes(element.component)"
+      class="refresh-from-pc"
+      @click="updateFromMobile($event, 'syncPcDesign')"
+    >
+      <el-icon>
+        <Icon name="icon_replace_outlined"><replaceOutlined class="svg-icon" /></Icon>
+      </el-icon>
+    </div>
+    <div
+      v-if="showCheck"
+      class="del-from-mobile"
+      @click="updateFromMobile($event, 'delFromMobile')"
+    >
       <el-icon>
         <Icon name="mobile-checkbox"><mobileCheckbox class="svg-icon" /></Icon>
       </el-icon>
@@ -47,15 +61,15 @@
         @mousedown="handleInnerMouseDownOnShape"
       >
         <Icon v-if="shapeLock" name="dv-lock"><dvLock class="svg-icon iconfont icon-suo" /></Icon>
-        <!--边框背景-->
-        <Board
-          v-if="svgInnerEnable"
-          :style="{ color: element.commonBackground.innerImageColor }"
-          :name="commonBackgroundSvgInner"
-        ></Board>
         <div class="component-slot" :style="slotStyle">
           <slot></slot>
         </div>
+        <!--边框背景-->
+        <Board
+          v-if="svgInnerEnable"
+          :style="{ color: element.commonBackground.innerImageColor, pointerEvents: 'none' }"
+          :name="commonBackgroundSvgInner"
+        ></Board>
       </div>
       <div
         v-for="item in isActive() ? getPointList() : []"
@@ -98,6 +112,7 @@
 
 <script setup lang="ts">
 import mobileCheckbox from '@/assets/svg/mobile-checkbox.svg'
+import replaceOutlined from '@/assets/svg/icon_replace_outlined.svg'
 import dvLock from '@/assets/svg/dv-lock.svg'
 import eventBus from '@/utils/eventBus'
 import calculateComponentPositionAndSize, {
@@ -141,7 +156,8 @@ const {
   tabCollisionActiveId,
   tabMoveInActiveId,
   tabMoveOutComponentId,
-  mobileInPc
+  mobileInPc,
+  mainScrollTop
 } = storeToRefs(dvMainStore)
 const { editorMap, areaData, isCtrlOrCmdDown } = storeToRefs(composeStore)
 const emit = defineEmits([
@@ -282,9 +298,13 @@ const showCheck = computed(() => {
   return mobileInPc.value && element.value.canvasId === 'canvas-main'
 })
 
-const delFromMobile = () => {
+const updateFromMobile = (e, type) => {
+  if (type === 'syncPcDesign') {
+    e.preventDefault()
+    e.stopPropagation()
+  }
   useEmitt().emitter.emit('onMobileStatusChange', {
-    type: 'delFromMobile',
+    type: type,
     value: element.value.id
   })
 }
@@ -521,13 +541,14 @@ const handleMouseDownOnShape = e => {
     const left = curX - startX + startLeft
     pos['top'] = top
     pos['left'] = left
-    // 非主画布非分组画布的情况 需要检测是否从Tab中移除组件(向左移除30px 或者向右移除30px)
+    // 非主画布非分组画布的情况 需要检测是否从Tab中移除组件(向左移除30px 或者向右移除30px 向左移除30px)
+    // 因为仪表板中组件向下移动可能只是为了挤占空间 不一定是为了移出 这里无法判断明确意图 暂时支不支持向下移出
     // 大屏和仪表板暂时做位置算法区分 仪表板暂时使用curX 因为缩放的影响 大屏使用 tab位置 + 组件位置（相对内部画布）+初始触发点
     if (
       !isMainCanvas(canvasId.value) &&
       !isGroupCanvas(canvasId.value) &&
       !isGroupArea.value &&
-      (left < -30 || left + componentWidth - canvasWidth > 30)
+      (top < -30 || left < -30 || left + componentWidth - canvasWidth > 30)
     ) {
       contentDisplay.value = false
       dvMainStore.setMousePointShadowMap({
@@ -538,7 +559,7 @@ const handleMouseDownOnShape = e => {
         mouseY:
           !isDashboard() && outerTabDom
             ? outerTabDom.offsetTop + curDom.offsetTop + offsetY + 100
-            : curY,
+            : curY + mainScrollTop.value,
         width: componentWidth,
         height: componentHeight
       })
@@ -829,6 +850,30 @@ const commonBackgroundSvgInner = computed(() => {
   }
 })
 
+const padding3D = computed(() => {
+  const width = defaultStyle.value.width // 原始元素宽度
+  const height = defaultStyle.value.height // 原始元素高度
+  const rotateX = element.value['multiDimensional'].x // 旋转X角度
+  const rotateY = element.value['multiDimensional'].y // 旋转Y角度
+
+  // 将角度转换为弧度
+  const radX = (rotateX * Math.PI) / 180
+  const radY = (rotateY * Math.PI) / 180
+
+  // 计算旋转后新宽度和高度
+  const newWidth = Math.abs(width * Math.cos(radY)) + Math.abs(height * Math.sin(radX))
+  const newHeight = Math.abs(height * Math.cos(radX)) + Math.abs(width * Math.sin(radY))
+
+  // 计算需要的 padding
+  const paddingX = (newWidth - width) / 2
+  const paddingY = (newHeight - height) / 2
+
+  return {
+    paddingX: `${paddingX}px`,
+    paddingY: `${paddingY}px`
+  }
+})
+
 const componentBackgroundStyle = computed(() => {
   if (element.value.commonBackground && element.value.component !== 'GroupArea') {
     const {
@@ -840,12 +885,23 @@ const componentBackgroundStyle = computed(() => {
       innerPadding,
       borderRadius
     } = element.value.commonBackground
-    const style = { padding: innerPadding * scale.value + 'px', borderRadius: borderRadius + 'px' }
+    const innerPaddingTarget = ['Group'].includes(element.value.component) ? 0 : innerPadding
+    const style = {
+      padding: innerPaddingTarget * scale.value + 'px',
+      borderRadius: borderRadius + 'px'
+    }
     let colorRGBA = ''
     if (backgroundColorSelect && backgroundColor) {
       colorRGBA = backgroundColor
     }
-    if (backgroundImageEnable) {
+
+    if (element.value.innerType === 'VQuery' && backgroundColorSelect) {
+      if (backgroundType === 'outerImage' && typeof outerImage === 'string') {
+        style['background'] = `url(${imgUrlTrans(outerImage)}) no-repeat`
+      } else {
+        style['background-color'] = colorRGBA
+      }
+    } else if (backgroundImageEnable) {
       if (backgroundType === 'outerImage' && typeof outerImage === 'string') {
         style['background'] = `url(${imgUrlTrans(outerImage)}) no-repeat ${colorRGBA}`
       } else {
@@ -964,7 +1020,25 @@ const tabMoveInCheck = async () => {
 const slotStyle = computed(() => {
   // 3d效果支持
   if (element.value['multiDimensional'] && element.value['multiDimensional']?.enable) {
+    const width = defaultStyle.value.width // 原始元素宽度
+    const height = defaultStyle.value.height // 原始元素高度
+    const rotateX = element.value['multiDimensional'].x // 旋转X角度
+    const rotateY = element.value['multiDimensional'].y // 旋转Y角度
+
+    // 将角度转换为弧度
+    const radX = (rotateX * Math.PI) / 180
+    const radY = (rotateY * Math.PI) / 180
+
+    // 计算旋转后新宽度和高度
+    const newWidth = Math.abs(width * Math.cos(radY)) + Math.abs(height * Math.sin(radX))
+    const newHeight = Math.abs(height * Math.cos(radX)) + Math.abs(width * Math.sin(radY))
+
+    // 计算需要的 padding
+    const paddingX = (newWidth - width) / 2
+    const paddingY = (newHeight - height) / 2
+
     return {
+      padding: `${paddingY}px ${paddingX}px`,
       transform: `rotateX(${element.value['multiDimensional'].x}deg) rotateY(${element.value['multiDimensional'].y}deg) rotateZ(${element.value['multiDimensional'].z}deg)`
     }
   } else {
@@ -1024,6 +1098,15 @@ onMounted(() => {
 <style lang="less" scoped>
 .shape {
   position: absolute;
+  .refresh-from-pc {
+    position: absolute;
+    right: 38px;
+    top: 12px;
+    z-index: 2;
+    font-size: 16px;
+    cursor: pointer;
+    color: var(--ed-color-primary);
+  }
   .del-from-mobile {
     position: absolute;
     right: 12px;

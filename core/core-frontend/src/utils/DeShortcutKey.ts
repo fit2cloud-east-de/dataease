@@ -6,6 +6,8 @@ import { composeStoreWithOut } from '@/store/modules/data-visualization/compose'
 import { lockStoreWithOut } from '@/store/modules/data-visualization/lock'
 import { storeToRefs } from 'pinia'
 import { getCurInfo } from '@/store/modules/data-visualization/common'
+import { isGroupCanvas, isTabCanvas } from '@/utils/canvasUtils'
+import { groupStyleRevert } from '@/utils/style'
 
 const dvMainStore = dvMainStoreWithOut()
 const composeStore = composeStoreWithOut()
@@ -173,17 +175,18 @@ function paste() {
 
 function move(keyCode) {
   if (curComponent.value) {
+    const scale = dvMainStore.canvasStyleData.scale / 100
     if (keyCode === leftKey) {
-      curComponent.value.style.left = --curComponent.value.style.left
+      curComponent.value.style.left = curComponent.value.style.left - scale
       groupAreaAdaptor(-1, 0)
     } else if (keyCode === rightKey) {
-      curComponent.value.style.left = ++curComponent.value.style.left
+      curComponent.value.style.left = curComponent.value.style.left + scale
       groupAreaAdaptor(1, 0)
     } else if (keyCode === upKey) {
-      curComponent.value.style.top = --curComponent.value.style.top
+      curComponent.value.style.top = curComponent.value.style.top - scale
       groupAreaAdaptor(0, -1)
     } else if (keyCode === downKey) {
-      curComponent.value.style.top = ++curComponent.value.style.top
+      curComponent.value.style.top = curComponent.value.style.top + scale
       groupAreaAdaptor(0, 1)
     }
     snapshotStore.recordSnapshotCache('key-move')
@@ -191,10 +194,14 @@ function move(keyCode) {
 }
 
 function groupAreaAdaptor(leftOffset = 0, topOffset = 0) {
-  if (curComponent.value.component === 'GroupArea') {
-    composeStore.areaData.components.forEach(component => {
-      component.style.top = component.style.top + topOffset
-      component.style.left = component.style.left + leftOffset
+  const canvasId = curComponent.value.canvasId
+  const parentNode = document.querySelector('#editor-' + canvasId)
+
+  //如果当前画布是Group内部画布 则对应组件定位在resize时要还原到groupStyle中
+  if (isGroupCanvas(canvasId) || isTabCanvas(canvasId)) {
+    groupStyleRevert(curComponent.value, {
+      width: parentNode.offsetWidth,
+      height: parentNode.offsetHeight
     })
   }
 }
@@ -235,7 +242,7 @@ function preview() {
 }
 
 function deleteComponent() {
-  if (curComponent.value) {
+  if (curComponent.value && curComponent.value.component !== 'GroupArea') {
     const curInfo = getCurInfo()
     if (curInfo) {
       dvMainStore.deleteComponent(curInfo.index, curInfo.componentData)

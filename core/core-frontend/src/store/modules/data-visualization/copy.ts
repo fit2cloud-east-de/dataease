@@ -8,6 +8,7 @@ import eventBus from '@/utils/eventBus'
 import { adaptCurThemeCommonStyle } from '@/utils/canvasStyle'
 import { composeStoreWithOut } from '@/store/modules/data-visualization/compose'
 import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapshot'
+import { maxYComponentCount } from '@/utils/canvasUtils'
 
 const dvMainStore = dvMainStoreWithOut()
 const composeStore = composeStoreWithOut()
@@ -62,7 +63,7 @@ export const copyStore = defineStore('copy', {
           }
           // dataV 数据大屏
           newComponent.x = newComponent.sizeX * xPositionOffset + 1
-          newComponent.y = 200
+          newComponent.y = maxYComponentCount() + 10
           // dataV 数据大屏
           newComponent.style.left = 0
           newComponent.style.top = 0
@@ -77,7 +78,7 @@ export const copyStore = defineStore('copy', {
       })
     },
     copy() {
-      if (curComponent.value) {
+      if (curComponent.value && curComponent.value.component !== 'GroupArea') {
         this.copyDataInfo([curComponent.value])
       } else if (composeStore.areaData.components.length) {
         this.copyDataInfo(composeStore.areaData.components)
@@ -136,7 +137,7 @@ export const copyStore = defineStore('copy', {
       snapshotStore.recordSnapshotCache()
     },
     cut(curComponentData = componentData.value) {
-      if (curComponent.value) {
+      if (curComponent.value && curComponent.value.component !== 'GroupArea') {
         this.copyDataInfo([curComponent.value])
         dvMainStore.deleteComponentById(curComponent.value.id, curComponentData)
       } else if (composeStore.areaData.components.length) {
@@ -199,7 +200,12 @@ function deepCopyHelper(data, idMap) {
   const newComponentId = generateID()
   idMap[data.id] = newComponentId
   result.id = newComponentId
+  // 复制清理移动端样式
   result.inMobile = false
+  delete result.mStyle
+  delete result.mEvents
+  delete result.mPropValue
+  delete result.mCommonBackground
   if (result.component === 'Group') {
     result.propValue.forEach((component, i) => {
       result.propValue[i] = deepCopyHelper(component, idMap)

@@ -3,7 +3,6 @@ import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { computed, ref } from 'vue'
 import DePreview from '@/components/data-visualization/canvas/DePreview.vue'
 import { storeToRefs } from 'pinia'
-import { ElScrollbar } from 'element-plus-secondary'
 
 const dvMainStore = dvMainStoreWithOut()
 const { fullscreenFlag } = storeToRefs(dvMainStore)
@@ -102,5 +101,8 @@ defineExpose({
   align-items: center;
   flex-direction: column;
   justify-content: center; /* 上下居中 */
+  ::-webkit-scrollbar {
+    display: none;
+  }
 }
 </style>

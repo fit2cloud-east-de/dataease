@@ -3,7 +3,13 @@ import {
   G2PlotDrawOptions
 } from '@/views/chart/components/js/panel/types/impl/g2plot'
 import type { Area as G2Area, AreaOptions } from '@antv/g2plot/esm/plots/area'
-import { getPadding, setGradientColor } from '@/views/chart/components/js/panel/common/common_antv'
+import {
+  configPlotTooltipEvent,
+  getPadding,
+  getTooltipContainer,
+  setGradientColor,
+  TOOLTIP_TPL
+} from '@/views/chart/components/js/panel/common/common_antv'
 import { cloneDeep } from 'lodash-es'
 import {
   flow,
@@ -44,6 +50,10 @@ export class Area extends G2PlotChartView<AreaOptions, G2Area> {
   axis: AxisType[] = [...LINE_AXIS_TYPE]
   axisConfig = {
     ...this['axisConfig'],
+    xAxis: {
+      name: `${t('chart.drag_block_type_axis')} / ${t('chart.dimension')}`,
+      type: 'd'
+    },
     yAxis: {
       name: `${t('chart.drag_block_value_axis')} / ${t('chart.quota')}`,
       type: 'q'
@@ -54,6 +64,7 @@ export class Area extends G2PlotChartView<AreaOptions, G2Area> {
     xField: 'field',
     yField: 'value',
     seriesField: 'category',
+    isStack: false,
     interactions: [
       {
         type: 'legend-active',
@@ -79,13 +90,6 @@ export class Area extends G2PlotChartView<AreaOptions, G2Area> {
         }
       },
       {
-        type: 'tooltip',
-        cfg: {
-          start: [{ trigger: 'point:mousemove', action: 'tooltip:show' }],
-          end: [{ trigger: 'point:mouseleave', action: 'tooltip:hide' }]
-        }
-      },
-      {
         type: 'active-region',
         cfg: {
           start: [{ trigger: 'element:mousemove', action: 'active-region:show' }],
@@ -98,6 +102,7 @@ export class Area extends G2PlotChartView<AreaOptions, G2Area> {
   async drawChart(drawOptions: G2PlotDrawOptions<G2Area>): Promise<G2Area> {
     const { chart, container, action } = drawOptions
     if (!chart.data?.data?.length) {
+      chart.container = container
       clearExtremum(chart)
       return
     }
@@ -117,6 +122,7 @@ export class Area extends G2PlotChartView<AreaOptions, G2Area> {
 
     newChart.on('point:click', action)
     extremumEvt(newChart, chart, options, container)
+    configPlotTooltipEvent(chart, newChart)
     return newChart
   }
 
@@ -288,6 +294,15 @@ export class StackArea extends Area {
     'label-selector': ['fontSize', 'color', 'labelFormatter'],
     'tooltip-selector': ['fontSize', 'color', 'tooltipFormatter', 'show']
   }
+  axisConfig = {
+    ...this['axisConfig'],
+    extStack: {
+      name: `${t('chart.stack_item')} / ${t('chart.dimension')}`,
+      type: 'd',
+      limit: 1,
+      allowEmpty: true
+    }
+  }
   protected configLabel(chart: Chart, options: AreaOptions): AreaOptions {
     const customAttr = parseJson(chart.customAttr)
     const labelAttr = customAttr.label
@@ -297,16 +312,21 @@ export class StackArea extends Area {
         label: false
       }
     }
+    const layout = []
+    if (!labelAttr.fullDisplay) {
+      const tmpOptions = super.configLabel(chart, options)
+      layout.push(...tmpOptions.label.layout)
+    }
     const label: Label = {
       position: labelAttr.position as any,
       offsetY: -8,
+      layout,
       style: {
         fill: labelAttr.color,
         fontSize: labelAttr.fontSize
       },
       formatter: function (param: Datum) {
-        const res = valueFormatter(param.value, labelAttr.labelFormatter)
-        return res
+        return valueFormatter(param.value, labelAttr.labelFormatter)
       }
     }
     return { ...options, label }
@@ -339,7 +359,10 @@ export class StackArea extends Area {
           value: valueFormatter(param.value, tooltipAttr.tooltipFormatter)
         }
         return obj
-      }
+      },
+      container: getTooltipContainer(`tooltip-${chart.id}`),
+      itemTpl: TOOLTIP_TPL,
+      enterable: true
     }
     return { ...options, tooltip }
   }

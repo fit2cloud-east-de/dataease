@@ -39,9 +39,7 @@ const formatPid = computed(() => {
   const pid = state.form.pid
   return pid.replace(/(0+)$/g, '').replace(/\D/g, '')
 })
-const codeTips = ref(
-  '国家代码由三位数字组成，省、市、区县、乡镇代码由两位数字组成；非国家区域需要再后面补0'
-)
+const codeTips = ref(t('system.at_the_end'))
 const pidChange = () => {
   state.form.code = null
 }
@@ -50,7 +48,7 @@ const validateCode = (_: any, value: any, callback: any) => {
   if (isCountry) {
     const reg = /^[0-9]\d{2}$/
     if (!reg.test(value) || value === '000') {
-      const msg = '请输入非0的三位数字'
+      const msg = t('system.non_zero_three_digit_number')
       callback(new Error(msg))
     } else {
       callback()
@@ -59,7 +57,7 @@ const validateCode = (_: any, value: any, callback: any) => {
     const fullValue = formatPid.value + value
     const reg = /^[1-9](\d{8}|\d{10})$/
     if (!reg.test(fullValue)) {
-      const msg = '请输入9或11位数字'
+      const msg = t('system.or_11_digits')
       callback(new Error(msg))
     } else {
       callback()
@@ -157,7 +155,7 @@ const handleExceed: UploadProps['onExceed'] = () => {
   ElMessage.warning(t('userimport.exceedMsg'))
 }
 const handleError = () => {
-  ElMessage.warning('执行失败请联系管理员')
+  ElMessage.warning(t('system.contact_the_administrator'))
 }
 const setFile = (options: UploadRequestOptions) => {
   geoFile.value = options.file
@@ -166,12 +164,12 @@ const setFile = (options: UploadRequestOptions) => {
 const uploadValidate = file => {
   const suffix = file.name.substring(file.name.lastIndexOf('.') + 1)
   if (suffix !== 'json') {
-    ElMessage.warning('只能上传json文件')
+    ElMessage.warning(t('system.upload_json_files'))
     return false
   }
 
   if (file.size / 1024 / 1024 > 200) {
-    ElMessage.warning('最大上传200M')
+    ElMessage.warning(t('system.maximum_upload_200m'))
     return false
   }
   return true
@@ -191,7 +189,7 @@ defineExpose({
 
 <template>
   <el-drawer
-    title="地理信息"
+    :title="t('system.geographic_information')"
     v-model="dialogVisible"
     custom-class="basic-info-drawer"
     size="600px"
@@ -205,7 +203,7 @@ defineExpose({
       label-width="80px"
       label-position="top"
     >
-      <el-form-item label="上级区域" prop="pid">
+      <el-form-item :label="t('system.superior_region')" prop="pid">
         <el-tree-select
           class="map-tree-selector"
           node-key="id"
@@ -219,10 +217,10 @@ defineExpose({
         />
       </el-form-item>
 
-      <el-form-item label="区域代码" prop="code">
+      <el-form-item :label="t('system.region_code')" prop="code">
         <template v-slot:label>
           <span class="area-code-label">
-            <span>区域代码</span>
+            <span>{{ t('system.region_code') }}</span>
             <el-tooltip effect="dark" :content="codeTips" placement="top">
               <el-icon class="info-tips"
                 ><Icon name="dv-info"><dvInfo class="svg-icon" /></Icon
@@ -240,19 +238,19 @@ defineExpose({
           v-else
           class="box-item"
           effect="dark"
-          content="请先选择上级区域"
+          :content="t('system.superior_region_first')"
           placement="top"
         >
           <el-input v-model="state.form.code" disabled />
         </el-tooltip>
       </el-form-item>
 
-      <el-form-item label="区域名称" prop="name">
+      <el-form-item :label="t('system.region_name')" prop="name">
         <el-input v-model="state.form.name" />
       </el-form-item>
 
       <div class="geo-label-mask" />
-      <el-form-item label="坐标文件" prop="fileName">
+      <el-form-item :label="t('system.coordinate_file')" prop="fileName">
         <el-upload
           class="upload-geo"
           action=""

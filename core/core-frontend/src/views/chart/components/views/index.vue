@@ -27,7 +27,7 @@ import {
   watch
 } from 'vue'
 import { useEmitt } from '@/hooks/web/useEmitt'
-import { hexColorToRGBA } from '@/views/chart/components/js/util.js'
+import { hexColorToRGBA, parseJson } from '@/views/chart/components/js/util.js'
 import {
   CHART_FONT_FAMILY_MAP,
   DEFAULT_TITLE_STYLE
@@ -125,6 +125,11 @@ const props = defineProps({
     type: Number,
     required: false,
     default: 1
+  },
+  suffixId: {
+    type: String,
+    required: false,
+    default: 'common'
   }
 })
 const dynamicAreaId = ref('')
@@ -412,7 +417,7 @@ const windowsJump = (url, jumpType, size = 'middle') => {
       )
     } else if ('_self' === jumpType) {
       newWindow = window.open(url, jumpType)
-      if (inMobile) {
+      if (inMobile.value) {
         window.location.reload()
       }
     } else {
@@ -465,7 +470,9 @@ const jumpClick = param => {
           if (jumpInfo.publicJumpId) {
             const url = `${embeddedBaseUrl}#/de-link/${
               jumpInfo.publicJumpId
-            }?jumpInfoParam=${encodeURIComponent(Base64.encode(JSON.stringify(param)))}`
+            }?fromLink=true&jumpInfoParam=${encodeURIComponent(
+              Base64.encode(JSON.stringify(param))
+            )}`
             const currentUrl = window.location.href
             localStorage.setItem('beforeJumpUrl', currentUrl)
             windowsJump(url, jumpInfo.jumpType, jumpInfo.windowSize)
@@ -475,8 +482,9 @@ const jumpClick = param => {
         } else {
           const url = `${embeddedBaseUrl}#/preview?dvId=${
             jumpInfo.targetDvId
-          }&jumpInfoParam=${encodeURIComponent(Base64.encode(JSON.stringify(param)))}`
-
+          }&fromLink=true&jumpInfoParam=${encodeURIComponent(Base64.encode(JSON.stringify(param)))}`
+          const currentUrl = window.location.href
+          localStorage.setItem('beforeJumpUrl', currentUrl)
           if (isIframe.value || isDataEaseBi.value) {
             embeddedStore.clearState()
           }
@@ -573,13 +581,87 @@ onBeforeMount(() => {
 const listenerEnable = computed(() => {
   return !showPosition.value.includes('viewDialog')
 })
+const showEmpty = ref(false)
+const checkFieldIsAllowEmpty = (allField?) => {
+  showEmpty.value = false
+  if (view.value?.render && view.value?.type) {
+    const chartView = chartViewManager.getChartView(view.value.render, view.value.type)
+    // 插件
+    if (!chartView) {
+      return
+    }
+    const map = parseJson(view.value.customAttr).map
+    if (['bubble-map', 'map'].includes(view.value?.type) && !map?.id) {
+      showEmpty.value = true
+      return
+    }
+    const axisConfigMap = new Map(Object.entries(chartView.axisConfig))
+    // 验证拖入的字段是否包含在当前数据集字段中，如果一个都不在数据集字段中，则显示空图表
+    let includeDatasetField = false
+    if (allField && allField.length > 0) {
+      axisConfigMap.forEach((value, key) => {
+        if (view.value?.[key]?.length > 0) {
+          view.value[key].forEach(item => {
+            if (!allField.find(field => field.id === item.id)) {
+              includeDatasetField = true
+              return false
+            }
+          })
+          if (includeDatasetField) {
+            return false
+          }
+        }
+      })
+    }
+    if (includeDatasetField) {
+      showEmpty.value = true
+      return
+    }
+    axisConfigMap.forEach((value, key) => {
+      // 不允许为空,并且没限制长度
+      if (!value['allowEmpty'] && !value['limit'] && view.value?.[key]?.length === 0) {
+        showEmpty.value = true
+        return false
+      }
+      // 不允许为空， 限制长度
+      if (
+        !value['allowEmpty'] &&
+        value['limit'] &&
+        (!view.value?.[key] || view.value?.[key]?.length < parseInt(value['limit']))
+      ) {
+        showEmpty.value = true
+        return false
+      }
+      if (view.value?.type === 'table-info' && view.value?.[key]?.length === 0) {
+        showEmpty.value = true
+        return false
+      }
+    })
+  }
+}
+const changeChartType = () => {
+  checkFieldIsAllowEmpty()
+}
+const changeDataset = () => {
+  checkFieldIsAllowEmpty()
+}
 onMounted(() => {
   if (!view.value.isPlugin) {
-    queryData(true && !showPosition.value.includes('viewDialog'))
+    queryData(!showPosition.value.includes('viewDialog'))
   }
   if (!listenerEnable.value) {
     return
   }
+  useEmitt({
+    name: 'checkShowEmpty',
+    callback: param => {
+      if (param.view?.id === view.value.id) {
+        checkFieldIsAllowEmpty(param.allFields)
+      }
+    }
+  })
+  useEmitt({ name: 'chart-type-change', callback: changeChartType })
+  useEmitt({ name: 'dataset-change', callback: changeDataset })
   useEmitt({
     name: 'clearPanelLinkage',
     callback: function (param) {
@@ -608,19 +690,6 @@ onMounted(() => {
       })
     }
   })
-  useEmitt({
-    name: 'calcData-' + view.value.id,
-    callback: function (val) {
-      if (!state.initReady) {
-        return
-      }
-      initTitle()
-      nextTick(() => {
-        view.value.chartExtRequest = filter(false)
-        calcData(val)
-      })
-    }
-  })
 
   useEmitt({
     name: 'calcData-' + view.value.id,
@@ -631,7 +700,8 @@ onMounted(() => {
       initTitle()
       nextTick(() => {
         view.value.chartExtRequest = filter(false)
-        calcData(val)
+        const targetVal = val || view.value
+        calcData(targetVal)
       })
     }
   })
@@ -843,6 +913,22 @@ const loadPluginCategory = data => {
     }
   })
 }
+
+const allEmptyCheck = computed(() => {
+  return ['rich-text', 'picture-group'].includes(element.value.innerType)
+})
+/**
+ * 标题提示的最大宽度
+ */
+const titleTooltipWidth = computed(() => {
+  if (inMobile.value) {
+    return `${screen.width - 10}px`
+  }
+  if (mobileInPc.value) {
+    return '270px'
+  }
+  return '500px'
+})
 </script>
 
 <template>
@@ -884,7 +970,15 @@ const loadPluginCategory = data => {
         >
           <el-tooltip :effect="toolTip" placement="top" v-if="state.title_remark.show">
             <template #content>
-              <div style="white-space: pre-wrap" v-html="state.title_remark.remark"></div>
+              <div
+                :style="{
+                  maxWidth: titleTooltipWidth,
+                  wordBreak: 'break-all',
+                  wordWrap: 'break-word',
+                  whiteSpace: 'pre-wrap'
+                }"
+                v-html="state.title_remark.remark"
+              ></div>
             </template>
             <el-icon :size="iconSize" class="inner-icon">
               <Icon name="icon_info_outlined"><icon_info_outlined class="svg-icon" /></Icon>
@@ -913,7 +1007,7 @@ const loadPluginCategory = data => {
       </transition>
     </div>
     <!--这里去渲染不同图库的图表-->
-    <div v-if="chartAreaShow" style="flex: 1; overflow: hidden">
+    <div v-if="allEmptyCheck || (chartAreaShow && !showEmpty)" style="flex: 1; overflow: hidden">
       <plugin-component
         v-if="view.plugin?.isPlugin"
         :jsname="view.plugin.staticMap['index']"
@@ -925,6 +1019,7 @@ const loadPluginCategory = data => {
         :request="request"
         :emitter="emitter"
         :store="store"
+        :suffixId="suffixId"
         ref="chartComponent"
         @onChartClick="chartClick"
         @onPointClick="onPointClick"
@@ -940,16 +1035,19 @@ const loadPluginCategory = data => {
         :active="active"
         :view="view"
         :show-position="showPosition"
+        :suffixId="suffixId"
       >
       </de-picture-group>
       <de-rich-text-view
         v-else-if="showChartView(ChartLibraryType.RICH_TEXT)"
+        :scale="scale"
         :themes="canvasStyleData.dashboard.themeColor"
         ref="chartComponent"
         :element="element"
         :disabled="!['canvas', 'canvasDataV'].includes(showPosition) || disabled"
         :active="active"
         :show-position="showPosition"
+        :suffixId="suffixId"
       />
       <de-indicator
         :scale="scale"
@@ -958,6 +1056,7 @@ const loadPluginCategory = data => {
         ref="chartComponent"
         :view="view"
         :show-position="showPosition"
+        :suffixId="suffixId"
       />
       <chart-component-g2-plot
         :scale="scale"
@@ -965,6 +1064,7 @@ const loadPluginCategory = data => {
         :view="view"
         :show-position="showPosition"
         :element="element"
+        :suffixId="suffixId"
         v-else-if="
           showChartView(ChartLibraryType.G2_PLOT, ChartLibraryType.L7_PLOT, ChartLibraryType.L7)
         "
@@ -987,10 +1087,11 @@ const loadPluginCategory = data => {
         @onChartClick="chartClick"
         @onDrillFilters="onDrillFilters"
         @onJumpClick="jumpClick"
+        :suffixId="suffixId"
       />
     </div>
     <chart-empty-info
-      v-if="!chartAreaShow"
+      v-if="(!chartAreaShow || showEmpty) && !allEmptyCheck"
       :themes="canvasStyleData.dashboard.themeColor"
       :view-icon="view.type"
     ></chart-empty-info>

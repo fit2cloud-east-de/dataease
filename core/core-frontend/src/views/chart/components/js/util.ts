@@ -555,14 +555,13 @@ export const copyString = (content: string, notify = false) => {
   const clipboard = navigator.clipboard || {
     writeText: data => {
       return new Promise(resolve => {
-        const inputDom = document.createElement('input')
-        inputDom.setAttribute('style', 'z-index: -1;position: fixed;opacity: 0;')
-        inputDom.setAttribute('type', 'text')
-        inputDom.setAttribute('value', data)
-        document.body.appendChild(inputDom)
-        inputDom.select()
+        const textareaDom = document.createElement('textarea')
+        textareaDom.setAttribute('style', 'z-index: -1;position: fixed;opacity: 0;')
+        textareaDom.value = data
+        document.body.appendChild(textareaDom)
+        textareaDom.select()
         document.execCommand('copy')
-        inputDom.remove()
+        textareaDom.remove()
         resolve()
       })
     }
@@ -585,7 +584,7 @@ export const getDynamicColorScale = (
   minValue: number,
   maxValue: number,
   intervals: number,
-  colors: string[]
+  colors?: string[]
 ) => {
   const step = (maxValue - minValue) / intervals
 
@@ -593,8 +592,8 @@ export const getDynamicColorScale = (
   for (let i = 0; i < intervals; i++) {
     colorScale.push({
       value: [minValue + i * step, minValue + (i + 1) * step],
-      color: colors[i],
-      label: `${(minValue + i * step).toFixed(2)} - ${(minValue + (i + 1) * step).toFixed(2)}`
+      color: colors?.[i],
+      label: `${(minValue + i * step).toFixed(0)} - ${(minValue + (i + 1) * step).toFixed(0)}`
     })
   }
 
@@ -1037,4 +1036,35 @@ export function convertToAlphaColor(color: string, alpha: number): string {
     return `rgba(${rgb.join(',')},${alpha / 100})`
   }
   return 'rgba(255,255,255,1)'
+}
+
+export function svgStrToUrl(svgStr: string): string {
+  let file = ''
+  try {
+    if (svgStr) {
+      const blob = new Blob([svgStr], { type: 'image/svg+xml' })
+      file = URL.createObjectURL(blob)
+    }
+  } catch (e) {}
+  return file
+}
+
+/**
+ * 获取非空数据的最小值
+ * @param sourceData
+ * @param field
+ * @private
+ */
+export function filterEmptyMinValue(sourceData, field) {
+  let notEmptyMinValue = 0
+  getMaxAndMinValueByData(
+    sourceData.filter(item => item[field]),
+    'value',
+    0,
+    0,
+    (max, min) => {
+      notEmptyMinValue = min
+    }
+  )
+  return notEmptyMinValue
 }

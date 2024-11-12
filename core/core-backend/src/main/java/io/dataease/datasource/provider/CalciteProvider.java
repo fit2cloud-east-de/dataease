@@ -281,7 +281,7 @@ public class CalciteProvider extends Provider {
             try (Connection con = getConnectionFromPool(datasourceRequest.getDatasource().getId()); Statement statement = getStatement(con, 30)) {
                 datasourceRequest.setDsVersion(con.getMetaData().getDatabaseMajorVersion());
                 if (datasourceRequest.getDatasource().getType().equalsIgnoreCase("mongo") || isDorisCatalog(datasourceRequest)) {
-                    resultSet = statement.executeQuery("select * from " + table + " limit 0 offset 0 ");
+                    resultSet = statement.executeQuery("select * from " + String.format(" `%s`", table) + " limit 0 offset 0 ");
                     return fetchResultField(resultSet);
                 }
                 resultSet = statement.executeQuery(getTableFiledSql(datasourceRequest));
@@ -789,135 +789,176 @@ public class CalciteProvider extends Provider {
                             case StarRocks:
                             case doris:
                                 configuration = JsonUtil.parseObject(ds.getConfiguration(), Mysql.class);
-                                dataSource.setUrl(configuration.getJdbc());
-                                dataSource.setUsername(configuration.getUsername());
-                                dataSource.setPassword(configuration.getPassword());
+                                if (StringUtils.isNotBlank(configuration.getUsername())) {
+                                    dataSource.setUsername(configuration.getUsername());
+                                }
+                                if (StringUtils.isNotBlank(configuration.getPassword())) {
+                                    dataSource.setPassword(configuration.getPassword());
+                                }
                                 dataSource.setDefaultQueryTimeout(Integer.valueOf(configuration.getQueryTimeout()));
                                 dataSource.setInitialSize(configuration.getInitialPoolSize());
                                 dataSource.setMaxTotal(configuration.getMaxPoolSize());
                                 dataSource.setMinIdle(configuration.getMinPoolSize());
                                 startSshSession(configuration, null, ds.getId());
+                                dataSource.setUrl(configuration.getJdbc());
                                 schema = JdbcSchema.create(rootSchema, ds.getSchemaAlias(), dataSource, null, configuration.getDataBase());
                                 rootSchema.add(ds.getSchemaAlias(), schema);
                                 break;
                             case impala:
                                 configuration = JsonUtil.parseObject(ds.getConfiguration(), Impala.class);
-                                dataSource.setUrl(configuration.getJdbc());
-                                dataSource.setUsername(configuration.getUsername());
-                                dataSource.setPassword(configuration.getPassword());
+                                if (StringUtils.isNotBlank(configuration.getUsername())) {
+                                    dataSource.setUsername(configuration.getUsername());
+                                }
+                                if (StringUtils.isNotBlank(configuration.getPassword())) {
+                                    dataSource.setPassword(configuration.getPassword());
+                                }
                                 dataSource.setInitialSize(configuration.getInitialPoolSize());
                                 dataSource.setMaxTotal(configuration.getMaxPoolSize());
                                 dataSource.setMinIdle(configuration.getMinPoolSize());
                                 dataSource.setDefaultQueryTimeout(Integer.valueOf(configuration.getQueryTimeout()));
                                 startSshSession(configuration, null, ds.getId());
+                                dataSource.setUrl(configuration.getJdbc());
                                 schema = JdbcSchema.create(rootSchema, ds.getSchemaAlias(), dataSource, null, configuration.getDataBase());
                                 rootSchema.add(ds.getSchemaAlias(), schema);
                                 break;
                             case sqlServer:
                                 configuration = JsonUtil.parseObject(ds.getConfiguration(), Sqlserver.class);
-                                dataSource.setUrl(configuration.getJdbc());
-                                dataSource.setUsername(configuration.getUsername());
-                                dataSource.setPassword(configuration.getPassword());
+                                if (StringUtils.isNotBlank(configuration.getUsername())) {
+                                    dataSource.setUsername(configuration.getUsername());
+                                }
+                                if (StringUtils.isNotBlank(configuration.getPassword())) {
+                                    dataSource.setPassword(configuration.getPassword());
+                                }
                                 dataSource.setInitialSize(configuration.getInitialPoolSize());
                                 dataSource.setMaxTotal(configuration.getMaxPoolSize());
                                 dataSource.setMinIdle(configuration.getMinPoolSize());
                                 dataSource.setDefaultQueryTimeout(Integer.valueOf(configuration.getQueryTimeout()));
                                 startSshSession(configuration, null, ds.getId());
+                                dataSource.setUrl(configuration.getJdbc());
                                 schema = JdbcSchema.create(rootSchema, ds.getSchemaAlias(), dataSource, null, configuration.getSchema());
                                 rootSchema.add(ds.getSchemaAlias(), schema);
                                 break;
                             case oracle:
                                 configuration = JsonUtil.parseObject(ds.getConfiguration(), Oracle.class);
-                                dataSource.setUrl(configuration.getJdbc());
-                                dataSource.setUsername(configuration.getUsername());
-                                dataSource.setPassword(configuration.getPassword());
+                                if (StringUtils.isNotBlank(configuration.getUsername())) {
+                                    dataSource.setUsername(configuration.getUsername());
+                                }
+                                if (StringUtils.isNotBlank(configuration.getPassword())) {
+                                    dataSource.setPassword(configuration.getPassword());
+                                }
                                 dataSource.setInitialSize(configuration.getInitialPoolSize());
                                 dataSource.setMaxTotal(configuration.getMaxPoolSize());
                                 dataSource.setMinIdle(configuration.getMinPoolSize());
                                 dataSource.setDefaultQueryTimeout(Integer.valueOf(configuration.getQueryTimeout()));
                                 startSshSession(configuration, null, ds.getId());
+                                dataSource.setUrl(configuration.getJdbc());
                                 schema = JdbcSchema.create(rootSchema, ds.getSchemaAlias(), dataSource, null, configuration.getSchema());
                                 rootSchema.add(ds.getSchemaAlias(), schema);
                                 break;
                             case db2:
                                 configuration = JsonUtil.parseObject(ds.getConfiguration(), Db2.class);
-                                dataSource.setUrl(configuration.getJdbc());
-                                dataSource.setUsername(configuration.getUsername());
-                                dataSource.setPassword(configuration.getPassword());
+                                if (StringUtils.isNotBlank(configuration.getUsername())) {
+                                    dataSource.setUsername(configuration.getUsername());
+                                }
+                                if (StringUtils.isNotBlank(configuration.getPassword())) {
+                                    dataSource.setPassword(configuration.getPassword());
+                                }
                                 dataSource.setInitialSize(configuration.getInitialPoolSize());
                                 dataSource.setMaxTotal(configuration.getMaxPoolSize());
                                 dataSource.setMinIdle(configuration.getMinPoolSize());
                                 dataSource.setDefaultQueryTimeout(Integer.valueOf(configuration.getQueryTimeout()));
                                 startSshSession(configuration, null, ds.getId());
+                                dataSource.setUrl(configuration.getJdbc());
                                 schema = JdbcSchema.create(rootSchema, ds.getSchemaAlias(), dataSource, null, configuration.getSchema());
                                 rootSchema.add(ds.getSchemaAlias(), schema);
                                 break;
                             case ck:
                                 configuration = JsonUtil.parseObject(ds.getConfiguration(), CK.class);
-                                dataSource.setUrl(configuration.getJdbc());
-                                dataSource.setUsername(configuration.getUsername());
-                                dataSource.setPassword(configuration.getPassword());
+                                if (StringUtils.isNotBlank(configuration.getUsername())) {
+                                    dataSource.setUsername(configuration.getUsername());
+                                }
+                                if (StringUtils.isNotBlank(configuration.getPassword())) {
+                                    dataSource.setPassword(configuration.getPassword());
+                                }
                                 dataSource.setInitialSize(configuration.getInitialPoolSize());
                                 dataSource.setMaxTotal(configuration.getMaxPoolSize());
                                 dataSource.setMinIdle(configuration.getMinPoolSize());
                                 dataSource.setDefaultQueryTimeout(Integer.valueOf(configuration.getQueryTimeout()));
                                 startSshSession(configuration, null, ds.getId());
+                                dataSource.setUrl(configuration.getJdbc());
                                 schema = JdbcSchema.create(rootSchema, ds.getSchemaAlias(), dataSource, null, configuration.getDataBase());
                                 rootSchema.add(ds.getSchemaAlias(), schema);
                                 break;
                             case pg:
                                 configuration = JsonUtil.parseObject(ds.getConfiguration(), Pg.class);
-                                dataSource.setUrl(configuration.getJdbc());
-                                dataSource.setUsername(configuration.getUsername());
-                                dataSource.setPassword(configuration.getPassword());
+                                if (StringUtils.isNotBlank(configuration.getUsername())) {
+                                    dataSource.setUsername(configuration.getUsername());
+                                }
+                                if (StringUtils.isNotBlank(configuration.getPassword())) {
+                                    dataSource.setPassword(configuration.getPassword());
+                                }
                                 dataSource.setInitialSize(configuration.getInitialPoolSize());
                                 dataSource.setMaxTotal(configuration.getMaxPoolSize());
                                 dataSource.setMinIdle(configuration.getMinPoolSize());
                                 dataSource.setDefaultQueryTimeout(Integer.valueOf(configuration.getQueryTimeout()));
                                 startSshSession(configuration, null, ds.getId());
+                                dataSource.setUrl(configuration.getJdbc());
                                 schema = JdbcSchema.create(rootSchema, ds.getSchemaAlias(), dataSource, null, configuration.getSchema());
                                 rootSchema.add(ds.getSchemaAlias(), schema);
                                 break;
                             case redshift:
                                 configuration = JsonUtil.parseObject(ds.getConfiguration(), Redshift.class);
-                                dataSource.setUrl(configuration.getJdbc());
-                                dataSource.setUsername(configuration.getUsername());
-                                dataSource.setPassword(configuration.getPassword());
+                                if (StringUtils.isNotBlank(configuration.getUsername())) {
+                                    dataSource.setUsername(configuration.getUsername());
+                                }
+                                if (StringUtils.isNotBlank(configuration.getPassword())) {
+                                    dataSource.setPassword(configuration.getPassword());
+                                }
                                 dataSource.setInitialSize(configuration.getInitialPoolSize());
                                 dataSource.setMaxTotal(configuration.getMaxPoolSize());
                                 dataSource.setMinIdle(configuration.getMinPoolSize());
                                 dataSource.setDefaultQueryTimeout(Integer.valueOf(configuration.getQueryTimeout()));
                                 startSshSession(configuration, null, ds.getId());
+                                dataSource.setUrl(configuration.getJdbc());
                                 schema = JdbcSchema.create(rootSchema, ds.getSchemaAlias(), dataSource, null, configuration.getSchema());
                                 rootSchema.add(ds.getSchemaAlias(), schema);
                                 break;
                             case h2:
                                 configuration = JsonUtil.parseObject(ds.getConfiguration(), H2.class);
-                                dataSource.setUrl(configuration.getJdbc());
-                                dataSource.setUsername(configuration.getUsername());
-                                dataSource.setPassword(configuration.getPassword());
+                                if (StringUtils.isNotBlank(configuration.getUsername())) {
+                                    dataSource.setUsername(configuration.getUsername());
+                                }
+                                if (StringUtils.isNotBlank(configuration.getPassword())) {
+                                    dataSource.setPassword(configuration.getPassword());
+                                }
                                 dataSource.setInitialSize(configuration.getInitialPoolSize());
                                 dataSource.setMaxTotal(configuration.getMaxPoolSize());
                                 dataSource.setMinIdle(configuration.getMinPoolSize());
                                 dataSource.setDefaultQueryTimeout(Integer.valueOf(configuration.getQueryTimeout()));
                                 startSshSession(configuration, null, ds.getId());
+                                dataSource.setUrl(configuration.getJdbc());
                                 schema = JdbcSchema.create(rootSchema, ds.getSchemaAlias(), dataSource, null, configuration.getDataBase());
                                 rootSchema.add(ds.getSchemaAlias(), schema);
                                 break;
                             default:
                                 configuration = JsonUtil.parseObject(ds.getConfiguration(), Mysql.class);
-                                dataSource.setUrl(configuration.getJdbc());
-                                dataSource.setUsername(configuration.getUsername());
-                                dataSource.setPassword(configuration.getPassword());
+                                if (StringUtils.isNotBlank(configuration.getUsername())) {
+                                    dataSource.setUsername(configuration.getUsername());
+                                }
+                                if (StringUtils.isNotBlank(configuration.getPassword())) {
+                                    dataSource.setPassword(configuration.getPassword());
+                                }
                                 dataSource.setInitialSize(configuration.getInitialPoolSize());
                                 dataSource.setMaxTotal(configuration.getMaxPoolSize());
                                 dataSource.setMinIdle(configuration.getMinPoolSize());
                                 dataSource.setDefaultQueryTimeout(Integer.valueOf(configuration.getQueryTimeout()));
                                 startSshSession(configuration, null, ds.getId());
+                                dataSource.setUrl(configuration.getJdbc());
                                 schema = JdbcSchema.create(rootSchema, ds.getSchemaAlias(), dataSource, null, configuration.getDataBase());
                                 rootSchema.add(ds.getSchemaAlias(), schema);
                         }
                     } catch (Exception e) {
+                        LogUtil.error("Fail to create connection: " + ds.getName(), e);
                     }
                 } catch (Exception e) {
                 }
@@ -1357,13 +1398,21 @@ public class CalciteProvider extends Provider {
         return connection;
     }
 
-    private Connection getConnectionFromPool(Long dsId) throws SQLException {
-        Connection connection = take();
-        CalciteConnection calciteConnection = connection.unwrap(CalciteConnection.class);
-        SchemaPlus rootSchema = calciteConnection.getRootSchema();
-        JdbcSchema jdbcSchema = rootSchema.getSubSchema(String.format(SQLConstants.SCHEMA, dsId)).unwrap(JdbcSchema.class);
-        BasicDataSource basicDataSource = (BasicDataSource) jdbcSchema.getDataSource();
-        return basicDataSource.getConnection();
+    private Connection getConnectionFromPool(Long dsId) {
+        try {
+            Connection connection = take();
+            CalciteConnection calciteConnection = connection.unwrap(CalciteConnection.class);
+            SchemaPlus rootSchema = calciteConnection.getRootSchema();
+            if (rootSchema.getSubSchema(String.format(SQLConstants.SCHEMA, dsId)) == null) {
+                DEException.throwException("请检查数据源的有效性！");
+            }
+            JdbcSchema jdbcSchema = rootSchema.getSubSchema(String.format(SQLConstants.SCHEMA, dsId)).unwrap(JdbcSchema.class);
+            BasicDataSource basicDataSource = (BasicDataSource) jdbcSchema.getDataSource();
+            return basicDataSource.getConnection();
+        } catch (Exception e) {
+            DEException.throwException("连接无效, " + e.getMessage());
+        }
+        return null;
     }
 
     public void exec(EngineRequest engineRequest) throws Exception {

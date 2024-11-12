@@ -15,7 +15,7 @@
       :border-color="noBorderColor"
       :border-active-color="borderActiveColor"
     >
-      <template :key="tabItem.name" v-for="(tabItem, index) in element.propValue">
+      <template :key="tabItem.name" v-for="tabItem in element.propValue">
         <el-tab-pane
           class="el-tab-pane-custom"
           :lazy="isEditMode"
@@ -54,32 +54,39 @@
               </el-dropdown>
             </div>
           </template>
-          <de-canvas
-            v-if="isEdit && !mobileInPc"
-            :ref="'tabCanvas_' + index"
-            :component-data="tabItem.componentData"
-            :canvas-style-data="canvasStyleData"
-            :canvas-view-info="canvasViewInfo"
-            :canvas-id="element.id + '--' + tabItem.name"
-            :class="moveActive ? 'canvas-move-in' : ''"
-            :canvas-active="editableTabsValue === tabItem.name"
-          ></de-canvas>
-          <de-preview
-            v-else
-            :ref="'dashboardPreview'"
-            :dv-info="dvInfo"
-            :cur-gap="curPreviewGap"
-            :component-data="tabItem.componentData"
-            :canvas-style-data="{}"
-            :canvas-view-info="canvasViewInfo"
-            :canvas-id="element.id + '--' + tabItem.name"
-            :preview-active="editableTabsValue === tabItem.name"
-            :show-position="showPosition"
-            :outer-scale="scale"
-            :outer-search-count="searchCount"
-          ></de-preview>
         </el-tab-pane>
       </template>
+      <div
+        style="position: absolute; width: 100%; height: 100%"
+        :key="tabItem.name + '-content'"
+        v-for="(tabItem, index) in element.propValue"
+        :class="{ 'switch-hidden': editableTabsValue !== tabItem.name }"
+      >
+        <de-canvas
+          v-if="isEdit && !mobileInPc"
+          :ref="'tabCanvas_' + index"
+          :component-data="tabItem.componentData"
+          :canvas-style-data="canvasStyleData"
+          :canvas-view-info="canvasViewInfo"
+          :canvas-id="element.id + '--' + tabItem.name"
+          :class="moveActive ? 'canvas-move-in' : ''"
+          :canvas-active="editableTabsValue === tabItem.name"
+        ></de-canvas>
+        <de-preview
+          v-else
+          :ref="'dashboardPreview'"
+          :dv-info="dvInfo"
+          :cur-gap="curPreviewGap"
+          :component-data="tabItem.componentData"
+          :canvas-style-data="{}"
+          :canvas-view-info="canvasViewInfo"
+          :canvas-id="element.id + '--' + tabItem.name"
+          :preview-active="editableTabsValue === tabItem.name"
+          :show-position="showPosition"
+          :outer-scale="scale"
+          :outer-search-count="searchCount"
+        ></de-preview>
+      </div>
     </de-custom-tab>
     <el-dialog
       title="编辑标题"
@@ -111,6 +118,7 @@ import {
   getCurrentInstance,
   nextTick,
   onBeforeMount,
+  onBeforeUnmount,
   onMounted,
   reactive,
   ref,
@@ -128,12 +136,13 @@ import DePreview from '@/components/data-visualization/canvas/DePreview.vue'
 import { useEmitt } from '@/hooks/web/useEmitt'
 import { getPanelAllLinkageInfo } from '@/api/visualization/linkage'
 import { dataVTabComponentAdd, groupSizeStyleAdaptor } from '@/utils/style'
-import { copyStoreWithOut, deepCopyTabItemHelper } from '@/store/modules/data-visualization/copy'
+import { deepCopyTabItemHelper } from '@/store/modules/data-visualization/copy'
+import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapshot'
 const dvMainStore = dvMainStoreWithOut()
+const snapshotStore = snapshotStoreWithOut()
 const { tabMoveInActiveId, bashMatrixInfo, editMode, mobileInPc } = storeToRefs(dvMainStore)
 const tabComponentRef = ref(null)
 let carouselTimer = null
-const copyStore = copyStoreWithOut()
 
 const props = defineProps({
   canvasStyleData: {
@@ -233,6 +242,7 @@ const curPreviewGap = computed(() =>
 function sureCurTitle() {
   state.curItem.title = state.textarea
   state.dialogVisible = false
+  snapshotStore.recordSnapshotCache()
 }
 
 function addTab() {
@@ -245,6 +255,7 @@ function addTab() {
   }
   element.value.propValue.push(newTab)
   editableTabsValue.value = newTab.name
+  snapshotStore.recordSnapshotCache()
 }
 
 function deleteCur(param) {
@@ -286,9 +297,11 @@ function handleCommand(command) {
       break
     case 'deleteCur':
       deleteCur(command.param)
+      snapshotStore.recordSnapshotCache()
       break
     case 'copyCur':
       copyCur(command.param)
+      snapshotStore.recordSnapshotCache()
       break
   }
 }
@@ -322,8 +335,9 @@ const componentMoveIn = component => {
             component.style.left = 0
             component.style.top = 0
             tabItem.componentData.push(component)
+            refInstance.addItemBox(component) //在适当的时候初始化布局组件
             nextTick(() => {
-              refInstance.addItemBox(component) //在适当的时候初始化布局组件
+              refInstance.canvasInitImmediately()
             })
           }
         } else {
@@ -432,12 +446,6 @@ const borderActiveColor = computed(() => {
   }
 })
 
-const onResetLayout = () => {
-  if (!isDashboard()) {
-    groupSizeStyleAdaptor(element.value)
-  }
-}
-
 const titleValid = computed(() => {
   return !!state.textarea && !!state.textarea.trim()
 })
@@ -502,20 +510,26 @@ onMounted(() => {
     editableTabsValue.value = element.value.propValue[0].name
   }
   calcTabLength()
-  eventBus.on('onTabMoveIn-' + element.value.id, componentMoveIn)
-  eventBus.on('onTabMoveOut-' + element.value.id, componentMoveOut)
-  eventBus.on('onTabSortChange-' + element.value.id, reShow)
+  if (['canvas', 'canvasDataV', 'edit'].includes(showPosition.value) && !mobileInPc.value) {
+    eventBus.on('onTabMoveIn-' + element.value.id, componentMoveIn)
+    eventBus.on('onTabMoveOut-' + element.value.id, componentMoveOut)
+    eventBus.on('onTabSortChange-' + element.value.id, reShow)
+  }
+
   currentInstance = getCurrentInstance()
   initCarousel()
   nextTick(() => {
     groupSizeStyleAdaptor(element.value)
   })
 })
-
+onBeforeUnmount(() => {
+  if (['canvas', 'canvasDataV', 'edit'].includes(showPosition.value) && !mobileInPc.value) {
+    eventBus.off('onTabMoveIn-' + element.value.id, componentMoveIn)
+    eventBus.off('onTabMoveOut-' + element.value.id, componentMoveOut)
+    eventBus.off('onTabSortChange-' + element.value.id, reShow)
+  }
+})
 onBeforeMount(() => {
-  eventBus.off('onTabMoveIn-' + element.value.id, componentMoveIn)
-  eventBus.off('onTabMoveOut-' + element.value.id, componentMoveOut)
-  eventBus.off('onTabSortChange-' + element.value.id, reShow)
   if (carouselTimer) {
     clearInterval(carouselTimer)
     carouselTimer = null
@@ -543,7 +557,6 @@ onBeforeMount(() => {
 }
 .el-tab-pane-custom {
   width: 100%;
-  height: 100%;
 }
 .canvas-move-in {
   border: 2px dotted transparent;
@@ -563,5 +576,10 @@ onBeforeMount(() => {
 .tab-head-center :deep(.ed-tabs__nav-scroll) {
   display: flex;
   justify-content: center;
+}
+
+.switch-hidden {
+  opacity: 0;
+  z-index: -1;
 }
 </style>

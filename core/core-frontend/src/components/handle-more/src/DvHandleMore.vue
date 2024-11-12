@@ -3,8 +3,11 @@ import { Icon } from '@/components/icon-custom'
 import icon_more_outlined from '@/assets/svg/icon_more_outlined.svg'
 import { propTypes } from '@/utils/propTypes'
 import type { Placement } from 'element-plus-secondary'
-import { ref, PropType } from 'vue'
+import { ref, PropType, computed } from 'vue'
 import ShareHandler from '@/views/share/share/ShareHandler.vue'
+import { useShareStoreWithOut } from '@/store/modules/share'
+const shareStore = useShareStoreWithOut()
+
 export interface Menu {
   svgName?: string
   label?: string
@@ -34,6 +37,10 @@ const props = defineProps({
   anyManage: propTypes.bool.def(false)
 })
 
+const shareDisable = computed(() => {
+  return shareStore.getShareDisable
+})
+
 const shareComponent = ref(null)
 const menus = ref([
   ...props.menuList.map(item => {
@@ -52,6 +59,9 @@ const handleCommand = (command: string | number | object) => {
   emit('handleCommand', command)
 }
 const callBack = param => {
+  if (shareDisable.value) {
+    return
+  }
   if (props.node.leaf && props.node?.weight >= 7) {
     menus.value[0]['divided'] = true
     menus.value.splice(0, 0, param)
@@ -89,6 +99,7 @@ const emit = defineEmits(['handleCommand'])
     </template>
   </el-dropdown>
   <ShareHandler
+    v-if="!shareDisable"
     ref="shareComponent"
     :resource-id="props.node.id"
     :resource-type="props.resourceType"

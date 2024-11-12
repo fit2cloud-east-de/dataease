@@ -84,15 +84,10 @@ public class H2EngineProvider extends EngineProvider {
             int size = tableField.getPrecision() * 4;
             switch (tableField.getDeType()) {
                 case 0:
-                    Column_Fields.append("longtext").append(",`");
+                    Column_Fields.append("varchar(2048)").append(",`");
                     break;
                 case 1:
-                    size = size < 50 ? 50 : size;
-                    if (size < 65533) {
-                        Column_Fields.append("varchar(length)".replace("length", String.valueOf(tableField.getPrecision()))).append(",`");
-                    } else {
-                        Column_Fields.append("longtext").append(",`");
-                    }
+                    Column_Fields.append("varchar(2048)").append(",`");
                     break;
                 case 2:
                     Column_Fields.append("bigint(20)").append(",`");
@@ -104,11 +99,7 @@ public class H2EngineProvider extends EngineProvider {
                     Column_Fields.append("TINYINT(length)".replace("length", String.valueOf(tableField.getPrecision()))).append(",`");
                     break;
                 default:
-                    if (size < 65533) {
-                        Column_Fields.append("varchar(length)".replace("length", String.valueOf(tableField.getPrecision()))).append(",`");
-                    } else {
-                        Column_Fields.append("longtext").append(",`");
-                    }
+                    Column_Fields.append("varchar(2048)").append(",`");
                     break;
             }
         }

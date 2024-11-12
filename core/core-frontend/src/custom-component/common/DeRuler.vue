@@ -21,24 +21,28 @@ const props = defineProps({
 
 const labelInterval = 5
 
-const { canvasStyleData, curComponent } = storeToRefs(dvMainStore)
+const { canvasStyleData, curComponent, componentData } = storeToRefs(dvMainStore)
 
 const rulerSize = computed(() =>
   props.direction === 'horizontal' ? canvasStyleData.value.width : canvasStyleData.value.height
 )
 
-const curComponentSize = computed(() => {
-  if (curComponent.value) {
-    return (
-      ((props.direction === 'horizontal'
-        ? curComponent.value.style.width
-        : curComponent.value.style.height) *
-        canvasStyleData.value.scale) /
-      100
-    )
-  } else {
-    return 0
+// 计算复合画布内部组件偏移量
+const parentStyle = computed(() => {
+  const style = { left: 0, top: 0 }
+  if (curComponent.value && curComponent.value.canvasId !== 'canvas-main') {
+    componentData.value.forEach(item => {
+      if (curComponent.value.canvasId.indexOf(item.id) > -1) {
+        style.left = item.style.left
+        style.top = item.style.top
+      }
+    })
+    // tab页头部偏移量
+    if (curComponent.value.canvasId.indexOf('Group') === -1) {
+      style.top = style.top + 56
+    }
   }
+  return style
 })
 
 const curComponentShadow = computed(() => {
@@ -46,8 +50,8 @@ const curComponentShadow = computed(() => {
     return {
       left:
         (props.direction === 'horizontal'
-          ? curComponent.value.style.left
-          : curComponent.value.style.top) + 'px',
+          ? curComponent.value.style.left + parentStyle.value.left
+          : curComponent.value.style.top + parentStyle.value.top) + 'px',
       width:
         (props.direction === 'horizontal'
           ? curComponent.value.style.width

@@ -3,6 +3,7 @@ package io.dataease.share.manage;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import io.dataease.api.system.vo.ShareBaseVO;
 import io.dataease.api.visualization.request.VisualizationWorkbranchQueryRequest;
 import io.dataease.api.xpack.share.request.XpackShareProxyRequest;
 import io.dataease.api.xpack.share.request.XpackSharePwdValidator;
@@ -21,6 +22,7 @@ import io.dataease.share.dao.auto.mapper.XpackShareMapper;
 import io.dataease.share.dao.ext.mapper.XpackShareExtMapper;
 import io.dataease.share.dao.ext.po.XpackSharePO;
 import io.dataease.share.util.LinkTokenUtil;
+import io.dataease.system.manage.SysParameterManage;
 import io.dataease.utils.*;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
@@ -51,12 +53,24 @@ public class XpackShareManage {
     @Resource
     private ShareTicketManage shareTicketManage;
 
+    @Resource
+    private SysParameterManage sysParameterManage;
+
     public XpackShare queryByResource(Long resourceId) {
         Long userId = AuthUtils.getUser().getUserId();
         QueryWrapper<XpackShare> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("creator", userId);
         queryWrapper.eq("resource_id", resourceId);
         return xpackShareMapper.selectOne(queryWrapper);
+    }
+
+    public String queryPwd(Long resourceId, Long userId) {
+        QueryWrapper<XpackShare> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("creator", userId);
+        queryWrapper.eq("resource_id", resourceId);
+        XpackShare xpackShare = xpackShareMapper.selectOne(queryWrapper);
+        if (ObjectUtils.isEmpty(xpackShare)) return null;
+        return xpackShare.getPwd();
     }
 
     @Transactional
@@ -190,7 +204,20 @@ public class XpackShareManage {
         return CommonBeanFactory.getBean(this.getClass());
     }
 
+    private boolean peRequireValid(ShareBaseVO sharedBase, XpackShare share) {
+        if (ObjectUtils.isEmpty(sharedBase) || !sharedBase.isPeRequire()) return true;
+        Long exp = share.getExp();
+        String pwd = share.getPwd();
+        return StringUtils.isNotBlank(pwd) && ObjectUtils.isNotEmpty(exp) && exp > 0L;
+    }
+
     public XpackShareProxyVO proxyInfo(XpackShareProxyRequest request) {
+        ShareBaseVO sharedBase = sysParameterManage.shareBase();
+        if (ObjectUtils.isNotEmpty(sharedBase) && sharedBase.isDisable()) {
+            XpackShareProxyVO vo = new XpackShareProxyVO();
+            vo.setShareDisable(true);
+            return vo;
+        }
         boolean inIframeError = request.isInIframe() && !LicenseUtil.licenseValid();
         if (inIframeError) {
             return new XpackShareProxyVO();
@@ -200,13 +227,18 @@ public class XpackShareManage {
         XpackShare xpackShare = xpackShareMapper.selectOne(queryWrapper);
         if (ObjectUtils.isEmpty(xpackShare))
             return null;
+        if (!peRequireValid(sharedBase, xpackShare)) {
+            XpackShareProxyVO vo = new XpackShareProxyVO();
+            vo.setPeRequireValid(false);
+            return vo;
+        }
         String linkToken = LinkTokenUtil.generate(xpackShare.getCreator(), xpackShare.getResourceId(), xpackShare.getExp(), xpackShare.getPwd(), xpackShare.getOid());
         HttpServletResponse response = ServletUtils.response();
         response.addHeader(AuthConstant.LINK_TOKEN_KEY, linkToken);
         Integer type = xpackShare.getType();
         String typeText = (ObjectUtils.isNotEmpty(type) && type == 1) ? "dashboard" : "dataV";
         TicketValidVO validVO = shareTicketManage.validateTicket(request.getTicket(), xpackShare);
-        return new XpackShareProxyVO(xpackShare.getResourceId(), xpackShare.getCreator(), linkExp(xpackShare), pwdValid(xpackShare, request.getCiphertext()), typeText, inIframeError, validVO);
+        return new XpackShareProxyVO(xpackShare.getResourceId(), xpackShare.getCreator(), linkExp(xpackShare), pwdValid(xpackShare, request.getCiphertext()), typeText, inIframeError, false, true, validVO);
     }
 
     private boolean linkExp(XpackShare xpackShare) {

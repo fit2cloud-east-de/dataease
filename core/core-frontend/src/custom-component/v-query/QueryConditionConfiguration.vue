@@ -1,4 +1,3 @@
-getLastStart
 <script lang="ts" setup>
 import more_v from '@/assets/svg/more_v.svg'
 import icon_add_outlined from '@/assets/svg/icon_add_outlined.svg'
@@ -20,7 +19,8 @@ import {
   toRefs,
   watch,
   defineAsyncComponent,
-  provide
+  provide,
+  unref
 } from 'vue'
 import { storeToRefs } from 'pinia'
 import { addQueryCriteriaConfig } from './options'
@@ -44,8 +44,11 @@ import dayjs from 'dayjs'
 import ConditionDefaultConfiguration from '@/custom-component/v-query/ConditionDefaultConfiguration.vue'
 import { iconChartMap } from '@/components/icon-group/chart-list'
 import { iconFieldMap } from '@/components/icon-group/field-list'
+import treeSort from '@/utils/treeSortUtils'
+import { useCache } from '@/hooks/web/useCache'
 
 const { t } = useI18n()
+const { wsCache } = useCache()
 const dvMainStore = dvMainStoreWithOut()
 const { componentData, canvasViewInfo } = storeToRefs(dvMainStore)
 const defaultConfigurationRef = ref(null)
@@ -192,18 +195,97 @@ const showTypeError = computed(() => {
     }
   }
   let displayTypeField = null
+  let hasParameterTimeArrType = 0
+  let hasParameterNumArrType = 0
+  let allNum =
+    curComponent.value.checkedFields.every(id => {
+      return curComponent.value.checkedFieldsMapArrNum?.[id]?.length
+    }) && ['22'].includes(curComponent.value.displayType)
   return curComponent.value.checkedFields.some(id => {
-    const arr = fields.value.find(ele => ele.componentId === id)
-    const checkId = curComponent.value.checkedFieldsMap?.[id]
-    const field = Object.values(arr?.fields || {})
-      .flat()
-      .find(ele => checkId === ele.id)
-    if (!field) return false
-    if (displayTypeField === null) {
-      displayTypeField = field?.deType
+    if (allNum) {
       return false
     }
-    return displayTypeField !== field?.deType
+
+    if (
+      curComponent.value.checkedFieldsMapArrNum?.[id]?.length &&
+      ['22', '2'].includes(curComponent.value.displayType)
+    ) {
+      if (hasParameterNumArrType === 0) {
+        hasParameterNumArrType = 1
+      }
+
+      if (hasParameterNumArrType === 2) {
+        return true
+      }
+    }
+
+    if (
+      !curComponent.value.checkedFieldsMapArrNum?.[id]?.length &&
+      ['22', '2'].includes(curComponent.value.displayType) &&
+      curComponent.value.parameters.some(ele => [2, 3].includes(ele.deType)) &&
+      curComponent.value.checkedFieldsMap[id]
+    ) {
+      if (hasParameterNumArrType === 0) {
+        hasParameterNumArrType = 2
+      }
+
+      if (hasParameterNumArrType === 1) {
+        return true
+      }
+    }
+
+    if (
+      curComponent.value.checkedFieldsMapArr?.[id]?.length &&
+      ['7', '1'].includes(curComponent.value.displayType)
+    ) {
+      if (hasParameterTimeArrType === 0) {
+        hasParameterTimeArrType = 1
+      }
+
+      if (hasParameterTimeArrType === 2) {
+        return true
+      }
+    }
+
+    if (
+      !curComponent.value.checkedFieldsMapArr?.[id]?.length &&
+      ['7', '1'].includes(curComponent.value.displayType) &&
+      !!curComponent.value.parameters.length
+    ) {
+      if (hasParameterTimeArrType === 0) {
+        hasParameterTimeArrType = 2
+      }
+
+      if (hasParameterTimeArrType === 1) {
+        return true
+      }
+    }
+    const arr = fields.value.find(ele => ele.componentId === id)
+    const checkId = curComponent.value.checkedFieldsMap?.[id]
+    const field = duplicateRemoval(Object.values(arr?.fields || {}).flat()).find(
+      ele => checkId === ele.id
+    )
+    if (!field) return false
+    if (displayTypeField === null) {
+      displayTypeField = field
+      return false
+    }
+    if (displayTypeField?.deType === field?.deType && displayTypeField?.deType === 1) {
+      if (!displayTypeField.type?.length && !field.type?.length) {
+        return false
+      }
+      if (displayTypeField.type?.length !== field.type?.length) {
+        return true
+      }
+      for (let index = 0; index < displayTypeField.type.length; index++) {
+        if (displayTypeField.type[index] !== field.type[index]) {
+          return true
+        }
+      }
+    }
+    return [2, 3].includes(field?.deType) && [2, 3].includes(displayTypeField.deType)
+      ? false
+      : displayTypeField.deType !== field?.deType
   })
 })
 
@@ -225,11 +307,11 @@ const showDatasetError = computed(() => {
 })
 const typeList = [
   {
-    label: '重命名',
+    label: t('data_fill.rename'),
     command: 'rename'
   },
   {
-    label: '删除',
+    label: t('data_fill.delete'),
     command: 'del'
   }
 ]
@@ -302,15 +384,314 @@ const handleCheckedFieldsChangeTree = (value: string[]) => {
   setType()
 }
 
-const setParameters = () => {
+const isParametersDisable = item => {
+  let isDisabled = false
+  if (!isNumParameter.value) {
+    for (let index = 0; index < notTimeRangeType.value.length; index++) {
+      if (notTimeRangeType.value[index] !== item.type?.[index]) {
+        isDisabled = true
+      }
+    }
+    if (notTimeRangeType.value.length && item.deType !== 1) {
+      isDisabled = true
+    }
+  }
+  return isDisabled
+}
+
+const setParametersArrNum = (val, componentId) => {
+  if (curComponent.value.checkedFieldsMapArr?.[componentId]?.length) {
+    curComponent.value.checkedFieldsMapArr[componentId] = []
+    curComponent.value.checkedFieldsMapEnd[componentId] = ''
+    curComponent.value.checkedFieldsMapStart[componentId] = ''
+  }
+  const timeStartId = curComponent.value.checkedFieldsMapStartNum[componentId]
+  const timeEndId = curComponent.value.checkedFieldsMapEndNum[componentId]
+  if (timeStartId) {
+    curComponent.value.checkedFieldsMapEndNum[componentId] = val.find(ele => ele !== timeStartId)
+  }
+
+  if (timeEndId) {
+    curComponent.value.checkedFieldsMapStartNum[componentId] = val.find(ele => ele !== timeEndId)
+  }
+
+  if (!val.length) {
+    curComponent.value.checkedFieldsMap[componentId] = ''
+    curComponent.value.checkedFieldsMapEndNum[componentId] = ''
+    curComponent.value.checkedFieldsMapStartNum[componentId] = ''
+    curComponent.value.parametersArr[componentId] = []
+  }
+
+  if (curComponent.value.checkedFieldsMapArrNum[componentId].length) {
+    setParametersNumType(componentId)
+  }
+  setTypeChange()
+}
+
+const setParametersArr = (val, componentId) => {
+  if (curComponent.value.checkedFieldsMapArrNum?.[componentId]?.length) {
+    curComponent.value.checkedFieldsMapArrNum[componentId] = []
+    curComponent.value.checkedFieldsMapEndNum[componentId] = ''
+    curComponent.value.checkedFieldsMapStartNum[componentId] = ''
+  }
+  const timeStartId = curComponent.value.checkedFieldsMapStart[componentId]
+  const timeEndId = curComponent.value.checkedFieldsMapEnd[componentId]
+  if (timeStartId) {
+    curComponent.value.checkedFieldsMapEnd[componentId] = val.find(ele => ele !== timeStartId)
+  }
+
+  if (timeEndId) {
+    curComponent.value.checkedFieldsMapStart[componentId] = val.find(ele => ele !== timeEndId)
+  }
+
+  if (!val.length) {
+    curComponent.value.checkedFieldsMap[componentId] = ''
+    curComponent.value.checkedFieldsMapEnd[componentId] = ''
+    curComponent.value.checkedFieldsMapStart[componentId] = ''
+    curComponent.value.displayType = '1'
+    curComponent.value.parametersArr[componentId] = []
+    curComponent.value.timeGranularity = ''
+    curComponent.value.timeGranularityMultiple = ''
+  }
+
+  if (curComponent.value.checkedFieldsMapArr[componentId].length) {
+    setParametersTimeType(componentId)
+  }
+  setTypeChange()
+}
+
+let currentComponentId = ''
+let currentParameterId = ''
+const timeDialogShow = ref(false)
+const timeParameterType = ref(0)
+const timeName = ref('')
+
+const numDialogShow = ref(false)
+const numParameterType = ref(0)
+const numName = ref('')
+
+const timeTypeChange = () => {
+  if (!curComponent.value.checkedFieldsMapArr[currentComponentId]) {
+    curComponent.value.checkedFieldsMapArr[currentComponentId] = []
+  }
+
+  if (timeParameterType.value === 0) {
+    curComponent.value.checkedFieldsMap[currentComponentId] = currentParameterId
+    curComponent.value.checkedFieldsMapArr[currentComponentId] = []
+    curComponent.value.checkedFieldsMapStart[currentComponentId] = ''
+    curComponent.value.checkedFieldsMapEnd[currentComponentId] = ''
+  }
+
+  if (timeParameterType.value === 1) {
+    curComponent.value.checkedFieldsMapStart[currentComponentId] = currentParameterId
+    curComponent.value.checkedFieldsMapArr[currentComponentId] = [
+      ...new Set([
+        ...curComponent.value.checkedFieldsMapArr[currentComponentId],
+        currentParameterId
+      ])
+    ]
+
+    if (curComponent.value.checkedFieldsMapArr[currentComponentId].length === 1) {
+      curComponent.value.checkedFieldsMapEnd[currentComponentId] = ''
+    } else {
+      curComponent.value.checkedFieldsMapEnd[currentComponentId] =
+        curComponent.value.checkedFieldsMapArr[currentComponentId].length === 2
+          ? curComponent.value.checkedFieldsMapArr[currentComponentId].find(
+              ele => ele !== currentParameterId
+            )
+          : currentParameterId
+    }
+  }
+
+  if (timeParameterType.value === 2) {
+    curComponent.value.checkedFieldsMapArr[currentComponentId] = [
+      ...new Set([
+        ...curComponent.value.checkedFieldsMapArr[currentComponentId],
+        currentParameterId
+      ])
+    ]
+
+    curComponent.value.checkedFieldsMapEnd[currentComponentId] = currentParameterId
+
+    if (curComponent.value.checkedFieldsMapArr[currentComponentId].length === 1) {
+      curComponent.value.checkedFieldsMapStart[currentComponentId] = ''
+    } else {
+      curComponent.value.checkedFieldsMapStart[currentComponentId] =
+        curComponent.value.checkedFieldsMapArr[currentComponentId].length === 2
+          ? curComponent.value.checkedFieldsMapArr[currentComponentId].find(
+              ele => ele !== currentParameterId
+            )
+          : currentParameterId
+    }
+  }
+
+  curComponent.value.displayType = curComponent.value.checkedFieldsMapArr[currentComponentId].length
+    ? '7'
+    : '1'
+  setParametersTimeType(currentComponentId)
+  setTypeChange()
+  timeDialogShow.value = false
+}
+
+const numTypeChange = () => {
+  if (!curComponent.value.checkedFieldsMapArrNum[currentComponentId]) {
+    curComponent.value.checkedFieldsMapArrNum[currentComponentId] = []
+  }
+
+  if (numParameterType.value === 0) {
+    curComponent.value.checkedFieldsMap[currentComponentId] = currentParameterId
+    curComponent.value.checkedFieldsMapArrNum[currentComponentId] = []
+    curComponent.value.checkedFieldsMapStartNum[currentComponentId] = ''
+    curComponent.value.checkedFieldsMapEndNum[currentComponentId] = ''
+  }
+
+  if (numParameterType.value === 1) {
+    curComponent.value.checkedFieldsMapStartNum[currentComponentId] = currentParameterId
+    curComponent.value.checkedFieldsMapArrNum[currentComponentId] = [
+      ...new Set([
+        ...curComponent.value.checkedFieldsMapArrNum[currentComponentId],
+        currentParameterId
+      ])
+    ]
+
+    if (curComponent.value.checkedFieldsMapArrNum[currentComponentId].length === 1) {
+      curComponent.value.checkedFieldsMapEndNum[currentComponentId] = ''
+    } else {
+      curComponent.value.checkedFieldsMapEndNum[currentComponentId] =
+        curComponent.value.checkedFieldsMapArrNum[currentComponentId].length === 2
+          ? curComponent.value.checkedFieldsMapArrNum[currentComponentId].find(
+              ele => ele !== currentParameterId
+            )
+          : currentParameterId
+    }
+  }
+
+  if (numParameterType.value === 2) {
+    curComponent.value.checkedFieldsMapArrNum[currentComponentId] = [
+      ...new Set([
+        ...curComponent.value.checkedFieldsMapArrNum[currentComponentId],
+        currentParameterId
+      ])
+    ]
+
+    curComponent.value.checkedFieldsMapEndNum[currentComponentId] = currentParameterId
+
+    if (curComponent.value.checkedFieldsMapArrNum[currentComponentId].length === 1) {
+      curComponent.value.checkedFieldsMapStartNum[currentComponentId] = ''
+    } else {
+      curComponent.value.checkedFieldsMapStartNum[currentComponentId] =
+        curComponent.value.checkedFieldsMapArrNum[currentComponentId].length === 2
+          ? curComponent.value.checkedFieldsMapArrNum[currentComponentId].find(
+              ele => ele !== currentParameterId
+            )
+          : currentParameterId
+    }
+  }
+
+  curComponent.value.displayType = curComponent.value.checkedFieldsMapArrNum[currentComponentId]
+    .length
+    ? '22'
+    : '2'
+  setParametersNumType(currentComponentId)
+  setTypeChange()
+  numDialogShow.value = false
+}
+
+const setParametersNumType = componentId => {
+  curComponent.value.parametersArr[componentId] = duplicateRemoval(
+    unref(fields)
+      .filter(ele => ele.componentId === componentId)
+      .map(ele => Object.values(ele?.fields || {}).flat())
+      .flat()
+      .filter(
+        ele =>
+          [
+            curComponent.value.checkedFieldsMapEndNum[componentId],
+            curComponent.value.checkedFieldsMapStartNum[componentId]
+          ]
+            .filter(ele => !!ele)
+            .includes(ele.id) && !!ele.variableName
+      )
+  )
+}
+
+const setParametersTimeType = componentId => {
+  curComponent.value.parametersArr[componentId] = duplicateRemoval(
+    unref(fields)
+      .filter(ele => ele.componentId === componentId)
+      .map(ele => Object.values(ele?.fields || {}).flat())
+      .flat()
+      .filter(
+        ele =>
+          [
+            curComponent.value.checkedFieldsMapEnd[componentId],
+            curComponent.value.checkedFieldsMapStart[componentId]
+          ]
+            .filter(ele => !!ele)
+            .includes(ele.id) && !!ele.variableName
+      )
+  )
+  if (!curComponent.value.parametersArr[componentId].length) return
+  const [v1, v2] = curComponent.value.parametersArr[componentId][0].type
+  curComponent.value.timeGranularityMultiple = typeTimeMap[v2 || v1]
+    ? `${typeTimeMap[v2 || v1]}range`
+    : ''
+  curComponent.value.timeGranularity = typeTimeMap[v2 || v1]
+}
+
+const numClick = (componentId, timeVal) => {
+  numParameterType.value =
+    timeVal.id === curComponent.value.checkedFieldsMapStartNum[componentId]
+      ? 1
+      : timeVal.id === curComponent.value.checkedFieldsMapEndNum[componentId]
+      ? 2
+      : 0
+  currentComponentId = componentId
+  currentParameterId = timeVal.id
+  numName.value = timeVal.variableName
+  numDialogShow.value = true
+}
+
+const timeClick = (componentId, timeVal) => {
+  timeParameterType.value =
+    timeVal.id === curComponent.value.checkedFieldsMapStart[componentId]
+      ? 1
+      : timeVal.id === curComponent.value.checkedFieldsMapEnd[componentId]
+      ? 2
+      : 0
+  currentComponentId = componentId
+  currentParameterId = timeVal.id
+  timeName.value = timeVal.variableName
+  timeDialogShow.value = true
+}
+
+const duplicateRemoval = arr => {
+  const objList = []
+  let idList = arr.map(ele => ele.id)
+  for (let index = 0; index < arr.length; index++) {
+    const element = arr[index]
+    if (idList.includes(element.id)) {
+      objList.push(element)
+      idList = idList.filter(ele => ele !== element.id)
+    }
+  }
+  return objList
+}
+
+const setParameters = field => {
   const fieldArr = Object.values(curComponent.value.checkedFieldsMap).filter(ele => !!ele)
-  curComponent.value.parameters = fields.value
-    .map(ele => Object.values(ele?.fields || {}).flat())
-    .flat()
-    .filter(ele => fieldArr.includes(ele.id) && !!ele.variableName)
+  curComponent.value.parameters = duplicateRemoval(
+    Object.values(field?.fields || {})
+      .flat()
+      .filter(ele => fieldArr.includes(ele.id) && !!ele.variableName)
+  )
   nextTick(() => {
     if (isTimeParameter.value) {
-      curComponent.value.timeGranularity = typeTimeMap[curComponent.value.parameters[0].type[1]]
+      curComponent.value.timeGranularity =
+        typeTimeMap[
+          curComponent.value.parameters[0].type[1] || curComponent.value.parameters[0].type[0]
+        ]
+      curComponent.value.displayType = '1'
     }
 
     if (!!curComponent.value.parameters.length) {
@@ -319,8 +700,25 @@ const setParameters = () => {
         curComponent.value.optionValueSource = 1
       }
     }
+    if (curComponent.value.displayType === '22') {
+      const isNumParameter = curComponent.value.checkedFields.some(ele => {
+        return curComponent.value.parameters?.some(
+          itx => [2, 3].includes(itx.deType) && curComponent.value.checkedFieldsMap[ele] === itx.id
+        )
+      })
+
+      const isSingle = curComponent.value.checkedFields.every(id => {
+        return !curComponent.value.checkedFieldsMapArr?.[id]?.length
+      })
+
+      if (isSingle && isNumParameter) {
+        curComponent.value.displayType = '2'
+      }
+    }
+    setTypeChange()
   })
   setType()
+
   if (curComponent.value.displayType === '9') {
     setTreeDefault()
   }
@@ -337,7 +735,7 @@ const setType = () => {
 
     if (field?.deType !== undefined) {
       let displayType = curComponent.value.displayType
-      if (curComponent.value.displayType === '9') {
+      if (['9', '22'].includes(curComponent.value.displayType)) {
         return
       }
       if (!(field?.deType === 1 && curComponent.value.displayType === '7')) {
@@ -378,24 +776,74 @@ const setTypeChange = () => {
 }
 
 const isTimeParameter = computed(() => {
-  return curComponent.value.parameters?.some(ele => ele.deType === 1 && !!ele.variableName)
+  return curComponent.value.checkedFields.some(ele => {
+    return curComponent.value.parameters?.some(
+      itx =>
+        itx.deType === 1 &&
+        !!itx.variableName &&
+        curComponent.value.checkedFieldsMap[ele] === itx.id
+    )
+  })
+})
+
+const isNumParameter = computed(() => {
+  return curComponent.value.parameters?.some(
+    ele => [2, 3].includes(ele.deType) && !!ele.variableName
+  )
+})
+
+const notNumRange = computed(() => {
+  return curComponent.value.checkedFields.some(ele => {
+    return curComponent.value.checkedFieldsMapArrNum[ele]?.length > 0
+  })
+})
+
+const canNotNumRange = computed(() => {
+  if (
+    curComponent.value.checkedFields.every(id => {
+      return curComponent.value.checkedFieldsMapArrNum?.[id]?.length > 0
+    })
+  ) {
+    return false
+  } else {
+    return curComponent.value.checkedFields.some(ele => {
+      return curComponent.value.parameters?.some(
+        itx => [2, 3].includes(itx.deType) && curComponent.value.checkedFieldsMap[ele] === itx.id
+      )
+    })
+  }
+})
+
+const notTimeRange = computed(() => {
+  return curComponent.value.checkedFields.some(ele => {
+    return curComponent.value.checkedFieldsMapArr[ele]?.length > 0
+  })
+})
+
+const notTimeRangeType = computed(() => {
+  const fieldsArr = unref(fields)
+    .map(ele => Object.values(ele?.fields || {}).flat())
+    .flat()
+  const field = Object.values(curComponent.value.checkedFieldsMapArr || {}).flat()
+  const obj = fieldsArr.find(ele => ele.id === field[0])
+  return obj?.type || []
 })
 
 const timeList = [
   {
-    label: '年',
+    label: t('dynamic_time.year'),
     value: 'year'
   },
   {
-    label: '年月',
+    label: t('chart.y_M'),
     value: 'month'
   },
   {
-    label: '年月日',
+    label: t('chart.y_M_d'),
     value: 'date'
   },
   {
-    label: '年月日时分秒',
+    label: t('chart.y_M_d_H_m_s'),
     value: 'datetime'
   }
 ]
@@ -415,7 +863,16 @@ const timeParameterList = computed(() => {
   const [year, y] = curComponent.value.parameters?.filter(
     ele => ele.deType === 1 && !!ele.variableName
   )[0].type
-  return timeList.filter(ele => ele.value === (typeTimeMap[y] || typeTimeMap[year]))
+  let stopPush = false
+  return timeList.reduce((pre, ele) => {
+    if (ele.value === (typeTimeMap[y] || typeTimeMap[year])) {
+      stopPush = true
+      pre.push(ele)
+    } else if (!stopPush) {
+      pre.push(ele)
+    }
+    return pre
+  }, [])
 })
 
 const cancelClick = () => {
@@ -425,16 +882,20 @@ const cancelClick = () => {
 
 const initDataset = () => {
   getDatasetTree({}).then(res => {
-    datasetTree.value = (res as unknown as Tree[]) || []
+    const result = (res as unknown as Tree[]) || []
+    if (result[0]?.id === '0') {
+      sortTypeChange(dfs(result[0].children))
+    } else {
+      sortTypeChange(dfs(result))
+    }
   })
 }
 
-const computedTree = computed(() => {
-  if (datasetTree.value[0]?.id === '0') {
-    return dfs(datasetTree.value[0].children)
-  }
-  return dfs(datasetTree.value)
-})
+const sortTypeChange = arr => {
+  const sortType = wsCache.get('TreeSort-dataset') || 'time_desc'
+  datasetTree.value = treeSort(arr, sortType)
+}
+
 let newDatasetId = ''
 let oldDatasetId = ''
 const handleCurrentChange = node => {
@@ -463,17 +924,14 @@ const confirmIdChange = () => {
 const handleDatasetChange = () => {
   if (!!newDatasetId && !!oldDatasetId) {
     curComponent.value.dataset.id = oldDatasetId
-    ElMessageBox.confirm(
-      '数据集的修改，会导致级联配置失效，因此对应的级联关系将被清除，确定修改吗？',
-      {
-        confirmButtonType: 'primary',
-        type: 'warning',
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        autofocus: false,
-        showClose: false
-      }
-    ).then(() => {
+    ElMessageBox.confirm(t('v_query.to_modify_it'), {
+      confirmButtonType: 'primary',
+      type: 'warning',
+      confirmButtonText: t('commons.confirm'),
+      cancelButtonText: t('commons.cancel'),
+      autofocus: false,
+      showClose: false
+    }).then(() => {
       confirmIdChange()
     })
     return
@@ -654,7 +1112,14 @@ const clearCascadeArrDataset = id => {
   cascadeArr = cascadeArr.filter(ele => !!ele.length)
 }
 
-const indexCascade = ' 一二三四五'
+const indexCascade = [
+  ' ',
+  t('report.week_mon'),
+  t('report.week_tue'),
+  t('report.week_wed'),
+  t('report.week_thu'),
+  t('report.week_fri')
+]
 
 const validateConditionType = ({
   defaultConditionValueF,
@@ -685,7 +1150,120 @@ const validate = () => {
   return conditions.value.some(ele => {
     if (ele.auto) return false
     if (!ele.checkedFields?.length || ele.checkedFields.some(itx => !ele.checkedFieldsMap[itx])) {
-      ElMessage.error('请先勾选需要联动的图表及字段')
+      ElMessage.error(t('v_query.be_linked_first'))
+      return true
+    }
+
+    if (ele.displayType === '22' && ele.defaultValueCheck) {
+      if (
+        (ele.defaultNumValueEnd !== 0 && !ele.defaultNumValueEnd) ||
+        (ele.defaultNumValueStart !== 0 && !ele.defaultNumValueStart)
+      ) {
+        ElMessage.error(t('v_query.cannot_be_empty_de'))
+        return true
+      }
+      if (
+        !isNaN(ele.defaultNumValueEnd) &&
+        !isNaN(ele.defaultNumValueStart) &&
+        ele.defaultNumValueEnd < ele.defaultNumValueStart
+      ) {
+        ElMessage.error('数值区间最大值必须大于最小值')
+        return true
+      }
+    }
+    let displayTypeField = null
+    let errorTips = t('v_query.cannot_be_performed')
+    let hasParameterTimeArrType = 0
+    let hasParameterNumArrType = 0
+    if (
+      ele.checkedFields.some(id => {
+        if (ele.checkedFieldsMapArrNum?.[id]?.length) {
+          if (hasParameterNumArrType === 0) {
+            hasParameterNumArrType = 1
+          }
+
+          if (hasParameterNumArrType === 2) {
+            return true
+          }
+        }
+
+        if (
+          !ele.checkedFieldsMapArrNum?.[id]?.length &&
+          ['22'].includes(ele.displayType) &&
+          !!ele.parameters.length
+        ) {
+          if (hasParameterNumArrType === 0) {
+            hasParameterNumArrType = 2
+          }
+
+          if (hasParameterNumArrType === 1) {
+            return true
+          }
+        }
+
+        if (ele.checkedFieldsMapArrNum?.[id]?.length === 1 && ele.displayType === '22') {
+          errorTips = t('v_query.numerical_parameter_configuration')
+          return true
+        }
+
+        if (ele.checkedFieldsMapArr?.[id]?.length && ['7', '1'].includes(ele.displayType)) {
+          if (hasParameterTimeArrType === 0) {
+            hasParameterTimeArrType = 1
+          }
+
+          if (hasParameterTimeArrType === 2) {
+            return true
+          }
+        }
+
+        if (
+          !ele.checkedFieldsMapArr?.[id]?.length &&
+          ['7', '1'].includes(ele.displayType) &&
+          !!ele.parameters.length
+        ) {
+          if (hasParameterTimeArrType === 0) {
+            hasParameterTimeArrType = 2
+          }
+
+          if (hasParameterTimeArrType === 1) {
+            return true
+          }
+        }
+
+        if (ele.checkedFieldsMapArr?.[id]?.length === 1 && ele.displayType === '7') {
+          errorTips = t('v_query.and_end_time')
+          return true
+        }
+
+        const arr = fields.value.find(itx => itx.componentId === id)
+        const checkId = ele.checkedFieldsMap?.[id]
+        const field = duplicateRemoval(Object.values(arr?.fields || {}).flat()).find(
+          itx => checkId === itx.id
+        )
+        if (!field) return false
+        if (displayTypeField === null) {
+          displayTypeField = field
+          return false
+        }
+        if (displayTypeField?.deType === field?.deType && displayTypeField?.deType === 1) {
+          if (!displayTypeField.type?.length && !field.type?.length) {
+            return false
+          }
+          if (displayTypeField.type?.length !== field.type?.length) {
+            errorTips = t('v_query.format_is_inconsistent')
+            return true
+          }
+          for (let index = 0; index < displayTypeField.type.length; index++) {
+            if (displayTypeField.type[index] !== field.type[index]) {
+              errorTips = t('v_query.format_is_inconsistent')
+              return true
+            }
+          }
+        }
+        return displayTypeField.deType !== field?.deType
+      })
+    ) {
+      ElMessage.error(errorTips)
       return true
     }
 
@@ -694,21 +1272,32 @@ const validate = () => {
         setParams(ele)
         const result = validateConditionType(ele)
         if (result) {
-          ElMessage.error('查询条件为必填项,默认值不能为空')
+          ElMessage.error(t('v_query.cannot_be_empty_de'))
         }
         return result
       }
 
       if (!ele.defaultValueCheck) {
-        ElMessage.error('查询条件为必填项,默认值不能为空')
+        ElMessage.error(t('v_query.cannot_be_empty_de'))
         return true
+      }
+
+      if (ele.displayType === '22') {
+        if (
+          (ele.defaultNumValueEnd !== 0 && !ele.defaultNumValueEnd) ||
+          (ele.defaultNumValueStart !== 0 && !ele.defaultNumValueStart)
+        ) {
+          ElMessage.error(t('v_query.cannot_be_empty_de'))
+          return true
+        }
+        return false
       }
 
       if (
         (Array.isArray(ele.defaultValue) && !ele.defaultValue.length) ||
         (ele.defaultValue !== 0 && !ele.defaultValue)
       ) {
-        ElMessage.error('查询条件为必填项,默认值不能为空')
+        ElMessage.error(t('v_query.cannot_be_empty_de'))
         return true
       }
     }
@@ -728,7 +1317,7 @@ const validate = () => {
       if (!ele.defaultValueCheck) return false
       if (ele.timeType === 'fixed') {
         if (!ele.defaultValue) {
-          ElMessage.error('默认时间不能为空!')
+          ElMessage.error(t('v_query.cannot_be_empty_time'))
           return true
         }
       }
@@ -739,7 +1328,7 @@ const validate = () => {
       if (ele.timeType === 'fixed') {
         const [s, e] = ele.defaultValue || []
         if (!s || !e) {
-          ElMessage.error('默认时间不能为空!')
+          ElMessage.error(t('v_query.cannot_be_empty_time'))
           return true
         }
       }
@@ -786,7 +1375,7 @@ const validate = () => {
         ;[startTime, endTime] = getCustomRange(relativeToCurrentRange)
       }
       if (+startTime > +endTime) {
-        ElMessage.error('结束时间必须大于开始时间!')
+        ElMessage.error(t('v_query.the_start_time'))
         return true
       }
       if (!ele.setTimeRange) return false
@@ -801,7 +1390,7 @@ const validate = () => {
             : +endTime
         )
       ) {
-        ElMessage.error('默认值超出日期筛选范围内，请重新设置！')
+        ElMessage.error(t('v_query.range_please_reset'))
         return true
       }
       return false
@@ -816,32 +1405,14 @@ const validate = () => {
       ele.optionValueSource === 2 &&
       !ele.valueSource?.filter(ele => !!ele).length
     ) {
-      ElMessage.error('手工输入-选项值不能为空')
+      ElMessage.error(t('v_query.cannot_be_empty_input'))
       return true
     }
 
-    if (ele.displayType !== '9' && ele.optionValueSource === 1 && !ele.field.id) {
-      ElMessage.error(!ele.dataset?.id ? '请选择数据集及选项值字段' : '请选择数据集的选项值字段')
-      return true
-    }
-
-    let displayTypeField = null
-    if (
-      ele.checkedFields.some(id => {
-        const arr = fields.value.find(itx => itx.componentId === id)
-        const checkId = ele.checkedFieldsMap?.[id]
-        const field = Object.values(arr?.fields || {})
-          .flat()
-          .find(itx => checkId === itx.id)
-        if (!field) return false
-        if (displayTypeField === null) {
-          displayTypeField = field?.deType
-          return false
-        }
-        return displayTypeField !== field?.deType
-      })
-    ) {
-      ElMessage.error('所选字段类型不一致，无法进行查询配置')
+    if (!['9', '22'].includes(ele.displayType) && ele.optionValueSource === 1 && !ele.field.id) {
+      ElMessage.error(
+        !ele.dataset?.id ? t('v_query.option_value_field') : t('v_query.the_data_set')
+      )
       return true
     }
   })
@@ -908,7 +1479,7 @@ const confirmValueSource = () => {
       return false
     })
   ) {
-    ElMessage.error('手工输入-选项值不能为空')
+    ElMessage.error(t('v_query.cannot_be_empty_input'))
     return
   }
 
@@ -1011,6 +1582,7 @@ const weightlessness = () => {
 const parameterCompletion = () => {
   const attributes = {
     timeType: 'fixed',
+    hideConditionSwitching: false,
     required: false,
     defaultMapValue: [],
     mapValue: [],
@@ -1041,6 +1613,10 @@ const parameterCompletion = () => {
     arbitraryTimeRange: new Date(),
     setTimeRange: false,
     showEmpty: false,
+    defaultNumValueStart: null,
+    defaultNumValueEnd: null,
+    numValueEnd: null,
+    numValueStart: null,
     timeRange: {
       intervalType: 'none',
       dynamicWindow: false,
@@ -1058,7 +1634,7 @@ const parameterCompletion = () => {
     treeFieldList: []
   }
   Object.entries(attributes).forEach(([key, val]) => {
-    !curComponent.value[key] && (curComponent.value[key] = val)
+    curComponent.value[key] ?? (curComponent.value[key] = val)
   })
 
   if (!curComponent.value.timeRange.relativeToCurrentRange) {
@@ -1070,7 +1646,17 @@ const handleCondition = item => {
   handleDialogClick()
   if (activeConditionForRename.id) return
   activeCondition.value = item.id
-  curComponent.value = conditions.value.find(ele => ele.id === item.id)
+  const obj = conditions.value.find(ele => ele.id === item.id)
+  if (!obj.checkedFieldsMapArr) {
+    obj.checkedFieldsMapArr = {}
+    obj.checkedFieldsMapArrNum = {}
+    obj.checkedFieldsMapStart = {}
+    obj.checkedFieldsMapStartNum = {}
+    obj.checkedFieldsMapEnd = {}
+    obj.checkedFieldsMapEndNum = {}
+    obj.parametersArr = {}
+  }
+  curComponent.value = obj
   curComponent.value.dataset.fields = []
   nextTick(() => {
     defaultConfigurationRef.value.changeMultiple(curComponent.value.multiple)
@@ -1080,9 +1666,52 @@ const handleCondition = item => {
       curComponent.value.dataset.fields = res.data
     })
   }
+  if (!curComponent.value.checkedFieldsMapStart) {
+    curComponent.value.checkedFieldsMapStart = {}
+  }
+  if (!curComponent.value.checkedFieldsMapStartNum) {
+    curComponent.value.checkedFieldsMapStartNum = {}
+  }
+  if (!curComponent.value.checkedFieldsMapEnd) {
+    curComponent.value.checkedFieldsMapEnd = {}
+  }
+  if (!curComponent.value.checkedFieldsMapEndNum) {
+    curComponent.value.checkedFieldsMapEndNum = {}
+  }
+  if (!curComponent.value.checkedFieldsMapArr) {
+    curComponent.value.checkedFieldsMapArr = {}
+  }
+  if (!curComponent.value.checkedFieldsMapArrNum) {
+    curComponent.value.checkedFieldsMapArrNum = {}
+  }
+  if (!curComponent.value.parametersArr) {
+    curComponent.value.parametersArr = {}
+  }
   datasetFieldList.value.forEach(ele => {
     if (!curComponent.value.checkedFieldsMap[ele.id]) {
       curComponent.value.checkedFieldsMap[ele.id] = ''
+    }
+    if (!curComponent.value.checkedFieldsMapStart[ele.id]) {
+      curComponent.value.checkedFieldsMapStart[ele.id] = ''
+    }
+
+    if (!curComponent.value.checkedFieldsMapStartNum[ele.id]) {
+      curComponent.value.checkedFieldsMapStartNum[ele.id] = ''
+    }
+    if (!curComponent.value.checkedFieldsMapEnd[ele.id]) {
+      curComponent.value.checkedFieldsMapEnd[ele.id] = ''
+    }
+    if (!curComponent.value.checkedFieldsMapEndNum[ele.id]) {
+      curComponent.value.checkedFieldsMapEndNum[ele.id] = ''
+    }
+    if (!curComponent.value.checkedFieldsMapArr[ele.id]) {
+      curComponent.value.checkedFieldsMapArr[ele.id] = []
+    }
+    if (!curComponent.value.checkedFieldsMapArrNum[ele.id]) {
+      curComponent.value.checkedFieldsMapArrNum[ele.id] = []
+    }
+    if (!curComponent.value.parametersArr[ele.id]) {
+      curComponent.value.parametersArr[ele.id] = []
     }
   })
 
@@ -1123,10 +1752,9 @@ const startTreeDesign = () => {
   const [comId] = curComponent.value.checkedFields
   const componentObj = fields.value.find(ele => ele.componentId === comId)
   treeDialog.value.init(
-    (curComponent.value.optionValueSource === 0
-      ? componentObj?.fields?.dimensionList
-      : curComponent.value.dataset?.fields
-    ).filter(ele => ele.deType === +curComponent.value.field.deType),
+    componentObj?.fields?.dimensionList.filter(
+      ele => ele.deType === +curComponent.value.field.deType
+    ),
     curComponent.value.treeFieldList
   )
 }
@@ -1141,7 +1769,7 @@ const showError = computed(() => {
   if (!checkedFields.length || !arr.length) {
     return true
   }
-  if ([1, 7, 8].includes(+displayType)) {
+  if ([1, 7, 8, 22].includes(+displayType)) {
     return false
   }
 
@@ -1171,11 +1799,11 @@ const relativeToCurrentList = computed(() => {
     case 'year':
       list = [
         {
-          label: '今年',
+          label: t('dynamic_year.current'),
           value: 'thisYear'
         },
         {
-          label: '去年',
+          label: t('dynamic_year.last'),
           value: 'lastYear'
         }
       ]
@@ -1183,11 +1811,11 @@ const relativeToCurrentList = computed(() => {
     case 'month':
       list = [
         {
-          label: '本月',
+          label: t('cron.this_month'),
           value: 'thisMonth'
         },
         {
-          label: '上月',
+          label: t('dynamic_month.last'),
           value: 'lastMonth'
         }
       ]
@@ -1195,19 +1823,19 @@ const relativeToCurrentList = computed(() => {
     case 'date':
       list = [
         {
-          label: '今天',
+          label: t('dynamic_time.today'),
           value: 'today'
         },
         {
-          label: '昨天',
+          label: t('dynamic_time.yesterday'),
           value: 'yesterday'
         },
         {
-          label: '月初',
+          label: t('dynamic_time.firstOfMonth'),
           value: 'monthBeginning'
         },
         {
-          label: '年初',
+          label: t('dynamic_time.firstOfYear'),
           value: 'yearBeginning'
         }
       ]
@@ -1215,19 +1843,19 @@ const relativeToCurrentList = computed(() => {
     case 'datetime':
       list = [
         {
-          label: '今天',
+          label: t('dynamic_time.today'),
           value: 'today'
         },
         {
-          label: '昨天',
+          label: t('dynamic_time.yesterday'),
           value: 'yesterday'
         },
         {
-          label: '月初',
+          label: t('dynamic_time.firstOfMonth'),
           value: 'monthBeginning'
         },
         {
-          label: '年初',
+          label: t('dynamic_time.firstOfYear'),
           value: 'yearBeginning'
         }
       ]
@@ -1240,7 +1868,7 @@ const relativeToCurrentList = computed(() => {
   return [
     ...list,
     {
-      label: '自定义',
+      label: t('dynamic_time.custom'),
       value: 'custom'
     }
   ]
@@ -1253,11 +1881,11 @@ const relativeToCurrentListRange = computed(() => {
     case 'yearrange':
       list = [
         {
-          label: '今年',
+          label: t('dynamic_year.current'),
           value: 'thisYear'
         },
         {
-          label: '去年',
+          label: t('dynamic_year.last'),
           value: 'lastYear'
         }
       ]
@@ -1265,23 +1893,23 @@ const relativeToCurrentListRange = computed(() => {
     case 'monthrange':
       list = [
         {
-          label: '本月',
+          label: t('cron.this_month'),
           value: 'thisMonth'
         },
         {
-          label: '上月',
+          label: t('dynamic_month.dynamic_month'),
           value: 'lastMonth'
         },
         {
-          label: '最近 3 个 月',
+          label: t('v_query.last_3_months'),
           value: 'LastThreeMonths'
         },
         {
-          label: '最近 6 个 月',
+          label: t('v_query.last_6_months'),
           value: 'LastSixMonths'
         },
         {
-          label: '最近 12 个 月',
+          label: t('v_query.last_12_months'),
           value: 'LastTwelveMonths'
         }
       ]
@@ -1290,23 +1918,23 @@ const relativeToCurrentListRange = computed(() => {
     case 'datetimerange':
       list = [
         {
-          label: '今天',
+          label: t('dynamic_time.today'),
           value: 'today'
         },
         {
-          label: '昨天',
+          label: t('dynamic_time.yesterday'),
           value: 'yesterday'
         },
         {
-          label: '最近 3 天',
+          label: t('v_query.last_3_days'),
           value: 'LastThreeDays'
         },
         {
-          label: '月初至今',
+          label: t('v_query.month_to_date'),
           value: 'monthBeginning'
         },
         {
-          label: '年初至今',
+          label: t('v_query.year_to_date'),
           value: 'yearBeginning'
         }
       ]
@@ -1319,7 +1947,7 @@ const relativeToCurrentListRange = computed(() => {
   return [
     ...list,
     {
-      label: '自定义',
+      label: t('dynamic_time.custom'),
       value: 'custom'
     }
   ]
@@ -1413,7 +2041,7 @@ const dfs = arr => {
 
 const renameInputBlur = () => {
   if (activeConditionForRename.name.trim() === '') {
-    ElMessage.error('字段名称不能为空')
+    ElMessage.error(t('v_query.cannot_be_empty_name'))
     renameInput.value[0]?.focus()
     return
   }
@@ -1429,6 +2057,11 @@ const renameInputBlur = () => {
 
 const addQueryCriteria = () => {
   conditions.value.push(addQueryCriteriaConfig())
+}
+
+const addQueryCriteriaAndSelect = () => {
+  addQueryCriteria()
+  handleCondition(conditions.value[conditions.value.length - 1])
 }
 
 const addCriteriaConfig = () => {
@@ -1448,7 +2081,7 @@ defineExpose({
     class="query-condition-configuration"
     v-model="dialogVisible"
     width="1200px"
-    title="查询条件设置"
+    :title="t('v_query.query_condition_setting')"
     @click.stop
     :before-close="handleBeforeClose"
     @mousedown.stop
@@ -1457,8 +2090,8 @@ defineExpose({
     <div class="container" @click="handleDialogClick">
       <div class="query-condition-list">
         <div class="title">
-          查询条件
-          <el-icon @click="addQueryCriteria">
+          {{ t('v_query.query_condition') }}
+          <el-icon @click="addQueryCriteriaAndSelect">
             <Icon name="icon_add_outlined"><icon_add_outlined class="svg-icon" /></Icon>
           </el-icon>
         </div>
@@ -1517,17 +2150,17 @@ defineExpose({
       <div v-if="!!curComponent" class="chart-field" :class="curComponent.auto && 'hidden'">
         <div class="mask" v-if="curComponent.auto"></div>
         <div class="title flex-align-center">
-          选择关联图表及字段
+          {{ t('v_query.chart_and_field') }}
           <el-radio-group class="ml-4 larger-radio" v-model="curComponent.auto">
             <el-radio :disabled="!curComponent.auto" :label="true">
               <div class="flex-align-center">
-                自动
+                {{ t('chart.margin_model_auto') }}
                 <el-tooltip effect="dark" placement="top">
                   <template #content>
                     <div>
-                      注意:自动模式支持同数据集自动关联字段，可切换到
+                      {{ t('v_query.be_switched_to') }}
                       <br />
-                      自定义模式。切换到自定义模式后无法再切换为自动！
+                      {{ t('v_query.to_automatic_again') }}
                     </div>
                   </template>
                   <el-icon style="margin-left: 4px; color: #646a73">
@@ -1568,11 +2201,213 @@ defineExpose({
               >
               <span :title="field.name" class="dataset ellipsis">{{ field.name }}</span>
               <el-select
-                @change="setParameters"
+                @change="val => setParametersArr(val, field.componentId)"
+                @focus="handleDialogClick"
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
+                key="checkedFieldsMapArrTime"
+                :multiple-limit="2"
+                class="field-select--input"
+                style="margin-left: 12px"
+                popper-class="field-select--dqp"
+                v-if="
+                  curComponent.checkedFields.includes(field.componentId) &&
+                  curComponent.checkedFieldsMapArr &&
+                  curComponent.checkedFieldsMapArr[field.componentId] &&
+                  curComponent.checkedFieldsMapArr[field.componentId].length
+                "
+                v-model="curComponent.checkedFieldsMapArr[field.componentId]"
+                clearable
+              >
+                <template v-if="curComponent.checkedFieldsMap[field.componentId]" #prefix>
+                  <el-icon>
+                    <Icon
+                      ><component
+                        :class="`field-icon-${
+                          fieldType[
+                            getDetype(
+                              curComponent.checkedFieldsMap[field.componentId],
+                              Object.values(field.fields)
+                            )
+                          ]
+                        }`"
+                        :is="
+                          iconFieldMap[
+                            fieldType[
+                              getDetype(
+                                curComponent.checkedFieldsMap[field.componentId],
+                                Object.values(field.fields)
+                              )
+                            ]
+                          ]
+                        "
+                      ></component
+                    ></Icon>
+                  </el-icon>
+                </template>
+                <template #header>
+                  <el-tabs stretch class="params-select--header" v-model="field.activelist">
+                    <el-tab-pane
+                      disabled
+                      :label="t('chart.dimension')"
+                      name="dimensionList"
+                    ></el-tab-pane>
+                    <el-tab-pane disabled :label="t('chart.quota')" name="quotaList"></el-tab-pane>
+                    <el-tab-pane :label="t('dataset.param')" name="parameterList"></el-tab-pane>
+                  </el-tabs>
+                </template>
+                <el-option
+                  v-for="ele in field.fields[field.activelist]"
+                  :key="ele.id"
+                  :label="ele.name || ele.variableName"
+                  :value="ele.id"
+                  :disabled="isParametersDisable(ele)"
+                >
+                  <div class="flex-align-center icon">
+                    <el-icon>
+                      <Icon :className="`field-icon-${fieldType[ele.deType]}`"
+                        ><component
+                          class="svg-icon"
+                          :class="`field-icon-${fieldType[ele.deType]}`"
+                          :is="iconFieldMap[fieldType[ele.deType]]"
+                        ></component
+                      ></Icon>
+                    </el-icon>
+                    <span :title="ele.name || ele.variableName" class="ellipsis">
+                      {{ ele.name || ele.variableName }}
+                    </span>
+                    <span
+                      v-if="
+                        curComponent.checkedFieldsMapArr[field.componentId].includes(ele.id) &&
+                        field.activelist === 'parameterList'
+                      "
+                      @click.stop="timeClick(field.componentId, ele)"
+                      class="range-time_setting"
+                    >
+                      {{
+                        curComponent.checkedFieldsMapStart[field.componentId] === ele.id
+                          ? t('dataset.start_time')
+                          : curComponent.checkedFieldsMapEnd[field.componentId] === ele.id
+                          ? t('dataset.end_time')
+                          : ''
+                      }}
+                      <el-icon>
+                        <Icon>
+                          <icon_edit_outlined class="svg-icon"></icon_edit_outlined>
+                        </Icon>
+                      </el-icon>
+                    </span>
+                  </div>
+                </el-option>
+              </el-select>
+              <el-select
+                @change="val => setParametersArrNum(val, field.componentId)"
+                @focus="handleDialogClick"
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
+                key="checkedFieldsMapArr"
+                :multiple-limit="2"
+                class="field-select--input"
+                style="margin-left: 12px"
+                popper-class="field-select--dqp"
+                v-else-if="
+                  curComponent.checkedFields.includes(field.componentId) &&
+                  curComponent.checkedFieldsMapArrNum &&
+                  curComponent.checkedFieldsMapArrNum[field.componentId] &&
+                  curComponent.checkedFieldsMapArrNum[field.componentId].length
+                "
+                v-model="curComponent.checkedFieldsMapArrNum[field.componentId]"
+                clearable
+              >
+                <template v-if="curComponent.checkedFieldsMap[field.componentId]" #prefix>
+                  <el-icon>
+                    <Icon
+                      ><component
+                        :class="`field-icon-${
+                          fieldType[
+                            getDetype(
+                              curComponent.checkedFieldsMap[field.componentId],
+                              Object.values(field.fields)
+                            )
+                          ]
+                        }`"
+                        :is="
+                          iconFieldMap[
+                            fieldType[
+                              getDetype(
+                                curComponent.checkedFieldsMap[field.componentId],
+                                Object.values(field.fields)
+                              )
+                            ]
+                          ]
+                        "
+                      ></component
+                    ></Icon>
+                  </el-icon>
+                </template>
+                <template #header>
+                  <el-tabs stretch class="params-select--header" v-model="field.activelist">
+                    <el-tab-pane
+                      disabled
+                      :label="t('chart.dimension')"
+                      name="dimensionList"
+                    ></el-tab-pane>
+                    <el-tab-pane disabled :label="t('chart.quota')" name="quotaList"></el-tab-pane>
+                    <el-tab-pane :label="t('dataset.param')" name="parameterList"></el-tab-pane>
+                  </el-tabs>
+                </template>
+                <el-option
+                  v-for="ele in field.fields[field.activelist]"
+                  :key="ele.id"
+                  :label="ele.name || ele.variableName"
+                  :value="ele.id"
+                  :disabled="![2, 3].includes(ele.deType)"
+                >
+                  <div class="flex-align-center icon">
+                    <el-icon>
+                      <Icon :className="`field-icon-${fieldType[ele.deType]}`"
+                        ><component
+                          class="svg-icon"
+                          :class="`field-icon-${fieldType[ele.deType]}`"
+                          :is="iconFieldMap[fieldType[ele.deType]]"
+                        ></component
+                      ></Icon>
+                    </el-icon>
+                    <span :title="ele.name || ele.variableName" class="ellipsis">
+                      {{ ele.name || ele.variableName }}
+                    </span>
+                    <span
+                      v-if="
+                        curComponent.checkedFieldsMapArrNum[field.componentId].includes(ele.id) &&
+                        field.activelist === 'parameterList'
+                      "
+                      @click.stop="numClick(field.componentId, ele)"
+                      class="range-time_setting"
+                    >
+                      {{
+                        curComponent.checkedFieldsMapStartNum[field.componentId] === ele.id
+                          ? t('chart.min')
+                          : curComponent.checkedFieldsMapEndNum[field.componentId] === ele.id
+                          ? t('chart.max')
+                          : ''
+                      }}
+                      <el-icon>
+                        <Icon>
+                          <icon_edit_outlined class="svg-icon"></icon_edit_outlined>
+                        </Icon>
+                      </el-icon>
+                    </span>
+                  </div>
+                </el-option>
+              </el-select>
+              <el-select
+                @change="setParameters(field)"
                 @focus="handleDialogClick"
                 style="margin-left: 12px"
                 popper-class="field-select--dqp"
-                v-if="curComponent.checkedFields.includes(field.componentId)"
+                v-else-if="curComponent.checkedFields.includes(field.componentId)"
                 v-model="curComponent.checkedFieldsMap[field.componentId]"
                 clearable
               >
@@ -1604,15 +2439,15 @@ defineExpose({
                 </template>
                 <template #header>
                   <el-tabs stretch class="params-select--header" v-model="field.activelist">
-                    <el-tab-pane label="维度" name="dimensionList"></el-tab-pane>
+                    <el-tab-pane :label="t('chart.dimension')" name="dimensionList"></el-tab-pane>
                     <el-tab-pane
                       :disabled="curComponent.displayType === '9'"
-                      label="指标"
+                      :label="t('chart.quota')"
                       name="quotaList"
                     ></el-tab-pane>
                     <el-tab-pane
                       v-if="field.hasParameter"
-                      label="参数"
+                      :label="t('dataset.param')"
                       :disabled="curComponent.displayType === '9'"
                       name="parameterList"
                     ></el-tab-pane>
@@ -1624,12 +2459,14 @@ defineExpose({
                   :label="ele.name || ele.variableName"
                   :value="ele.id"
                   :disabled="
-                    ele.desensitized || (curComponent.displayType === '9' && ele.deType === 1)
+                    ele.desensitized ||
+                    (curComponent.displayType === '9' && ele.deType === 1) ||
+                    isParametersDisable(ele)
                   "
                 >
                   <div
                     class="flex-align-center icon"
-                    :title="ele.desensitized ? '脱敏字段，不能被设置为查询条件' : ''"
+                    :title="ele.desensitized ? t('v_query.as_query_conditions') : ''"
                   >
                     <el-icon>
                       <Icon :className="`field-icon-${fieldType[ele.deType]}`"
@@ -1643,6 +2480,27 @@ defineExpose({
                     <span :title="ele.name || ele.variableName" class="ellipsis">
                       {{ ele.name || ele.variableName }}
                     </span>
+                    <span
+                      @click.stop="
+                        () =>
+                          isNumParameter
+                            ? numClick(field.componentId, ele)
+                            : timeClick(field.componentId, ele)
+                      "
+                      v-if="
+                        curComponent.checkedFieldsMap[field.componentId] === ele.id &&
+                        field.activelist === 'parameterList' &&
+                        (isTimeParameter || isNumParameter)
+                      "
+                      class="range-time_setting"
+                    >
+                      {{ isNumParameter ? t('chart.value_formatter_value') : t('dataset.time') }}
+                      <el-icon>
+                        <Icon>
+                          <icon_edit_outlined class="svg-icon"></icon_edit_outlined>
+                        </Icon>
+                      </el-icon>
+                    </span>
                   </div>
                 </el-option>
               </el-select>
@@ -1651,14 +2509,18 @@ defineExpose({
           </el-checkbox-group>
         </div>
       </div>
-      <div v-if="!!curComponent" class="condition-configuration">
+      <div
+        v-if="!!curComponent"
+        class="condition-configuration"
+        :class="curComponent.auto && 'condition-configuration_hide'"
+      >
         <div class="mask condition" v-if="curComponent.auto"></div>
         <div class="title flex-align-center">
-          查询条件配置
+          {{ t('v_query.query_condition_configuration') }}
           <el-checkbox
             :disabled="curComponent.auto"
             v-model="curComponent.required"
-            label="必填项"
+            :label="t('v_query.required_items')"
           />
         </div>
         <div
@@ -1666,7 +2528,7 @@ defineExpose({
           class="configuration-list"
         >
           <div class="list-item">
-            <div class="label">展示类型</div>
+            <div class="label">{{ t('v_query.display_type') }}</div>
             <div class="value">
               <el-select
                 @focus="handleDialogClick"
@@ -1675,12 +2537,12 @@ defineExpose({
               >
                 <el-option
                   :disabled="!['0', '8', '9'].includes(curComponent.displayType)"
-                  label="文本下拉"
+                  :label="t('v_query.text_drop_down')"
                   value="0"
                 />
                 <el-option
                   :disabled="!['0', '8', '9'].includes(curComponent.displayType)"
-                  label="文本搜索"
+                  :label="t('v_query.text_search')"
                   value="8"
                 />
                 <el-option
@@ -1688,46 +2550,59 @@ defineExpose({
                     !['0', '8', '9'].includes(curComponent.displayType) ||
                     !!curComponent.parameters.length
                   "
-                  label="下拉树"
+                  :label="t('v_query.drop_down_tree')"
                   value="9"
                 />
-                <el-option
-                  v-if="curComponent.displayType === '2'"
-                  :disabled="curComponent.displayType !== '2'"
-                  label="数字下拉"
-                  value="2"
-                />
+
+                <template v-if="['2', '22'].includes(curComponent.displayType)">
+                  <el-option
+                    :disabled="!['2', '22'].includes(curComponent.displayType) || notNumRange"
+                    :label="t('v_query.number_drop_down')"
+                    value="2"
+                  />
+                  <el-option
+                    :disabled="!['2', '22'].includes(curComponent.displayType) || canNotNumRange"
+                    :label="t('v_query.number_range')"
+                    value="22"
+                  />
+                </template>
                 <el-option
                   v-else
                   :disabled="curComponent.displayType !== '5'"
-                  label="数字下拉"
+                  :label="t('v_query.number_drop_down')"
                   value="5"
                 />
                 <el-option
-                  :disabled="!['1', '7'].includes(curComponent.displayType)"
-                  label="时间"
+                  :disabled="
+                    !['1', '7'].includes(curComponent.displayType) ||
+                    (isTimeParameter && notTimeRange)
+                  "
+                  :label="t('dataset.time')"
                   value="1"
                 />
                 <el-option
-                  :disabled="!['1', '7'].includes(curComponent.displayType) || isTimeParameter"
-                  label="时间范围"
+                  :disabled="
+                    !['1', '7'].includes(curComponent.displayType) ||
+                    (isTimeParameter && !notTimeRange)
+                  "
+                  :label="t('common.component.dateRange')"
                   value="7"
                 />
               </el-select>
             </div>
           </div>
           <div class="list-item" v-if="curComponent.displayType === '9'">
-            <div class="label">选项值数量</div>
+            <div class="label">{{ t('v_query.of_option_values') }}</div>
             <div class="value">
               <el-radio-group class="larger-radio" v-model="curComponent.resultMode">
-                <el-radio :label="0">默认</el-radio>
-                <el-radio :label="1">全部</el-radio>
+                <el-radio :label="0">{{ t('login.default_login') }}</el-radio>
+                <el-radio :label="1">{{ t('chart.result_mode_all') }}</el-radio>
               </el-radio-group>
             </div>
           </div>
           <div class="list-item" v-if="curComponent.displayType === '9'">
             <div class="label" style="width: 135px; height: 26px; line-height: 26px">
-              下拉树结构设计
+              {{ t('v_query.tree_structure_design') }}
               <el-button
                 v-if="curComponent.treeFieldList && !!curComponent.treeFieldList.length"
                 text
@@ -1745,7 +2620,9 @@ defineExpose({
                   :key="ele.id"
                   class="tree-field"
                 >
-                  <span class="level-index">层级{{ indexCascade[index + 1] }}</span>
+                  <span class="level-index"
+                    >{{ t('visualization.level') }}{{ indexCascade[index + 1] }}</span
+                  >
                   <span class="field-type"
                     ><el-icon>
                       <Icon :className="`field-icon-${fieldType[ele.deType]}`"
@@ -1763,31 +2640,31 @@ defineExpose({
                 <template #icon>
                   <Icon name="icon_add_outlined"><icon_add_outlined class="svg-icon" /></Icon>
                 </template>
-                点击进行树结构设计
+                {{ t('v_query.the_tree_structure') }}
               </el-button>
             </div>
             <TreeFieldDialog ref="treeDialog" @save-tree="saveTree"></TreeFieldDialog>
           </div>
           <div class="list-item" v-if="['1', '7'].includes(curComponent.displayType)">
-            <div class="label">时间粒度</div>
+            <div class="label">{{ t('v_query.time_granularity') }}</div>
             <div class="value">
               <template v-if="curComponent.displayType === '7' && !isTimeParameter">
                 <el-select
                   @change="timeGranularityMultipleChange"
-                  placeholder="请选择时间粒度"
+                  :placeholder="t('v_query.the_time_granularity')"
                   @focus="handleDialogClick"
                   v-model="curComponent.timeGranularityMultiple"
                 >
-                  <el-option label="年" value="yearrange" />
-                  <el-option label="年月" value="monthrange" />
-                  <el-option label="年月日" value="daterange" />
-                  <el-option label="年月日时分秒" value="datetimerange" />
+                  <el-option :label="t('chart.y')" value="yearrange" />
+                  <el-option :label="t('chart.y_M')" value="monthrange" />
+                  <el-option :label="t('chart.y_M_d')" value="daterange" />
+                  <el-option :label="t('chart.y_M_d_H_m_s')" value="datetimerange" />
                 </el-select>
               </template>
               <template v-else>
                 <el-select
                   @change="timeGranularityChange"
-                  placeholder="请选择时间粒度"
+                  :placeholder="t('v_query.the_time_granularity')"
                   v-model="curComponent.timeGranularity"
                 >
                   <el-option
@@ -1802,9 +2679,9 @@ defineExpose({
           </div>
           <div
             class="list-item top-item"
-            v-if="!['1', '7', '8', '9'].includes(curComponent.displayType)"
+            v-if="!['1', '7', '8', '9', '22'].includes(curComponent.displayType)"
           >
-            <div class="label">选项值来源</div>
+            <div class="label">{{ t('v_query.option_value_source') }}</div>
             <div class="value">
               <div class="value">
                 <el-radio-group
@@ -1816,15 +2693,16 @@ defineExpose({
                     t('chart.margin_model_auto')
                   }}</el-radio>
                   <el-radio :label="1">{{ t('chart.select_dataset') }}</el-radio>
-                  <el-radio :label="2">手动输入</el-radio>
+                  <el-radio :label="2">{{ t('v_query.manual_input') }}</el-radio>
                 </el-radio-group>
               </div>
               <template v-if="curComponent.optionValueSource === 1">
                 <div class="value">
                   <el-tree-select
+                    :teleported="false"
                     v-model="curComponent.dataset.id"
-                    :data="computedTree"
-                    placeholder="请选择数据集"
+                    :data="datasetTree"
+                    :placeholder="t('copilot.pls_choose_dataset')"
                     @change="handleDatasetChange"
                     @current-change="handleCurrentChange"
                     :props="dsSelectProps"
@@ -1841,28 +2719,34 @@ defineExpose({
                         <el-icon size="18px" v-if="data.leaf">
                           <Icon name="icon_dataset"><icon_dataset class="svg-icon" /></Icon>
                         </el-icon>
-                        <span class="label ellipsis" style="margin-left: 8px" :title="node.label">{{
-                          node.label
-                        }}</span>
+                        <span
+                          class="label-tree ellipsis"
+                          style="margin-left: 8px"
+                          :title="node.label"
+                          >{{ node.label }}</span
+                        >
                       </div>
                     </template>
                   </el-tree-select>
                 </div>
                 <div class="value">
-                  <span class="label">查询字段</span>
+                  <span class="label">{{ t('v_query.query_field') }}</span>
                   <el-select
                     @change="handleFieldChange"
-                    placeholder="查询字段"
+                    :placeholder="t('v_query.query_field')"
                     class="search-field"
                     v-model="curComponent.field.id"
                   >
                     <template v-if="curComponent.field.id" #prefix>
                       <el-icon>
                         <Icon
-                          :className="`field-icon-${
-                            fieldType[getDetype(curComponent.field.id, curComponent.dataset.fields)]
-                          }`"
                           ><component
+                            class="svg-icon"
+                            :class="`field-icon-${
+                              fieldType[
+                                getDetype(curComponent.field.id, curComponent.dataset.fields)
+                              ]
+                            }`"
                             :is="
                               iconFieldMap[
                                 fieldType[
@@ -1888,7 +2772,7 @@ defineExpose({
                     >
                       <div
                         class="flex-align-center icon"
-                        :title="ele.desensitized ? '脱敏字段，不能被设置为查询条件' : ''"
+                        :title="ele.desensitized ? t('v_query.as_query_conditions') : ''"
                       >
                         <el-icon>
                           <Icon :className="`field-icon-${fieldType[ele.deType]}`"
@@ -1907,21 +2791,22 @@ defineExpose({
                   </el-select>
                 </div>
                 <div class="value">
-                  <span class="label">显示字段</span>
+                  <span class="label">{{ t('v_query.display_field') }}</span>
                   <el-select
-                    placeholder="显示字段"
+                    :placeholder="t('v_query.display_field')"
                     class="search-field"
                     v-model="curComponent.displayId"
                   >
                     <template v-if="curComponent.displayId" #prefix>
                       <el-icon>
                         <Icon
-                          :className="`field-icon-${
-                            fieldType[
-                              getDetype(curComponent.displayId, curComponent.dataset.fields)
-                            ]
-                          }`"
                           ><component
+                            class="svg-icon"
+                            :class="`field-icon-${
+                              fieldType[
+                                getDetype(curComponent.displayId, curComponent.dataset.fields)
+                              ]
+                            }`"
                             :is="
                               iconFieldMap[
                                 fieldType[
@@ -1947,7 +2832,7 @@ defineExpose({
                     >
                       <div
                         class="flex-align-center icon"
-                        :title="ele.desensitized ? '脱敏字段，不能被设置为查询条件' : ''"
+                        :title="ele.desensitized ? t('v_query.as_query_conditions') : ''"
                       >
                         <el-icon>
                           <Icon :className="`field-icon-${fieldType[ele.deType]}`"
@@ -1966,10 +2851,10 @@ defineExpose({
                   </el-select>
                 </div>
                 <div class="value">
-                  <span class="label">排序字段</span>
+                  <span class="label">{{ t('chart.total_sort_field') }}</span>
                   <el-select
                     clearable
-                    placeholder="请选择排序字段"
+                    :placeholder="t('v_query.the_sorting_field')"
                     v-model="curComponent.sortId"
                     class="sort-field"
                     @change="handleFieldChange"
@@ -1977,10 +2862,11 @@ defineExpose({
                     <template v-if="curComponent.sortId" #prefix>
                       <el-icon>
                         <Icon
-                          :className="`field-icon-${
-                            fieldType[getDetype(curComponent.sortId, curComponent.dataset.fields)]
-                          }`"
                           ><component
+                            class="svg-icon"
+                            :class="`field-icon-${
+                              fieldType[getDetype(curComponent.sortId, curComponent.dataset.fields)]
+                            }`"
                             :is="
                               iconFieldMap[
                                 fieldType[
@@ -2001,10 +2887,10 @@ defineExpose({
                     >
                       <div
                         class="flex-align-center icon"
-                        :title="ele.desensitized ? '脱敏字段，不能被设置为查询条件' : ''"
+                        :title="ele.desensitized ? t('v_query.as_query_conditions') : ''"
                       >
                         <el-icon>
-                          <Icon :className="`field-icon-${fieldType[ele.deType]}`"
+                          <Icon
                             ><component
                               :class="`field-icon-${fieldType[ele.deType]}`"
                               class="svg-icon"
@@ -2023,8 +2909,8 @@ defineExpose({
                     v-model="curComponent.sort"
                     @change="handleFieldChange"
                   >
-                    <el-option label="升序" value="asc" />
-                    <el-option label="降序" value="desc" />
+                    <el-option :label="t('chart.asc')" value="asc" />
+                    <el-option :label="t('chart.desc')" value="desc" />
                   </el-select>
                 </div>
               </template>
@@ -2049,7 +2935,7 @@ defineExpose({
                   <div class="manual-input-container">
                     <div class="title">{{ t('auth.manual_input') }}</div>
                     <div class="select-value">
-                      <span> 选项值 </span>
+                      <span> {{ t('data_fill.form.option_value') }} </span>
                       <div :key="index" v-for="(_, index) in valueSource" class="select-item">
                         <el-input
                           maxlength="20"
@@ -2084,7 +2970,7 @@ defineExpose({
                             ><icon_add_outlined class="svg-icon"
                           /></Icon>
                         </template>
-                        添加选项值
+                        {{ t('data_fill.form.add_option') }}
                       </el-button>
                     </div>
                     <div class="manual-footer flex-align-center">
@@ -2096,33 +2982,39 @@ defineExpose({
                   </div>
                 </el-popover>
                 <div v-if="!!curComponent.valueSource.length" class="config-flag flex-align-center">
-                  已配置
+                  {{ t('v_query.configured') }}
                 </div>
               </div>
             </div>
-            <div class="label" style="margin-top: 10.5px">选项值数量</div>
+            <div class="label" style="margin-top: 10.5px">{{ t('v_query.of_option_values') }}</div>
             <div class="value" style="margin-top: 10.5px">
               <el-radio-group class="larger-radio" v-model="curComponent.resultMode">
-                <el-radio :label="0">默认</el-radio>
-                <el-radio :label="1">全部</el-radio>
+                <el-radio :label="0">{{ t('chart.default') }}</el-radio>
+                <el-radio :label="1">{{ t('data_set.all') }}</el-radio>
               </el-radio-group>
             </div>
           </div>
           <div class="list-item top-item" v-if="curComponent.displayType === '8'">
-            <div class="label">条件类型</div>
+            <div class="label">{{ t('v_query.condition_type') }}</div>
             <div class="value">
               <div class="value">
                 <el-radio-group class="larger-radio" v-model="curComponent.conditionType">
-                  <el-radio :label="0">单条件</el-radio>
-                  <el-radio :label="1" :disabled="!!curComponent.parameters.length"
-                    >与条件</el-radio
-                  >
-                  <el-radio :label="2" :disabled="!!curComponent.parameters.length"
-                    >或条件</el-radio
-                  >
+                  <el-radio :label="0">{{ t('v_query.single_condition') }}</el-radio>
+                  <el-radio :label="1" :disabled="!!curComponent.parameters.length">{{
+                    t('v_query.with_condition')
+                  }}</el-radio>
+                  <el-radio :label="2" :disabled="!!curComponent.parameters.length">{{
+                    t('v_query.or_condition')
+                  }}</el-radio>
                 </el-radio-group>
               </div>
             </div>
+          </div>
+          <div style="margin-bottom: 10.5px" v-if="curComponent.displayType === '8'">
+            <el-checkbox
+              v-model="curComponent.hideConditionSwitching"
+              :label="t('v_query.hide_condition_switch')"
+            />
           </div>
           <condition-default-configuration
             ref="defaultConfigurationRef"
@@ -2131,28 +3023,79 @@ defineExpose({
           ></condition-default-configuration>
         </div>
         <div v-if="showTypeError && showConfiguration" class="empty">
-          <empty-background description="所选字段类型不一致，无法进行查询配置" img-type="error" />
+          <empty-background :description="t('v_query.cannot_be_performed')" img-type="error" />
         </div>
         <div v-else-if="showDatasetError && showConfiguration" class="empty">
-          <empty-background description="图表所使用的数据集不同, 无法展示配置项" img-type="error" />
+          <empty-background :description="t('v_query.cannot_be_displayed')" img-type="error" />
         </div>
         <div v-else-if="!showConfiguration" class="empty">
-          <empty-background description="请先勾选需要联动的图表及字段" img-type="noneWhite" />
+          <empty-background :description="t('v_query.be_linked_first')" img-type="noneWhite" />
         </div>
       </div>
     </div>
     <template #footer>
       <div class="dialog-footer">
-        <el-button class="query-cascade" @click="openCascadeDialog">查询组件级联配置</el-button>
+        <el-button class="query-cascade" @click="openCascadeDialog">{{
+          t('v_query.component_cascade_configuration')
+        }}</el-button>
         <el-button @click="cancelClick">{{ t('chart.cancel') }} </el-button>
         <el-button @click="confirmClick" type="primary">{{ t('chart.confirm') }} </el-button>
       </div>
+    </template>
+  </el-dialog>
+  <el-dialog :title="timeName" v-model="timeDialogShow" width="420px">
+    <el-form label-position="top">
+      <el-form-item :label="t('v_query.time_type')" class="form-item" prop="name">
+        <el-radio-group v-model="timeParameterType">
+          <el-radio :label="0">{{ t('data_set.time') }}</el-radio>
+          <el-radio :label="1">{{ t('datasource.start_time') }}</el-radio>
+          <el-radio :label="2">{{ t('datasource.end_time') }}</el-radio>
+        </el-radio-group>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button secondary @click="timeDialogShow = false">{{ t('chart.cancel') }}</el-button>
+      <el-button type="primary" @click="timeTypeChange">{{ t('chart.confirm') }}</el-button>
+    </template>
+  </el-dialog>
+  <el-dialog :title="numName" v-model="numDialogShow" width="420px">
+    <el-form label-position="top">
+      <el-form-item :label="t('chart.map_line_type')" class="form-item" prop="name">
+        <el-radio-group v-model="numParameterType">
+          <el-radio :label="0">{{ t('chart.value_formatter_value') }}</el-radio>
+          <el-radio :label="1">{{ t('chart.min') }}</el-radio>
+          <el-radio :label="2">{{ t('chart.max') }}</el-radio>
+        </el-radio-group>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button secondary @click="numDialogShow = false">{{ t('dataset.cancel') }}</el-button>
+      <el-button type="primary" @click="numTypeChange">{{ t('dataset.confirm') }}</el-button>
     </template>
   </el-dialog>
   <CascadeDialog @saveCascade="saveCascade" ref="cascadeDialog"></CascadeDialog>
 </template>
 
 <style lang="less">
+.range-time_setting {
+  height: 20px;
+  padding: 1px 4px 1px 4px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 20px;
+  background: #1f23291a;
+  color: #1f2329;
+  margin-left: 4px;
+
+  .ed-icon {
+    font-size: 12px;
+    margin-right: 0 !important;
+    margin-left: 4px;
+  }
+}
 .field-select--dqp {
   min-width: 210px !important;
 }
@@ -2331,6 +3274,15 @@ defineExpose({
           align-items: center;
           margin-bottom: 8px;
 
+          .field-select--input {
+            .ed-select-tags-wrapper.has-prefix {
+              margin-left: 25px;
+            }
+            .ed-select__tags-text {
+              max-width: 30px !important;
+            }
+          }
+
           .ed-checkbox__label {
             display: inline-flex;
             align-items: center;
@@ -2364,6 +3316,10 @@ defineExpose({
       width: 467px;
       position: relative;
       overflow-y: auto;
+
+      &.condition-configuration_hide {
+        overflow: hidden;
+      }
       .mask {
         left: -1px;
         width: calc(100% + 2px);
@@ -2752,7 +3708,8 @@ defineExpose({
   .content {
     display: flex;
     align-items: center;
-    .label {
+    width: 100%;
+    .label-tree {
       margin-left: 5px;
       width: calc(100% - 45px);
     }

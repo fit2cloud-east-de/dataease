@@ -20,11 +20,10 @@ const { t } = useI18n()
 const DEFAULT_DATA = []
 
 /**
- * 区间条形图
+ * 桑基图
  */
-export class RangeBar extends G2PlotChartView<SankeyOptions, Sankey> {
+export class SankeyBar extends G2PlotChartView<SankeyOptions, Sankey> {
   axisConfig = {
-    ...this['axisConfig'],
     xAxis: {
       name: `${t('chart.drag_block_type_axis_start')} / ${t('chart.dimension')}`,
       limit: 1,
@@ -33,7 +32,8 @@ export class RangeBar extends G2PlotChartView<SankeyOptions, Sankey> {
     xAxisExt: {
       name: `${t('chart.drag_block_type_axis_end')} / ${t('chart.dimension')}`,
       limit: 1,
-      type: 'd'
+      type: 'd',
+      allowEmpty: true
     },
     yAxis: {
       name: `${t('chart.chart_data')} / ${t('chart.quota')}`,
@@ -233,6 +233,10 @@ export class RangeBar extends G2PlotChartView<SankeyOptions, Sankey> {
   protected configLabel(chart: Chart, options: SankeyOptions): SankeyOptions {
     const labelAttr = parseJson(chart.customAttr).label
     if (labelAttr.show) {
+      const layout = []
+      if (!labelAttr.fullDisplay) {
+        layout.push(...[{ type: 'hide-overlap' }, { type: 'limit-in-canvas' }])
+      }
       const label = {
         //...tmpOptions.label,
         formatter: ({ name }) => name,
@@ -247,7 +251,7 @@ export class RangeBar extends G2PlotChartView<SankeyOptions, Sankey> {
             offsetX: isLast ? -8 : 8
           }
         },
-        layout: [{ type: 'hide-overlap' }, { type: 'limit-in-canvas' }]
+        layout
       }
       return {
         ...options,

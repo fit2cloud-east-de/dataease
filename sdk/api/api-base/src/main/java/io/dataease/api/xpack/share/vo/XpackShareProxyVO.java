@@ -33,5 +33,9 @@ public class XpackShareProxyVO implements Serializable {
     private String type;
     private boolean inIframeError = true;
 
+    private boolean shareDisable = false;
+
+    private boolean peRequireValid = true;
+
     private TicketValidVO ticketValidVO;
 }

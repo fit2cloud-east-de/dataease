@@ -3,7 +3,13 @@ import {
   G2PlotDrawOptions
 } from '@/views/chart/components/js/panel/types/impl/g2plot'
 import type { Bar, BarOptions } from '@antv/g2plot/esm/plots/bar'
-import { getPadding, setGradientColor } from '@/views/chart/components/js/panel/common/common_antv'
+import {
+  configPlotTooltipEvent,
+  getPadding,
+  getTooltipContainer,
+  setGradientColor,
+  TOOLTIP_TPL
+} from '@/views/chart/components/js/panel/common/common_antv'
 import { cloneDeep, find } from 'lodash-es'
 import { flow, hexColorToRGBA, parseJson } from '@/views/chart/components/js/util'
 import { valueFormatter } from '@/views/chart/components/js/formatter'
@@ -23,7 +29,10 @@ const DEFAULT_DATA = []
  */
 export class RangeBar extends G2PlotChartView<BarOptions, Bar> {
   axisConfig = {
-    ...this['axisConfig'],
+    xAxis: {
+      name: `${t('chart.drag_block_type_axis')} / ${t('chart.dimension')}`,
+      type: 'd'
+    },
     yAxis: {
       name: `${t('chart.drag_block_value_start')} / ${t('chart.time_dimension_or_quota')}`,
       limit: 1,
@@ -65,46 +74,7 @@ export class RangeBar extends G2PlotChartView<BarOptions, Bar> {
     xField: 'values',
     yField: 'field',
     colorField: 'category',
-    isGroup: true,
-    interactions: [
-      {
-        type: 'legend-active',
-        cfg: {
-          start: [{ trigger: 'legend-item:mouseenter', action: ['element-active:reset'] }],
-          end: [{ trigger: 'legend-item:mouseleave', action: ['element-active:reset'] }]
-        }
-      },
-      {
-        type: 'legend-filter',
-        cfg: {
-          start: [
-            {
-              trigger: 'legend-item:click',
-              action: [
-                'list-unchecked:toggle',
-                'data-filter:filter',
-                'element-active:reset',
-                'element-highlight:reset'
-              ]
-            }
-          ]
-        }
-      },
-      {
-        type: 'tooltip',
-        cfg: {
-          start: [{ trigger: 'interval:mousemove', action: 'tooltip:show' }],
-          end: [{ trigger: 'interval:mouseleave', action: 'tooltip:hide' }]
-        }
-      },
-      {
-        type: 'active-region',
-        cfg: {
-          start: [{ trigger: 'interval:mousemove', action: 'active-region:show' }],
-          end: [{ trigger: 'interval:mouseleave', action: 'active-region:hide' }]
-        }
-      }
-    ]
+    isGroup: true
   }
 
   async drawChart(drawOptions: G2PlotDrawOptions<Bar>): Promise<Bar> {
@@ -197,7 +167,7 @@ export class RangeBar extends G2PlotChartView<BarOptions, Bar> {
     const newChart = new BarClass(container, options)
 
     newChart.on('interval:click', action)
-
+    configPlotTooltipEvent(chart, newChart)
     return newChart
   }
 
@@ -268,7 +238,10 @@ export class RangeBar extends G2PlotChartView<BarOptions, Bar> {
                 }
               }
               return { value: res, values: param.values, name: param.field }
-            }
+            },
+            container: getTooltipContainer(`tooltip-${chart.id}`),
+            itemTpl: TOOLTIP_TPL,
+            enterable: true
           }
         } else {
           tooltip = false

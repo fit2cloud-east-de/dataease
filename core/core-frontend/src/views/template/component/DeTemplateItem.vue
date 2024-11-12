@@ -22,11 +22,11 @@
             <slot>
               <el-dropdown-item command="templateEdit">
                 <el-icon><EditPen /></el-icon>
-                编辑
+                {{ t('commons.edit') }}
               </el-dropdown-item>
               <el-dropdown-item command="delete">
                 <el-icon><Delete /></el-icon>
-                {{ $t('chart.delete') }}
+                {{ t('chart.delete') }}
               </el-dropdown-item>
             </slot>
           </el-dropdown-menu>
@@ -39,8 +39,9 @@
 <script setup lang="ts">
 import { imgUrlTrans } from '@/utils/imgUtils'
 import { computed, toRefs } from 'vue'
+import { useI18n } from '@/hooks/web/useI18n'
 const emits = defineEmits(['command'])
-
+const { t } = useI18n()
 const props = defineProps({
   model: {
     type: Object

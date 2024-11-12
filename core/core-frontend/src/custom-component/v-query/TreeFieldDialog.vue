@@ -2,6 +2,7 @@
 import icon_add_outlined from '@/assets/svg/icon_add_outlined.svg'
 import icon_deleteTrash_outlined from '@/assets/svg/icon_delete-trash_outlined.svg'
 import { guid } from '@/views/visualized/data/dataset/form/util.js'
+import { useI18n } from '@/hooks/web/useI18n'
 import { ElMessage } from 'element-plus-secondary'
 import { ref, shallowRef, computed } from 'vue'
 import { cloneDeep } from 'lodash-es'
@@ -10,10 +11,12 @@ const dialogVisible = ref(false)
 const treeList = ref([])
 const datasetMap = shallowRef([])
 const emits = defineEmits(['saveTree'])
-
+const { t } = useI18n()
 const addCascadeItem = () => {
   treeList.value.push({
-    field: null,
+    field: {
+      id: ''
+    },
     id: guid()
   })
 }
@@ -50,13 +53,20 @@ const setCascadeArrBack = () => {
 const confirmClick = () => {
   const { isError, arr } = setCascadeArrBack()
   if (isError) {
-    ElMessage.error('层级字段不能为空,请选择字段!')
+    ElMessage.error(t('v_query.select_a_field'))
     return
   }
   emits('saveTree', arr)
   handleBeforeClose()
 }
-const indexCascade = ' 一二三四五'
+const indexCascade = [
+  ' ',
+  t('report.week_mon'),
+  t('report.week_tue'),
+  t('report.week_wed'),
+  t('report.week_thu'),
+  t('report.week_fri')
+]
 
 const deleteCascade = idx => {
   treeList.value.splice(idx, 1)
@@ -75,7 +85,7 @@ defineExpose({
     :before-close="handleBeforeClose"
     @mousedown.stop
     @mousedup.stop
-    title="下拉树结构设计"
+    :title="t('v_query.tree_structure_design')"
   >
     <div class="cascade-content">
       <div style="display: flex; align-items: center; justify-content: space-between">
@@ -83,15 +93,15 @@ defineExpose({
           <template #icon>
             <Icon name="icon_add_outlined"><icon_add_outlined class="svg-icon" /></Icon>
           </template>
-          添加层级
+          {{ t('v_query.add_level') }}
         </el-button>
       </div>
       <div class="cascade-item">
-        <div class="label">层级</div>
-        <div class="item-name">下拉树查询字段</div>
+        <div class="label">{{ t('visualization.level') }}</div>
+        <div class="item-name">{{ t('v_query.tree_query_field') }}</div>
       </div>
       <div class="cascade-item" v-for="(ele, idx) in treeList" :key="ele.id">
-        <div class="label">层级{{ indexCascade[idx + 1] }}</div>
+        <div class="label">{{ t('visualization.level') }}{{ indexCascade[idx + 1] }}</div>
         <div class="item-name">
           <el-select
             :disabled="idx === 0 && ele.field"
@@ -119,8 +129,8 @@ defineExpose({
     </div>
     <template #footer>
       <div class="dialog-footer">
-        <el-button secondary @click="cancelClick">取消</el-button>
-        <el-button type="primary" @click="confirmClick"> 确定 </el-button>
+        <el-button secondary @click="cancelClick">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="confirmClick"> {{ t('pblink.sure_bt') }} </el-button>
       </div>
     </template>
   </el-dialog>

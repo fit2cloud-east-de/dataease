@@ -4,12 +4,17 @@ import icon_italic_outlined from '@/assets/svg/icon_italic_outlined.svg'
 import icon_leftAlignment_outlined from '@/assets/svg/icon_left-alignment_outlined.svg'
 import icon_centerAlignment_outlined from '@/assets/svg/icon_center-alignment_outlined.svg'
 import icon_rightAlignment_outlined from '@/assets/svg/icon_right-alignment_outlined.svg'
+import icon_info_outlined from '@/assets/svg/icon_info_outlined.svg'
 import { computed, onMounted, PropType, reactive, watch } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
 import { COLOR_PANEL, DEFAULT_TABLE_CELL } from '@/views/chart/components/editor/util/chart'
 import { ElSpace } from 'element-plus-secondary'
 import { cloneDeep, defaultsDeep } from 'lodash-es'
 import { convertToAlphaColor, isAlphaColor } from '@/views/chart/components/js/util'
+import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
+import { storeToRefs } from 'pinia'
+const dvMainStore = dvMainStoreWithOut()
+const { mobileInPc } = storeToRefs(dvMainStore)
 
 const { t } = useI18n()
 
@@ -61,6 +66,7 @@ const changeTableCell = prop => {
 const init = () => {
   const tableCell = props.chart?.customAttr?.tableCell
   if (tableCell) {
+    tableCell.mergeCells = tableCell.mergeCells === undefined ? false : tableCell.mergeCells
     state.tableCellForm = defaultsDeep(cloneDeep(tableCell), cloneDeep(DEFAULT_TABLE_CELL))
     const alpha = props.chart.customAttr.basicStyle.alpha
     if (!isAlphaColor(state.tableCellForm.tableItemBgColor)) {
@@ -167,7 +173,7 @@ onMounted(() => {
         </el-select>
       </el-form-item>
     </el-space>
-    <el-space>
+    <el-space :class="{ 'mobile-style': mobileInPc }">
       <el-form-item class="form-item" :class="'form-item-' + themes">
         <el-checkbox
           :effect="themes"
@@ -311,6 +317,83 @@ onMounted(() => {
     <el-form-item
       class="form-item"
       :class="'form-item-' + themes"
+      v-if="showProperty('tableFreeze')"
+    >
+      <el-checkbox
+        size="small"
+        :effect="themes"
+        :disabled="state.tableCellForm.mergeCells"
+        v-model="state.tableCellForm.tableFreeze"
+        @change="changeTableCell('tableFreeze')"
+      >
+        {{ t('chart.table_freeze') }}
+      </el-checkbox>
+    </el-form-item>
+    <el-row :gutter="8" v-if="showProperty('tableFreeze')">
+      <el-col :span="12">
+        <el-form-item
+          :label="t('chart.table_col_freeze_tip')"
+          class="form-item"
+          :class="'form-item-' + themes"
+          v-if="showProperty('tableColumnFreezeHead')"
+        >
+          <el-input-number
+            :effect="themes"
+            controls-position="right"
+            v-model="state.tableCellForm.tableColumnFreezeHead"
+            :disabled="!state.tableCellForm.tableFreeze || state.tableCellForm.mergeCells"
+            :min="0"
+            :max="100"
+            @change="changeTableCell('tableColumnFreezeHead')"
+          />
+        </el-form-item>
+      </el-col>
+      <el-col :span="12">
+        <el-form-item
+          :label="t('chart.tbale_row_freeze_tip')"
+          class="form-item"
+          :class="'form-item-' + themes"
+          v-if="showProperty('tableRowFreezeHead')"
+        >
+          <el-input-number
+            :effect="themes"
+            controls-position="right"
+            v-model="state.tableCellForm.tableRowFreezeHead"
+            :disabled="!state.tableCellForm.tableFreeze || state.tableCellForm.mergeCells"
+            :min="0"
+            :max="100"
+            @change="changeTableCell('tableRowFreezeHead')"
+          />
+        </el-form-item>
+      </el-col>
+    </el-row>
+    <el-form-item
+      class="form-item"
+      :class="'form-item-' + themes"
+      v-if="showProperty('mergeCells')"
+    >
+      <el-checkbox
+        size="small"
+        :effect="themes"
+        v-model="state.tableCellForm.mergeCells"
+        @change="changeTableCell('mergeCells')"
+      >
+        <span class="data-area-label">
+          <span style="margin-right: 4px">{{ t('chart.merge_cells') }}</span>
+          <el-tooltip class="item" effect="dark" placement="bottom">
+            <template #content>
+              <div>合并单元格后行列冻结会失效</div>
+            </template>
+            <el-icon class="hint-icon" :class="{ 'hint-icon--dark': themes === 'dark' }">
+              <Icon name="icon_info_outlined"><icon_info_outlined class="svg-icon" /></Icon>
+            </el-icon>
+          </el-tooltip>
+        </span>
+      </el-checkbox>
+    </el-form-item>
+    <el-form-item
+      class="form-item"
+      :class="'form-item-' + themes"
       v-if="showProperty('showHorizonBorder')"
     >
       <el-checkbox
@@ -406,5 +489,17 @@ onMounted(() => {
   :deep(.ed-checkbox__label) {
     padding: 0;
   }
+}
+
+.mobile-style {
+  margin-top: 25px;
+}
+.data-area-label {
+  text-align: left;
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
 }
 </style>

@@ -14,7 +14,8 @@ const props = defineProps({
   selectedFlags: propTypes.string.def('id'),
   tableData: propTypes.array,
   emptyDesc: propTypes.string,
-  emptyImg: propTypes.string
+  emptyImg: propTypes.string,
+  border: propTypes.bool.def(false)
 })
 
 const attrs = useAttrs()
@@ -124,6 +125,7 @@ defineExpose({
     <el-table
       header-cell-class-name="header-cell"
       ref="table"
+      :border="border"
       v-bind="state.tableAttrs"
       :data="tableData"
       :style="{ width: '100%' }"

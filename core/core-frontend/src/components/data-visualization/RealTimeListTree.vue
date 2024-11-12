@@ -56,6 +56,7 @@ import treemapOrigin from '@/assets/svg/treemap-origin.svg'
 import waterfallOrigin from '@/assets/svg/waterfall-origin.svg'
 import wordCloudOrigin from '@/assets/svg/word-cloud-origin.svg'
 import tHeatmapOrigin from '@/assets/svg/t-heatmap-origin.svg'
+import pictureGroupOrigin from '@/assets/svg/picture-group-origin.svg'
 import dvMore from '@/assets/svg/dv-more.svg'
 import dvExpandDown from '@/assets/svg/dv-expand-down.svg'
 import dvExpandRight from '@/assets/svg/dv-expand-right.svg'
@@ -324,6 +325,7 @@ const iconMap = {
   'waterfall-origin': waterfallOrigin,
   'word-cloud-origin': wordCloudOrigin,
   't-heatmap-origin': tHeatmapOrigin,
+  'picture-group-origin': pictureGroupOrigin,
   group: group
 }
 const getIconName = item => {

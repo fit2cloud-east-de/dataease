@@ -13,10 +13,7 @@ import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Map;
+import java.util.*;
 
 @Component
 public class Translator {
@@ -37,6 +34,17 @@ public class Translator {
      */
     public static String get(String key) {
         return messageSource.getMessage(key, null, key, LocaleContextHolder.getLocale());
+    }
+
+    /**
+     * 获取国际化消息并替换占位符
+     *
+     * @param key        国际化键 如：确定删除名为{0}的{1}吗？
+     * @param placeholders 占位值
+     * @return 替换后的消息
+     */
+    public static String get(String key, Object... placeholders) {
+        return messageSource.getMessage(key, placeholders, key, LocaleContextHolder.getLocale());
     }
 
     private static Object translateRawString(String key, String rawString) {

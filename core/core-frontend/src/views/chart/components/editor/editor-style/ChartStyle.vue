@@ -28,10 +28,9 @@ import FlowMapLineSelector from '@/views/chart/components/editor/editor-style/co
 import FlowMapPointSelector from '@/views/chart/components/editor/editor-style/components/FlowMapPointSelector.vue'
 import CommonEvent from '@/custom-component/common/CommonEvent.vue'
 import CommonBorderSetting from '@/custom-component/common/CommonBorderSetting.vue'
-import PictureGroupAttr from '@/custom-component/picture-group/Attr.vue'
 
 const dvMainStore = dvMainStoreWithOut()
-const { dvInfo, batchOptStatus, curComponent } = storeToRefs(dvMainStore)
+const { dvInfo, batchOptStatus, mobileInPc } = storeToRefs(dvMainStore)
 const { t } = useI18n()
 
 const state = {
@@ -145,10 +144,6 @@ const eventsShow = computed(() => {
   )
 })
 
-const pictureGroupShow = computed(() => {
-  return curComponent.value?.innerType === 'picture-group'
-})
-
 const showProperties = (property: EditorProperty) => properties.value?.includes(property)
 
 const onMiscChange = (val, prop) => {
@@ -242,8 +237,8 @@ const onExtTooltipChange = val => {
 const onChangeQuadrantForm = val => {
   emit('onChangeQuadrantForm', val)
 }
-const onChangeFlowMapLineForm = val => {
-  emit('onChangeFlowMapLineForm', val)
+const onChangeFlowMapLineForm = (val, prop) => {
+  emit('onChangeFlowMapLineForm', val, prop)
 }
 const onChangeFlowMapPointForm = val => {
   emit('onChangeFlowMapPointForm', val)
@@ -414,6 +409,7 @@ watch(
               class="attr-selector"
               :chart="chart"
               :quota-fields="props.quotaData"
+              :mobile-in-pc="mobileInPc"
               @onMiscChange="onMiscChange"
             />
           </el-collapse-item>
@@ -421,7 +417,7 @@ watch(
             :effect="themes"
             v-if="showProperties('misc-style-selector')"
             name="size"
-            :title="selectorSpec['misc-style-selector']?.title"
+            :title="selectorSpec['misc-style-selector']?.title || t('chart.tooltip_axis')"
           >
             <misc-style-selector
               :property-inner="propertyInnerAll['misc-style-selector']"
@@ -450,8 +446,12 @@ watch(
               @onLabelChange="onLabelChange"
             />
           </collapse-switch-item>
+          <!-- tooltip 为鼠标悬停 移动端table看不到效果 不再单独配置 -->
           <collapse-switch-item
-            v-if="showProperties('tooltip-selector')"
+            v-if="
+              showProperties('tooltip-selector') &&
+              (!mobileInPc || (mobileInPc && chart.type.indexOf('table') === -1))
+            "
             v-model="chart.customAttr.tooltip.show"
             :themes="themes"
             :change-model="chart.customAttr.tooltip"
@@ -612,11 +612,6 @@ watch(
               @onChangeYAxisExtForm="onChangeYAxisExtForm"
             />
           </collapse-switch-item>
-          <PictureGroupAttr
-            v-if="pictureGroupShow"
-            :themes="themes"
-            :element="curComponent"
-          ></PictureGroupAttr>
         </el-collapse>
       </el-row>
     </div>

@@ -2,7 +2,7 @@
 import { storeToRefs } from 'pinia'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { ref } from 'vue'
-import { personInfoApi } from '@/api/user'
+import { ipInfoApi } from '@/api/user'
 const dvMainStore = dvMainStoreWithOut()
 
 const { dvInfo } = storeToRefs(dvMainStore)
@@ -163,7 +163,7 @@ export function activeWatermarkCheckUser(domId, canvasId, scale = 1) {
         scale
       )
     } else {
-      personInfoApi().then(res => {
+      ipInfoApi().then(res => {
         userInfo.value = res.data
         if (userInfo.value && userInfo.value.model !== 'lose') {
           activeWatermark(

@@ -11,6 +11,8 @@ import { Column, Line, Pie } from '@antv/g2plot'
 import { useElementSize } from '@vueuse/core'
 import { downloadCanvas } from '@/utils/imgUtils'
 import ExcelJS from 'exceljs'
+import { useI18n } from '@/hooks/web/useI18n'
+const { t } = useI18n()
 interface Copilot {
   msgType: string
   question: string
@@ -199,7 +201,7 @@ const downloadChart = () => {
     exportExcel()
     return
   }
-  downloadCanvas('img', chartTypeRef.value, '图表')
+  downloadCanvas('img', chartTypeRef.value, t('copilot.chart'))
 }
 watch(
   () => props.copilotInfo.loading,
@@ -223,17 +225,17 @@ const activeCommand = ref('')
 
 const curTypeList = [
   {
-    label: '折线图',
+    label: t('copilot.line'),
     value: 'line',
     icon: icon_chartLineC
   },
   {
-    label: '柱状图',
+    label: t('copilot.bar'),
     icon: icon_dashboard_outlinedC,
     value: 'bar'
   },
   {
-    label: '饼图',
+    label: t('copilot.pie'),
     icon: icon_pie_outlinedC,
     value: 'pie'
   }
@@ -248,7 +250,7 @@ const tips = computed(() => {
     return chart.title
   }
   if (msgStatus === 0) {
-    return '抱歉，根据已知信息无法回答这个问题，请重新描述你的问题或提供更多信息～'
+    return t('copilot.sorry')
   } else if (msgType === 'user') {
     return question
   }
@@ -274,15 +276,15 @@ const tips = computed(() => {
     </el-icon>
     <div ref="content" class="content">
       <div v-if="isWelcome" class="question-or-title" style="font-size: 16px; font-weight: 500">
-        您好，我是 Copilot，很高兴为你服务～
+        {{ t('copilot.hello1') }}
       </div>
       <div v-else-if="isAnswer" class="question-or-title" style="font-size: 16px; font-weight: 500">
-        回答中<span class="dot">...</span>
+        {{ t('copilot.answer') }}<span class="dot">...</span>
       </div>
       <div v-else class="question-or-title">
         {{ tips }}
       </div>
-      <div v-if="isWelcome" class="is-welcome">您可以问我: 2020年各个销售部门销售额占比的饼图</div>
+      <div v-if="isWelcome" class="is-welcome">{{ t('copilot.example') }}</div>
       <div
         v-else-if="copilotInfo.msgType === 'api' && copilotInfo.msgStatus === 1"
         class="chart-type"
@@ -324,14 +326,14 @@ const tips = computed(() => {
             ></component
           ></Icon>
         </el-icon>
-        <el-tooltip effect="dark" content="切换图表类型" placement="top">
+        <el-tooltip effect="dark" :content="t('copilot.switch_chart')" placement="top">
           <div
             v-show="renderTable || renderTableLocal"
             @click="switchChartType(activeCommand)"
             class="fake-mask_select"
           ></div>
         </el-tooltip>
-        <el-tooltip effect="dark" content="切换图表类型" placement="top">
+        <el-tooltip effect="dark" :content="t('copilot.switch_chart')" placement="top">
           <el-select
             popper-class="copilot-select_popper"
             class="select-copilot-list"
@@ -350,7 +352,7 @@ const tips = computed(() => {
         </el-tooltip>
         <el-divider direction="vertical" />
       </template>
-      <el-tooltip effect="dark" content="切换至明细表" placement="top">
+      <el-tooltip effect="dark" :content="t('copilot.switch_table')" placement="top">
         <el-icon
           :class="(renderTable || renderTableLocal) && 'active'"
           class="ed-icon_chart"
@@ -360,7 +362,7 @@ const tips = computed(() => {
         </el-icon>
       </el-tooltip>
       <el-divider direction="vertical" />
-      <el-tooltip effect="dark" content="下载" placement="top">
+      <el-tooltip effect="dark" :content="t('copilot.download')" placement="top">
         <el-icon class="ed-icon_chart" @click="downloadChart">
           <Icon name="chart-download"><chartDownload class="svg-icon" /></Icon>
         </el-icon>

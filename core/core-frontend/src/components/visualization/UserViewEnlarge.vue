@@ -69,10 +69,9 @@
         icon="Download"
         size="middle"
         :loading="exportLoading"
-        :disabled="!enableFormattedExport"
         @click="exportAsFormattedExcel"
       >
-        <span :title="enableFormattedExport ? '' : '树形模式暂不支持导出'">导出Excel(带格式)</span>
+        <span>导出Excel(带格式)</span>
       </el-button>
       <el-divider class="close-divider" direction="vertical" v-if="authShow" />
     </div>
@@ -184,7 +183,8 @@ const DETAIL_CHART_ATTR: DeepPartial<ChartObj> = {
     tableCell: {
       tableItemBgColor: '#FFFFFF',
       tableFontColor: '#7C7E81',
-      enableTableCrossBG: false
+      enableTableCrossBG: false,
+      mergeCells: false
     },
     tooltip: {
       show: false
@@ -282,6 +282,8 @@ const dialogInit = (canvasStyle, view, item, opt, params = { scale: 0.5 }) => {
   if (opt === 'details') {
     if (!viewInfo.value.type?.includes('table')) {
       assign(viewInfo.value, DETAIL_CHART_ATTR)
+      viewInfo.value.xAxis.forEach(i => (i.hide = false))
+      viewInfo.value.yAxis.forEach(i => (i.hide = false))
     } else {
       assign(viewInfo.value, DETAIL_TABLE_ATTR)
     }
@@ -348,11 +350,6 @@ const exportAsFormattedExcel = () => {
   const chart = dvMainStore.getViewDetails(viewInfo.value.id)
   exportPivotExcel(s2Instance, chart)
 }
-const enableFormattedExport = computed(() => {
-  const chart = dvMainStore.getViewDetails(viewInfo.value.id) as ChartObj
-  const mode = chart?.customAttr?.basicStyle?.tableLayoutMode
-  return mode === 'grid'
-})
 const exportData = () => {
   useEmitt().emitter.emit('data-export-center', { activeName: 'IN_PROGRESS' })
 }

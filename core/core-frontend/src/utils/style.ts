@@ -249,7 +249,18 @@ export function createGroupStyle(groupComponent) {
 
 function dataVTabSizeStyleAdaptor(tabComponent) {
   const parentStyleAdaptor = { ...tabComponent.style }
-  parentStyleAdaptor.height = parentStyleAdaptor.height - 48
+  const domId =
+    dvMainStore.editMode === 'edit'
+      ? 'component' + tabComponent.id
+      : 'enlarge-inner-content' + tabComponent.id
+  const tabDom = document.getElementById(domId)
+  if (tabDom) {
+    parentStyleAdaptor.height = tabDom.clientHeight - 46
+    parentStyleAdaptor.width = tabDom.clientWidth
+  } else {
+    parentStyleAdaptor.height = parentStyleAdaptor.height - 46
+  }
+
   tabComponent.propValue.forEach(tabItem => {
     tabItem.componentData.forEach(tabComponent => {
       groupItemStyleAdaptor(tabComponent, parentStyleAdaptor)

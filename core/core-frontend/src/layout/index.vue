@@ -9,6 +9,7 @@ import CollapseBar from './components/CollapseBar.vue'
 import { ElContainer } from 'element-plus-secondary'
 import { useRoute } from 'vue-router'
 import { XpackComponent } from '@/components/plugin'
+import { useI18n } from '@/hooks/web/useI18n'
 const route = useRoute()
 const systemMenu = computed(() => route.path.includes('system'))
 const settingMenu = computed(() => route.path.includes('sys-setting'))
@@ -18,20 +19,21 @@ const isCollapse = ref(false)
 const setCollapse = () => {
   isCollapse.value = !isCollapse.value
 }
+const { t } = useI18n()
 </script>
 
 <template>
   <div class="common-layout">
     <HeaderSystem
       v-if="settingMenu || marketMenu || toolboxMenu"
-      :title="toolboxMenu ? '工具箱' : marketMenu ? '模板中心' : ''"
+      :title="toolboxMenu ? t('toolbox.name') : marketMenu ? t('toolbox.template_center') : ''"
     />
     <Header v-else></Header>
     <el-container class="layout-container">
       <template v-if="systemMenu || settingMenu || toolboxMenu">
         <Sidebar v-if="!isCollapse" class="layout-sidebar">
           <div @click="setCollapse" v-if="systemMenu && !isCollapse" class="org-config-center">
-            组织管理中心
+            {{ t('toolbox.org_center') }}
           </div>
           <Menu :style="{ height: systemMenu ? 'calc(100% - 48px)' : '100%' }"></Menu>
         </Sidebar>

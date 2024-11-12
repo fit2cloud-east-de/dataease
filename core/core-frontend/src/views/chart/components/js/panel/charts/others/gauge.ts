@@ -67,8 +67,8 @@ export class Gauge extends G2PlotChartView<GaugeOptions, G2Gauge> {
   }
 
   async drawChart(drawOptions: G2PlotDrawOptions<G2Gauge>): Promise<G2Gauge> {
-    const { chart, container, scale } = drawOptions
-    if (!chart.data?.series) {
+    const { chart, container, scale, action } = drawOptions
+    if (!chart.data?.series || !chart.yAxis.length) {
       return
     }
     // options
@@ -99,7 +99,17 @@ export class Gauge extends G2PlotChartView<GaugeOptions, G2Gauge> {
     }
     const options = this.setupOptions(chart, initOptions, { scale })
     const { Gauge: G2Gauge } = await import('@antv/g2plot/esm/plots/gauge')
-    return new G2Gauge(container, options)
+    const newChart = new G2Gauge(container, options)
+    newChart.on('afterrender', () => {
+      action({
+        from: 'gauge',
+        data: {
+          type: 'gauge',
+          max: chart.data?.series[chart.data?.series.length - 1]?.data[0]
+        }
+      })
+    })
+    return newChart
   }
 
   protected configMisc(
@@ -116,13 +126,13 @@ export class Gauge extends G2PlotChartView<GaugeOptions, G2Gauge> {
         min = chart.data?.series[chart.data?.series.length - 2]?.data[0]
         max = chart.data?.series[chart.data?.series.length - 1]?.data[0]
       } else if (misc.gaugeMinType !== 'dynamic' && misc.gaugeMaxType === 'dynamic') {
-        min = misc.gaugeMin ? misc.gaugeMin : DEFAULT_MISC.gaugeMin
+        min = misc.gaugeMin || misc.gaugeMin === 0 ? misc.gaugeMin : DEFAULT_MISC.gaugeMin
         max = chart.data?.series[chart.data?.series.length - 1]?.data[0]
       } else if (misc.gaugeMinType === 'dynamic' && misc.gaugeMaxType !== 'dynamic') {
         min = chart.data?.series[chart.data?.series.length - 1]?.data[0]
         max = misc.gaugeMax ? misc.gaugeMax : DEFAULT_MISC.gaugeMax
       } else {
-        min = misc.gaugeMin ? misc.gaugeMin : DEFAULT_MISC.gaugeMin
+        min = misc.gaugeMin || misc.gaugeMin === 0 ? misc.gaugeMin : DEFAULT_MISC.gaugeMin
         max = misc.gaugeMax ? misc.gaugeMax : DEFAULT_MISC.gaugeMax
       }
       startAngle = (misc.gaugeStartAngle * Math.PI) / 180

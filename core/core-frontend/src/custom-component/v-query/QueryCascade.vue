@@ -36,7 +36,7 @@ const cancelClick = () => {
 const confirmClick = () => {
   const { isError, arr } = setCascadeArrBack()
   if (isError) {
-    ElMessage.error('查询条件或字段不能为空!')
+    ElMessage.error(t('v_query.cannot_be_empty'))
     return
   }
   emits('saveCascade', arr)
@@ -141,7 +141,7 @@ const addCascadeItem = item => {
   item.push({
     datasetId: '',
     fieldId: '',
-    placeholder: item.length ? '' : '第一级无需配置被级联字段',
+    placeholder: item.length ? '' : t('v_query.the_first_level'),
     id: guid()
   })
 }
@@ -158,7 +158,7 @@ const setPlaceholder = () => {
         item.datasetId &&
         item.datasetId.split('--')[0] === ele[idx - 1].datasetId.split('--')[0]
       ) {
-        item.placeholder = '与上一级使用同一个数据集,无需配置被级联字段'
+        item.placeholder = t('v_query.configure_cascaded_fields')
         item.fieldId = ''
       }
     })
@@ -168,7 +168,7 @@ const setPlaceholder = () => {
 const deleteCascade = (idx, item) => {
   item.splice(idx, 1)
   item[0].fieldId = ''
-  item[0].placeholder = '第一级无需配置被级联字段'
+  item[0].placeholder = t('v_query.the_first_level')
   setPlaceholder()
 }
 
@@ -182,7 +182,14 @@ const addCascadeBlock = () => {
   cascadeList.value.push(arr)
 }
 
-const indexCascade = ' 一二三四五'
+const indexCascade = [
+  ' ',
+  t('report.week_mon'),
+  t('report.week_tue'),
+  t('report.week_wed'),
+  t('report.week_thu'),
+  t('report.week_fri')
+]
 
 defineExpose({
   init
@@ -201,21 +208,22 @@ defineExpose({
   >
     <template #title>
       <div class="title">
-        查询条件级联配置<span class="tip">(仅上级能级联下级,不可反向级联)</span>
+        {{ t('v_query.condition_cascade_configuration')
+        }}<span class="tip">{{ t('v_query.not_reverse_cascade') }}</span>
       </div>
     </template>
     <div class="content">
       <el-icon style="font-size: 16px">
         <Icon name="icon_info_colorful"><icon_info_colorful class="svg-icon" /></Icon>
       </el-icon>
-      基于当前查询组件的查询条件，如果需要进行级联配置，需要满足以下条件：<br />
-      1. 展示类型：文本下拉组件和数字下拉组件；2. 选项值来源：选择数据集<br />
+      {{ t('v_query.must_be_met') }}<br />
+      {{ t('v_query.select_data_set') }}<br />
     </div>
     <el-button text @click="addCascadeBlock">
       <template #icon>
         <Icon name="icon_add_outlined"><icon_add_outlined class="svg-icon" /></Icon>
       </template>
-      添加级联配置
+      {{ t('v_query.add_cascade_configuration') }}
     </el-button>
     <div class="cascade-content" v-for="(item, index) in cascadeList" :key="index">
       <div style="display: flex; align-items: center; justify-content: space-between">
@@ -223,7 +231,7 @@ defineExpose({
           <template #icon>
             <Icon name="icon_add_outlined"><icon_add_outlined class="svg-icon" /></Icon>
           </template>
-          添加级联条件
+          {{ t('v_query.add_cascade_condition') }}
         </el-button>
         <el-button @click="deleteCascadeBlock(index)" class="cascade-delete-block" text>
           <template #icon>
@@ -234,13 +242,13 @@ defineExpose({
         </el-button>
       </div>
       <div class="cascade-item">
-        <div class="label">查询条件层级</div>
-        <div class="item-name">请选择查询条件</div>
+        <div class="label">{{ t('v_query.query_condition_level') }}</div>
+        <div class="item-name">{{ t('v_query.select_query_condition') }}</div>
         <div class="cascade-icon"></div>
-        <div class="item-field">请选择被级联字段</div>
+        <div class="item-field">{{ t('v_query.select_cascaded_field') }}</div>
       </div>
       <div class="cascade-item" v-for="(ele, idx) in item" :key="ele.id">
-        <div class="label">第{{ indexCascade[idx + 1] }}级</div>
+        <div class="label">{{ t('v_query.level_1', { msg: indexCascade[idx + 1] }) }}</div>
         <div class="item-name">
           <el-select
             @visible-change="val => visibleChange(val, index, idx)"

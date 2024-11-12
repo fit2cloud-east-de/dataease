@@ -3,12 +3,12 @@
     <el-empty
       v-if="!templateListComputed.length && state.templateFilterText === ''"
       :image="NoneImage"
-      :description="'当前无分类'"
+      :description="t('template_manage.no_catalog')"
     />
     <el-empty
       v-if="!templateListComputed.length && state.templateFilterText !== ''"
       :image="NothingImage"
-      :description="'没有找到相关内容'"
+      :description="t('template_manage.relevant_content_found')"
     />
     <ul>
       <li
@@ -99,8 +99,8 @@ const nodeClick = ({ id, name }) => {
 }
 
 const categoryDelete = template => {
-  ElMessageBox.confirm('确定删除该分类吗？', {
-    tip: '删除后不可恢复，是否继续？',
+  ElMessageBox.confirm(t('template_manage.delete_catalog_hint'), {
+    tip: t('template_manage.delete_catalog_tip'),
     confirmButtonType: 'danger',
     confirmButtonText: t('common.delete'),
     type: 'warning',

@@ -3,7 +3,7 @@
     ref="infoTemplate"
     :label-tooltips="tooltips"
     setting-key="basic"
-    setting-title="基础设置"
+    :setting-title="t('system.basic_settings')"
     :setting-data="state.templateList"
     @edit="edit"
   />
@@ -24,24 +24,28 @@ const editor = ref()
 const infoTemplate = ref()
 const showDefaultLogin = ref(false)
 const pvpOptions = [
-  { value: '0', label: '永久' },
-  { value: '1', label: '一年' },
-  { value: '2', label: '半年' },
-  { value: '3', label: '三个月' },
-  { value: '4', label: '一个月' }
+  { value: '0', label: t('commons.date.permanent') },
+  { value: '1', label: t('commons.date.one_year') },
+  { value: '2', label: t('commons.date.six_months') },
+  { value: '3', label: t('commons.date.three_months') },
+  { value: '4', label: t('commons.date.one_month') }
 ]
 const tooltips = [
   {
     key: 'setting_basic.frontTimeOut',
-    val: '请求超时时间(单位：秒，注意：保存后刷新浏览器生效)'
+    val: t('system.to_take_effect')
   },
   {
     key: 'setting_basic.platformOid',
-    val: '作用域包括认证设置和平台对接'
+    val: t('system.and_platform_docking')
   },
   {
     key: 'setting_basic.platformRid',
-    val: '作用域包括认证设置和平台对接'
+    val: t('system.and_platform_docking')
+  },
+  {
+    key: 'setting_basic.shareDisable',
+    val: '开启后仪表板以及大屏分享无效'
   }
 ]
 const state = reactive({
@@ -62,7 +66,7 @@ const state = reactive({
     }
   ],
   loginOptions: [
-    { value: '0', label: '普通登录' },
+    { value: '0', label: t('system.normal_login') },
     { value: '1', label: 'LDAP' },
     { value: '2', label: 'OIDC' },
     { value: '3', label: 'CAS' },
@@ -87,13 +91,15 @@ const search = cb => {
       if (
         item.pkey === 'basic.autoCreateUser' ||
         item.pkey === 'basic.dip' ||
-        item.pkey === 'basic.pwdStrategy'
+        item.pkey === 'basic.pwdStrategy' ||
+        item.pkey === 'basic.shareDisable' ||
+        item.pkey === 'basic.sharePeRequire'
       ) {
-        item.pval = item.pval === 'true' ? '开启' : '未开启'
+        item.pval = item.pval === 'true' ? t('chart.open') : t('system.not_enabled')
       } else if (item.pkey === 'basic.platformOid') {
         selectedOid.value = item.pval
         await loadOrgOptions()
-        item.pval = selectedOName.value || '默认组织'
+        item.pval = selectedOName.value || t('system.default_organization')
       } else if (item.pkey === 'basic.platformRid') {
         const pval = item.pval
         if (pval?.length) {
@@ -103,11 +109,11 @@ const search = cb => {
           if (selectedRName.value.length) {
             item.pval = selectedRName.value.join(',')
           } else {
-            item.pval = '普通角色'
+            item.pval = t('system.normal_role')
           }
         } else {
           selectedRid.value = []
-          item.pval = '普通角色'
+          item.pval = t('system.normal_role')
         }
       } else if (item.pkey === 'basic.pvp') {
         selectedPvp.value = item.pval || '0'

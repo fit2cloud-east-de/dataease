@@ -43,6 +43,12 @@ export const dsTypes = [
       'characterEncoding=UTF-8&connectTimeout=5000&useSSL=false&allowPublicKeyRetrieval=true'
   },
   {
+    type: 'es',
+    name: 'Elasticsearch',
+    catalog: 'OLAP',
+    extraParams: ''
+  },
+  {
     type: 'StarRocks',
     name: 'StarRocks',
     catalog: 'OLAP',
@@ -122,8 +128,8 @@ export const nameMap = {
   OLTP: 'OLTP',
   OLAP: 'OLAP',
   DL: t('datasource.dl'),
-  OTHER: 'API数据',
   'OPCUA': 'OPCUA',
+  OTHER: t('data_source.api_data'),
   LOCAL: t('datasource.local_file')
 }
 

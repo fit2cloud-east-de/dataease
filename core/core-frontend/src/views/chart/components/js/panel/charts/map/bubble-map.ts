@@ -32,7 +32,8 @@ export class BubbleMap extends L7PlotChartView<ChoroplethOptions, Choropleth> {
   properties: EditorProperty[] = [...MAP_EDITOR_PROPERTY, 'bubble-animate']
   propertyInner = {
     ...MAP_EDITOR_PROPERTY_INNER,
-    'tooltip-selector': [...MAP_EDITOR_PROPERTY_INNER['tooltip-selector'], 'carousel']
+    'tooltip-selector': [...MAP_EDITOR_PROPERTY_INNER['tooltip-selector'], 'carousel'],
+    'basic-style-selector': [...MAP_EDITOR_PROPERTY_INNER['basic-style-selector'], 'areaBaseColor']
   }
   axis = MAP_AXIS_TYPE
   axisConfig: AxisConfig = {
@@ -56,6 +57,7 @@ export class BubbleMap extends L7PlotChartView<ChoroplethOptions, Choropleth> {
     if (!areaId) {
       return
     }
+    chart.container = container
     const geoJson = cloneDeep(await getGeoJsonFile(areaId))
     let options: ChoroplethOptions = {
       preserveDrawingBuffer: true,
@@ -91,7 +93,6 @@ export class BubbleMap extends L7PlotChartView<ChoroplethOptions, Choropleth> {
       label: {
         field: '_DE_LABEL_',
         style: {
-          textAllowOverlap: true,
           textAnchor: 'center'
         }
       },
@@ -134,7 +135,7 @@ export class BubbleMap extends L7PlotChartView<ChoroplethOptions, Choropleth> {
       })
       dotLayer.once('loaded', () => {
         chart.container = container
-        configCarouselTooltip(chart, view, chart.data?.data || [], null)
+        configCarouselTooltip(chart, view, chart.data?.data || [], null, areaId)
       })
     })
     return view

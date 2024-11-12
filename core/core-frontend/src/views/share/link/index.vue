@@ -3,7 +3,13 @@
     class="link-container"
     v-loading="loading || requestStore.loadingMap[permissionStore.currentPath]"
   >
-    <IframeError v-if="!loading && iframeError" />
+    <ErrorTemplate
+      v-if="!loading && (disableError || peRequireError)"
+      :msg="
+        disableError ? '已禁用分享功能，请联系管理员！' : '已设置有效期密码必填，当前链接无效！'
+      "
+    />
+    <IframeError v-else-if="!loading && iframeError" />
     <LinkError v-else-if="!loading && !linkExist" />
     <Exp v-else-if="!loading && linkExp" />
     <PwdTips v-else-if="!loading && !pwdValid" />
@@ -30,10 +36,13 @@ import LinkError from './error.vue'
 import PwdTips from './pwd.vue'
 import IframeError from './IframeError.vue'
 import TicketError from './TicketError.vue'
+import ErrorTemplate from './ErrorTemplate.vue'
 const requestStore = useRequestStoreWithOut()
 const permissionStore = usePermissionStoreWithOut()
 const pcanvas = ref(null)
 const iframeError = ref(true)
+const disableError = ref(true)
+const peRequireError = ref(true)
 const linkExist = ref(false)
 const loading = ref(true)
 const linkExp = ref(false)
@@ -47,12 +56,24 @@ const state = reactive({
 })
 onMounted(async () => {
   const proxyInfo = (await shareProxy.loadProxy()) as ProxyInfo
+  if (proxyInfo?.shareDisable) {
+    loading.value = false
+    disableError.value = true
+    return
+  }
+  disableError.value = false
   if (proxyInfo?.inIframeError) {
     loading.value = false
     iframeError.value = true
     return
   }
   iframeError.value = false
+  if (proxyInfo && !proxyInfo.peRequireValid) {
+    loading.value = false
+    peRequireError.value = true
+    return
+  }
+  peRequireError.value = false
   if (!proxyInfo?.resourceId) {
     loading.value = false
     return

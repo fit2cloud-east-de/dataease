@@ -4,12 +4,15 @@ import {
 } from '@/views/chart/components/js/panel/types/impl/g2plot'
 import type { DualAxes, DualAxesOptions } from '@antv/g2plot/esm/plots/dual-axes'
 import {
+  configPlotTooltipEvent,
   getAnalyse,
   getLabel,
   getPadding,
+  getTooltipContainer,
   getYAxis,
   getYAxisExt,
-  setGradientColor
+  setGradientColor,
+  TOOLTIP_TPL
 } from '../../common/common_antv'
 import { flow, hexColorToRGBA, parseJson } from '@/views/chart/components/js/util'
 import { cloneDeep, isEmpty, defaultTo, map, filter, union, defaultsDeep } from 'lodash-es'
@@ -58,12 +61,14 @@ export class ColumnLineMix extends G2PlotChartView<DualAxesOptions, DualAxes> {
       //用这个字段存放右轴分类
       name: `${t('chart.drag_block_type_axis_right')} / ${t('chart.dimension')}`,
       limit: 1,
-      type: 'd'
+      type: 'd',
+      allowEmpty: true
     },
     yAxisExt: {
       name: `${t('chart.drag_block_value_axis_right')} / ${t('chart.line_quota')}`,
       limit: 1,
-      type: 'q'
+      type: 'q',
+      allowEmpty: true
     }
   }
 
@@ -156,7 +161,7 @@ export class ColumnLineMix extends G2PlotChartView<DualAxesOptions, DualAxes> {
 
     newChart.on('point:click', action)
     newChart.on('interval:click', action)
-
+    configPlotTooltipEvent(chart, newChart)
     return newChart
   }
 
@@ -542,7 +547,10 @@ export class ColumnLineMix extends G2PlotChartView<DualAxesOptions, DualAxes> {
           }
         })
         return result
-      }
+      },
+      container: getTooltipContainer(`tooltip-${chart.id}`),
+      itemTpl: TOOLTIP_TPL,
+      enterable: true
     }
     return {
       ...options,
@@ -633,7 +641,8 @@ export class GroupColumnLineMix extends ColumnLineMix {
     xAxisExt: {
       name: `${t('chart.chart_group')} / ${t('chart.dimension')}`,
       type: 'd',
-      limit: 1
+      limit: 1,
+      allowEmpty: true
     }
   }
 
@@ -744,7 +753,8 @@ export class StackColumnLineMix extends ColumnLineMix {
     extStack: {
       name: `${t('chart.stack_item')} / ${t('chart.dimension')}`,
       type: 'd',
-      limit: 1
+      limit: 1,
+      allowEmpty: true
     }
   }
 
@@ -856,7 +866,8 @@ export class DualLineMix extends ColumnLineMix {
     xAxisExt: {
       name: `${t('chart.drag_block_type_axis_left')} / ${t('chart.dimension')}`,
       type: 'd',
-      limit: 1
+      limit: 1,
+      allowEmpty: true
     }
   }
 

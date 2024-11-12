@@ -1,10 +1,11 @@
 <script lang="ts" setup>
-import { toRefs, PropType, ref, onBeforeMount, watch, nextTick, computed, inject } from 'vue'
+import { toRefs, PropType, ref, Ref, onBeforeMount, watch, nextTick, computed, inject } from 'vue'
 import { type DatePickType } from 'element-plus-secondary'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import type { ManipulateType } from 'dayjs'
 import { type TimeRange } from './time-format'
 import dayjs from 'dayjs'
+import { useI18n } from '@/hooks/web/useI18n'
 import { useShortcuts } from './shortcuts'
 import { getThisStart, getLastStart, getAround } from './time-format-dayjs'
 import VanPopup from 'vant/es/popup'
@@ -25,8 +26,10 @@ interface SelectConfig {
   timeGranularity: DatePickType
   timeGranularityMultiple: DatePickType
   timeRange: TimeRange
+  placeholder: string
   setTimeRange: boolean
 }
+const { t } = useI18n()
 
 const props = defineProps({
   config: {
@@ -62,6 +65,13 @@ const props = defineProps({
     default: false
   }
 })
+const placeholder: Ref = inject('placeholder')
+const placeholderText = computed(() => {
+  if (placeholder?.value?.placeholderShow) {
+    return props.config.placeholder
+  }
+  return ' '
+})
 const selectValue = ref()
 const multiple = ref(false)
 const dvMainStore = dvMainStoreWithOut()
@@ -71,6 +81,7 @@ const maxDate = new Date('2100/1/1')
 watch(
   () => config.value.defaultValue,
   val => {
+    if (props.isConfig) return
     const isMultiple = config.value.displayType === '7'
     if (isMultiple) {
       multiple.value = isMultiple
@@ -101,6 +112,7 @@ watch(
 
 const displayTypeChange = () => {
   if (!props.isConfig) return
+  if (multiple.value && config.value.displayType === '7') return
   selectValue.value = config.value.displayType === '7' ? [] : undefined
   multiple.value = config.value.displayType === '7'
   config.value.defaultValue = multiple.value ? [] : undefined
@@ -400,6 +412,7 @@ const formatDate = computed(() => {
 <template>
   <el-date-picker
     v-model="selectValue"
+    v-if="multiple"
     :key="config.timeGranularityMultiple"
     :type="config.timeGranularityMultiple"
     :style="selectStyle"
@@ -407,22 +420,23 @@ const formatDate = computed(() => {
     :disabled-date="disabledDate"
     @calendar-change="calendarChange"
     :format="formatDate"
-    v-if="multiple"
     :shortcuts="
       ['datetimerange', 'daterange'].includes(config.timeGranularityMultiple) ? shortcuts : []
     "
     @change="handleValueChange"
+    :editable="false"
     :range-separator="$t('cron.to')"
-    :start-placeholder="$t('datasource.start_time')"
-    :end-placeholder="$t('datasource.end_time')"
+    :start-placeholder="placeholderText"
+    :end-placeholder="placeholderText"
   />
   <el-date-picker
     v-else
+    :key="config.timeGranularity + 1"
     v-model="selectValue"
     :type="config.timeGranularity"
     @change="handleValueChange"
     :style="selectStyle"
-    :placeholder="$t('commons.date.select_date_time')"
+    :placeholder="placeholderText"
   />
   <div
     v-if="dvMainStore.mobileInPc"
@@ -441,9 +455,9 @@ const formatDate = computed(() => {
       @confirm="onConfirm"
       @cancel="onCancel"
       v-if="showTimePick"
-      title="时间选择"
-      :tabs="['选择日期', '选择时间']"
-      next-step-text="下一步"
+      :title="t('v_query.time_selection')"
+      :tabs="[t('dataset.select_date'), t('dataset.select_time')]"
+      :next-step-text="t('sync_datasource.next')"
     >
       <van-date-picker
         :min-date="minDate"
@@ -454,7 +468,7 @@ const formatDate = computed(() => {
       <van-time-picker :columns-type="['hour', 'minute', 'second']" v-model="currentTime" />
     </van-picker-group>
     <van-date-picker
-      title="选择日期"
+      :title="t('dataset.select_date')"
       :columns-type="columnsType"
       @confirm="onConfirm"
       @cancel="onCancel"

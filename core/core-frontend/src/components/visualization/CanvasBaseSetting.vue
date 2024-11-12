@@ -21,6 +21,27 @@
           </div>
         </el-checkbox>
       </el-form-item>
+
+      <el-form-item class="form-item no-margin-bottom" :class="'form-item-' + themes">
+        <el-checkbox
+          size="small"
+          :effect="themes"
+          v-model="canvasStyleData.suspensionButtonAvailable"
+          @change="onPopButtonChange"
+        >
+          <div style="display: flex; line-height: 14px">
+            <span style="margin-right: 4px">显示放大、导出等悬浮按钮</span>
+            <el-tooltip class="item" :effect="themes" placement="bottom">
+              <template #content>
+                <div>预览时启用</div>
+              </template>
+              <el-icon class="hint-icon" :class="{ 'hint-icon--dark': themes === 'dark' }">
+                <Icon name="icon_info_outlined"><icon_info_outlined class="svg-icon" /></Icon>
+              </el-icon>
+            </el-tooltip>
+          </div>
+        </el-checkbox>
+      </el-form-item>
     </el-form>
   </div>
 </template>

@@ -13,6 +13,7 @@ import { Scene } from '@antv/l7-scene'
 import { LineLayer } from '@antv/l7-layers'
 import { PointLayer } from '@antv/l7-layers'
 import { mapRendered, mapRendering } from '@/views/chart/components/js/panel/common/common_antv'
+import { DEFAULT_BASIC_STYLE } from '@/views/chart/components/editor/util/chart'
 const { t } = useI18n()
 
 /**
@@ -30,7 +31,15 @@ export class FlowMap extends L7ChartView<Scene, L7Config> {
   ]
   propertyInner: EditorPropertyInner = {
     ...MAP_EDITOR_PROPERTY_INNER,
-    'basic-style-selector': ['mapBaseStyle', 'mapLineStyle', 'zoom']
+    'basic-style-selector': [
+      'mapBaseStyle',
+      'mapLineStyle',
+      'zoom',
+      'showLabel',
+      'autoFit',
+      'mapCenter',
+      'zoomLevel'
+    ]
   }
   axis: AxisType[] = ['xAxis', 'xAxisExt', 'filter', 'flowMapStartName', 'flowMapEndName', 'yAxis']
   axisConfig: AxisConfig = {
@@ -47,18 +56,21 @@ export class FlowMap extends L7ChartView<Scene, L7Config> {
     flowMapStartName: {
       name: `起点名称 / ${t('chart.dimension')}`,
       type: 'd',
-      limit: 1
+      limit: 1,
+      allowEmpty: true
     },
     flowMapEndName: {
       name: `终点名称 / ${t('chart.dimension')}`,
       type: 'd',
-      limit: 1
+      limit: 1,
+      allowEmpty: true
     },
     yAxis: {
       name: `线条粗细 / ${t('chart.quota')}`,
       type: 'q',
       limit: 1,
-      tooltip: '该指标生效时，样式中线条配置的线条宽度属性将失效'
+      tooltip: '该指标生效时，样式中线条配置的线条宽度属性将失效',
+      allowEmpty: true
     }
   }
   constructor() {
@@ -67,23 +79,53 @@ export class FlowMap extends L7ChartView<Scene, L7Config> {
 
   async drawChart(drawOption: L7DrawConfig<L7Config>) {
     const { chart, container } = drawOption
+    const containerDom = document.getElementById(container)
+    const rect = containerDom?.getBoundingClientRect()
+    if (rect?.height <= 0) {
+      return new L7Wrapper(drawOption.chartObj?.getScene(), [])
+    }
     const xAxis = deepCopy(chart.xAxis)
     const xAxisExt = deepCopy(chart.xAxisExt)
     const { basicStyle, misc } = deepCopy(parseJson(chart.customAttr))
 
-    const mapStyle = `amap://styles/${basicStyle.mapStyle ? basicStyle.mapStyle : 'normal'}`
-    const key = await this.getMapKey()
+    let center: [number, number] = [
+      DEFAULT_BASIC_STYLE.mapCenter.longitude,
+      DEFAULT_BASIC_STYLE.mapCenter.latitude
+    ]
+    if (basicStyle.autoFit === false) {
+      center = [basicStyle.mapCenter.longitude, basicStyle.mapCenter.latitude]
+    }
+    let mapStyle = basicStyle.mapStyleUrl
+    if (basicStyle.mapStyle !== 'custom') {
+      mapStyle = `amap://styles/${basicStyle.mapStyle ? basicStyle.mapStyle : 'normal'}`
+    }
+    const mapKey = await this.getMapKey()
     // 底层
-    const scene = new Scene({
-      id: container,
-      logoVisible: false,
-      map: new GaodeMap({
-        token: key ?? undefined,
-        style: mapStyle,
-        pitch: misc.mapPitch,
-        zoom: 2.5
+    const chartObj = drawOption.chartObj as unknown as L7Wrapper<L7Config, Scene>
+    let scene = chartObj?.getScene()
+    if (!scene) {
+      scene = new Scene({
+        id: container,
+        logoVisible: false,
+        map: new GaodeMap({
+          token: mapKey?.key ?? undefined,
+          style: mapStyle,
+          pitch: misc.mapPitch,
+          center,
+          zoom: basicStyle.autoFit === false ? basicStyle.zoomLevel : 2.5,
+          showLabel: !(basicStyle.showLabel === false)
+        })
       })
-    })
+    } else {
+      if (scene.getLayers()?.length) {
+        await scene.removeAllLayer()
+        scene.setCenter(center)
+        scene.setPitch(misc.mapPitch)
+        scene.setZoom(basicStyle.autoFit === false ? basicStyle.zoomLevel : 2.5)
+        scene.setMapStyle(mapStyle)
+        scene.map.showLabel = !(basicStyle.showLabel === false)
+      }
+    }
     mapRendering(container)
     scene.once('loaded', () => {
       mapRendered(container)
@@ -150,7 +192,7 @@ export class FlowMap extends L7ChartView<Scene, L7Config> {
     const config: L7Config = new LineLayer({
       name: 'line',
       blend: 'normal',
-      autoFit: true
+      autoFit: !(basicStyle.autoFit === false)
     })
       .source(data, {
         parser: {

@@ -19,7 +19,7 @@ const pwdForm = reactive(cloneDeep(defaultForm))
 
 const validatePwd = (_: any, value: any, callback: any) => {
   if (value === pwdForm.pwd) {
-    callback(new Error('新旧密码不能相同'))
+    callback(new Error(t('system.be_the_same')))
   }
   const pattern =
     /^.*(?=.{6,20})(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[~!@#$%^&*()_+\-\={}|":<>?`[\];',.\/])[a-zA-Z0-9~!@#$%^&*()_+\-\={}|":<>?`[\];',.\/]*$/
@@ -34,7 +34,7 @@ const validatePwd = (_: any, value: any, callback: any) => {
 
 const validateConfirmPwd = (_: any, value: any, callback: any) => {
   if (value !== pwdForm.newPwd) {
-    callback(new Error('两次输入的密码不一致'))
+    callback(new Error(t('system.twice_are_inconsistent')))
   } else {
     callback()
   }
@@ -85,7 +85,7 @@ const save = () => {
       const pwd = rsaEncryp(pwdForm.pwd)
       const newPwd = rsaEncryp(pwdForm.newPwd)
       request.post({ url: '/user/modifyPwd', data: { pwd, newPwd } }).then(() => {
-        ElMessage.success('修改成功，请重新登录')
+        ElMessage.success(t('system.log_in_again'))
         logoutHandler()
       })
     }
@@ -103,28 +103,28 @@ const save = () => {
     label-width="80px"
     label-position="top"
   >
-    <el-form-item label="原始密码" prop="pwd">
+    <el-form-item :label="t('system.original_password')" prop="pwd">
       <CustomPassword
         v-model="pwdForm.pwd"
         show-password
         type="password"
-        placeholder="请输入原始密码"
+        :placeholder="t('system.the_original_password')"
       />
     </el-form-item>
-    <el-form-item label="新密码" prop="newPwd">
+    <el-form-item :label="t('system.new_password')" prop="newPwd">
       <CustomPassword
         v-model="pwdForm.newPwd"
         show-password
         type="password"
-        placeholder="请输入新密码"
+        :placeholder="t('system.the_new_password')"
       />
     </el-form-item>
-    <el-form-item label="确认密码" prop="confirm">
+    <el-form-item :label="t('system.confirm_password')" prop="confirm">
       <CustomPassword
         v-model="pwdForm.confirm"
         show-password
         type="password"
-        placeholder="请输入确认密码"
+        :placeholder="t('system.the_confirmation_password')"
       />
     </el-form-item>
     <el-button @click="save" type="primary">

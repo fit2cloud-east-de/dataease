@@ -186,21 +186,21 @@ const authMethodList = [
 
 const validateSshHost = (_: any, value: any, callback: any) => {
   if ((value === undefined || value === null || value === '') && form.value.configuration.useSSH) {
-    callback(new Error('SSH主机不能为空'))
+    callback(new Error(t('data_source.cannot_be_empty')))
   }
   return callback()
 }
 
 const validateSshPort = (_: any, value: any, callback: any) => {
   if ((value === undefined || value === null || value === '') && form.value.configuration.useSSH) {
-    callback(new Error('SSH端口不能为空'))
+    callback(new Error(t('data_source.cannot_be_empty_de')))
   }
   return callback()
 }
 
 const validateSshUserName = (_: any, value: any, callback: any) => {
   if ((value === undefined || value === null || value === '') && form.value.configuration.useSSH) {
-    callback(new Error('SSH用户名不能为空'))
+    callback(new Error(t('data_source.cannot_be_empty_de_name')))
   }
   return callback()
 }
@@ -219,7 +219,7 @@ const validateSshPassword = (_: any, value: any, callback: any) => {
     form.value.configuration.useSSH &&
     form.value.configuration.sshType === 'password'
   ) {
-    callback(new Error('SSH密码不能为空'))
+    callback(new Error(t('data_source.cannot_be_empty_de_pwd')))
   }
   return callback()
 }
@@ -230,7 +230,7 @@ const validateSshkey = (_: any, value: any, callback: any) => {
     form.value.configuration.useSSH &&
     form.value.configuration.sshType === 'sshkey'
   ) {
-    callback(new Error('SSH key不能为空'))
+    callback(new Error(t('data_source.cannot_be_empty_de_key')))
   }
   return callback()
 }
@@ -349,6 +349,16 @@ const setRules = () => {
       {
         required: true,
         message: t('datasource.connection_mode'),
+        trigger: 'change'
+      }
+    ]
+  }
+
+  if (form.value.type === 'es') {
+    configRules['configuration.url'] = [
+      {
+        required: true,
+        message: t('datasource.please_input_datasource_url'),
         trigger: 'change'
       }
     ]
@@ -635,13 +645,13 @@ const paramsObjRules = {
   name: [
     {
       required: true,
-      message: '请输入参数名称',
+      message: t('data_source.enter_parameter_name'),
       trigger: 'change'
     },
     {
       min: 2,
       max: 64,
-      message: '参数名称限制2～64字符',
+      message: t('data_source.to_64_characters'),
       trigger: 'blur'
     }
   ]
@@ -651,13 +661,13 @@ const apiObjRules = {
   name: [
     {
       required: true,
-      message: '请输入接口名称',
+      message: t('data_source.the_interface_name'),
       trigger: 'change'
     },
     {
       min: 2,
       max: 64,
-      message: '接口名称限制2～64字符',
+      message: t('data_source.to_64_characters_de'),
       trigger: 'blur'
     }
   ]
@@ -712,7 +722,7 @@ const handleApiParams = (cmd: string, data) => {
     apiObj.value.serialNumber = data.serialNumber
   }
   if (cmd === 'delete') {
-    ElMessageBox.confirm('确定删除吗?', {
+    ElMessageBox.confirm(t('data_source.sure_to_delete'), {
       confirmButtonType: 'danger',
       type: 'warning',
       autofocus: false,
@@ -740,23 +750,23 @@ const editParams = data => {
 }
 
 const delParams = data => {
-  ElMessageBox.confirm('确定删除吗?', {
+  ElMessageBox.confirm(t('data_source.sure_to_delete'), {
     confirmButtonType: 'danger',
     type: 'warning',
     autofocus: false,
     showClose: false
   }).then(() => {
-    gridData.value.splice(form.value.apiConfiguration.indexOf(data), 1)
+    gridData.value.splice(gridData.value.indexOf(data), 1)
   })
 }
 const datasetTypeList = [
   {
-    label: '重命名',
+    label: t('data_source.rename'),
     svgName: icon_rename_outlined,
     command: 'rename'
   },
   {
-    label: '删除',
+    label: t('data_source.delete'),
     svgName: icon_deleteTrash_outlined,
     command: 'delete'
   }
@@ -773,9 +783,13 @@ defineExpose({
   <div class="editor-detail">
     <div class="detail-inner create-dialog">
       <div v-show="form.type === 'API' ||  form.type === 'OPCUA'" class="info-update">
-        <div :class="activeStep === 1 && 'active'" class="info-text">数据源配置信息</div>
+        <div :class="activeStep === 1 && 'active'" class="info-text">
+          {{ t('data_source.source_configuration_information') }}
+        </div>
         <div class="update-info-line"></div>
-        <div :class="activeStep === 2 && 'active'" class="update-text">数据更新设置</div>
+        <div :class="activeStep === 2 && 'active'" class="update-text">
+          {{ t('data_source.data_update_settings') }}
+        </div>
         <div class="update-info-line" v-show="form.type === 'OPCUA'" ></div>
         <div :class="activeStep === 3 && 'active'" v-show="form.type === 'OPCUA'"  class="update-text">数据点位设置</div>
       </div>
@@ -836,7 +850,7 @@ defineExpose({
           <div class="title-form_primary flex-space table-info-mr" v-show="activeStep === 1">
             <el-tabs v-model="activeName" class="api-tabs">
               <el-tab-pane :label="t('datasource.data_table')" name="table"></el-tab-pane>
-              <el-tab-pane label="接口参数" name="params"></el-tab-pane>
+              <el-tab-pane :label="t('data_source.connection_method')" name="params"></el-tab-pane>
             </el-tabs>
             <el-button type="primary" style="margin-left: auto" @click="() => addApiItem(null)">
               <template #icon>
@@ -998,21 +1012,25 @@ defineExpose({
           </div>
         </template>
         <template v-if="notapiexcelconfig">
-          <el-form-item label="连接方式" prop="type">
+          <el-form-item
+            :label="t('data_source.connection_method')"
+            prop="type"
+            v-if="form.type !== 'es'"
+          >
             <el-radio-group v-model="form.configuration.urlType">
-              <el-radio label="hostName">主机名</el-radio>
-              <el-radio label="jdbcUrl">JDBC 连接</el-radio>
+              <el-radio label="hostName">{{ t('data_source.hostname') }}</el-radio>
+              <el-radio label="jdbcUrl">{{ t('data_source.jdbc_connection') }}</el-radio>
             </el-radio-group>
           </el-form-item>
 
           <el-form-item
-            label=" JDBC 连接字符串"
+            :label="t('data_source.jdbc_connection_string')"
             prop="configuration.jdbcUrl"
             v-if="form.configuration.urlType === 'jdbcUrl'"
           >
             <el-input
               v-model="form.configuration.jdbcUrl"
-              placeholder=" JDBC 连接字符串"
+              :placeholder="t('data_source.jdbc_connection_string')"
               autocomplete="off"
             />
           </el-form-item>
@@ -1020,7 +1038,7 @@ defineExpose({
           <el-form-item
             :label="t('datasource.host')"
             prop="configuration.host"
-            v-if="form.configuration.urlType !== 'jdbcUrl'"
+            v-if="form.configuration.urlType !== 'jdbcUrl' && form.type !== 'es'"
           >
             <el-input
               v-model="form.configuration.host"
@@ -1031,7 +1049,7 @@ defineExpose({
           <el-form-item
             :label="t('datasource.port')"
             prop="configuration.port"
-            v-if="form.configuration.urlType !== 'jdbcUrl'"
+            v-if="form.configuration.urlType !== 'jdbcUrl' && form.type !== 'es'"
           >
             <el-input-number
               v-model="form.configuration.port"
@@ -1047,7 +1065,7 @@ defineExpose({
           <el-form-item
             :label="t('datasource.data_base')"
             prop="configuration.dataBase"
-            v-if="form.configuration.urlType !== 'jdbcUrl'"
+            v-if="form.configuration.urlType !== 'jdbcUrl' && form.type !== 'es'"
           >
             <el-input
               v-model="form.configuration.dataBase"
@@ -1098,6 +1116,17 @@ defineExpose({
             <p>
               {{ t('datasource.kerbers_info') }}
             </p>
+          </el-form-item>
+          <el-form-item
+            v-if="form.type == 'es'"
+            :label="$t('datasource.datasource_url')"
+            prop="configuration.url"
+          >
+            <el-input
+              v-model="form.configuration.url"
+              :placeholder="$t('datasource.please_input_datasource_url')"
+              autocomplete="off"
+            />
           </el-form-item>
           <el-form-item :label="t('datasource.user_name')" v-if="form.type !== 'presto'">
             <el-input
@@ -1153,7 +1182,7 @@ defineExpose({
           </el-form-item>
           <el-form-item
             :label="t('datasource.extra_params')"
-            v-if="form.configuration.urlType !== 'jdbcUrl'"
+            v-if="form.configuration.urlType !== 'jdbcUrl' && form.type !== 'es'"
           >
             <el-input
               :placeholder="t('common.inputText') + t('datasource.extra_params')"
@@ -1166,7 +1195,7 @@ defineExpose({
               v-if="!['es', 'api'].includes(form.type) && form.configuration.urlType !== 'jdbcUrl'"
               class="de-expand"
               @click="showSSH = !showSSH"
-              >SSH 设置
+              >{{ t('data_source.ssh_settings') }}
               <el-icon>
                 <Icon
                   ><component
@@ -1179,16 +1208,18 @@ defineExpose({
           </el-form-item>
           <template v-if="showSSH">
             <el-form-item>
-              <el-checkbox v-model="form.configuration.useSSH">启用SSH</el-checkbox>
+              <el-checkbox v-model="form.configuration.useSSH">{{
+                t('data_source.enable_ssh')
+              }}</el-checkbox>
             </el-form-item>
-            <el-form-item label="主机" prop="configuration.sshHost">
+            <el-form-item :label="t('data_source.host')" prop="configuration.sshHost">
               <el-input
                 v-model="form.configuration.sshHost"
-                placeholder="请输入主机名"
+                :placeholder="t('data_source.please_enter_hostname')"
                 autocomplete="off"
               />
             </el-form-item>
-            <el-form-item label="端口" prop="configuration.sshPort">
+            <el-form-item :label="t('data_source.port')" prop="configuration.sshPort">
               <el-input-number
                 v-model="form.configuration.sshPort"
                 autocomplete="off"
@@ -1208,9 +1239,9 @@ defineExpose({
                 :maxlength="255"
               />
             </el-form-item>
-            <el-form-item label="连接方式">
+            <el-form-item :label="t('data_source.connection_method')">
               <el-radio-group v-model="form.configuration.sshType">
-                <el-radio label="password">密码</el-radio>
+                <el-radio label="password">{{ t('data_source.password') }}</el-radio>
                 <el-radio label="sshkey">ssh key</el-radio>
               </el-radio-group>
             </el-form-item>
@@ -1236,12 +1267,15 @@ defineExpose({
                 type="textarea"
                 :rows="6"
                 v-model="form.configuration.sshKey"
-                placeholder="请输入ssh key"
+                :placeholder="t('data_source.enter_ssh_key')"
                 autocomplete="off"
               />
             </el-form-item>
 
-            <el-form-item label="ssh key 密码" v-if="form.configuration.sshType === 'sshkey'">
+            <el-form-item
+              :label="t('data_source.ssh_key_password')"
+              v-if="form.configuration.sshType === 'sshkey'"
+            >
               <CustomPassword
                 :placeholder="t('common.inputText') + t('datasource.password')"
                 show-password
@@ -1409,7 +1443,7 @@ defineExpose({
           v-if="activeStep === 2 && ( form.type === 'API' || ( form.type === 'OPCUA' && form.configuration.connectionType === 'sync')) "
         >
           <el-radio-group v-model="form.syncSetting.syncRate" @change="onRateChange">
-            <el-radio label="RIGHTNOW">立即更新</el-radio>
+            <el-radio label="RIGHTNOW">{{ t('data_source.update_now') }}</el-radio>
             <el-radio label="CRON">{{ t('datasource.cron_config') }}</el-radio>
             <el-radio label="SIMPLE_CRON">{{ t('datasource.simple_cron') }}</el-radio>
           </el-radio-group>
@@ -1440,7 +1474,7 @@ defineExpose({
                 <el-option :label="t('common.hour')" value="hour" />
                 <el-option :label="t('common.day')" value="day" />
               </el-select>
-              更新一次
+              {{ t('data_source.update_once') }}
             </div>
           </el-form-item>
           <el-form-item v-if="form.syncSetting.syncRate === 'CRON'" prop="syncSetting.cron">
@@ -1570,7 +1604,7 @@ defineExpose({
       </el-form>
 
       <el-dialog
-        title="编辑参数"
+        :title="t('data_source.edit_parameters')"
         v-model="dialogEditParams"
         width="420px"
         class="create-dialog"
@@ -1585,13 +1619,16 @@ defineExpose({
           :rules="paramsObjRules"
         >
           <el-form-item :label="t('visualization.param_name')" prop="name">
-            <el-input placeholder="请输入参数名称" v-model="paramsObj.name" />
+            <el-input
+              :placeholder="t('data_source.enter_parameter_name')"
+              v-model="paramsObj.name"
+            />
           </el-form-item>
           <el-form-item :label="t('deDataset.parameter_type')" prop="deType">
             <el-radio-group v-model="paramsObj.deType">
-              <el-radio :value="0" label="文本"></el-radio>
-              <el-radio :value="2" label="数值"></el-radio>
-              <el-radio :value="3" label="数值(小数)"></el-radio>
+              <el-radio :value="0" :label="t('data_source.text')"></el-radio>
+              <el-radio :value="2" :label="t('data_source.numerical_value')"></el-radio>
+              <el-radio :value="3" :label="t('data_source.numeric_value_decimal')"></el-radio>
             </el-radio-group>
           </el-form-item>
         </el-form>
@@ -1601,7 +1638,7 @@ defineExpose({
         </template>
       </el-dialog>
       <el-dialog
-        title="重命名"
+        :title="t('data_source.rename')"
         v-model="dialogRenameApi"
         width="420px"
         class="create-dialog"
@@ -1615,8 +1652,8 @@ defineExpose({
           :model="apiObj"
           :rules="apiObjRules"
         >
-          <el-form-item label="接口名称" prop="name">
-            <el-input placeholder="请输入接口名称" v-model="apiObj.name" />
+          <el-form-item :label="t('data_source.interface_name')" prop="name">
+            <el-input :placeholder="t('data_source.the_interface_name')" v-model="apiObj.name" />
           </el-form-item>
         </el-form>
         <template #footer>

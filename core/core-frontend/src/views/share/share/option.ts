@@ -1,3 +1,5 @@
+import { useI18n } from '@/hooks/web/useI18n'
+
 export interface ShareInfo {
   id: string
   exp?: number
@@ -9,9 +11,11 @@ export interface ShareInfo {
 
 export const SHARE_BASE = '/de-link/'
 
+const { t } = useI18n()
+
 export const shortcuts = [
   {
-    text: '一小时',
+    text: t('commons.date.one_hour'),
     value: () => {
       const date = new Date()
       date.setTime(date.getTime() + 3600 * 1000)
@@ -19,7 +23,7 @@ export const shortcuts = [
     }
   },
   {
-    text: '一天',
+    text: t('commons.date.one_day'),
     value: () => {
       const date = new Date()
       date.setTime(date.getTime() + 3600 * 1000 * 24)
@@ -27,7 +31,7 @@ export const shortcuts = [
     }
   },
   {
-    text: '一周',
+    text: t('commons.date.one_week'),
     value: () => {
       const date = new Date()
       date.setTime(date.getTime() + 7 * 3600 * 1000 * 24)

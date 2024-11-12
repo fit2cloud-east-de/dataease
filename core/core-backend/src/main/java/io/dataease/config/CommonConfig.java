@@ -14,7 +14,7 @@ public class CommonConfig {
     @Bean(destroyMethod = "shutdown")
     public CommonThreadPool resourcePoolThreadPool() {
         CommonThreadPool commonThreadPool = new CommonThreadPool();
-        commonThreadPool.setCorePoolSize(20);
+        commonThreadPool.setCorePoolSize(50);
         commonThreadPool.setMaxQueueSize(100);
         commonThreadPool.setKeepAliveSeconds(3600);
         return commonThreadPool;

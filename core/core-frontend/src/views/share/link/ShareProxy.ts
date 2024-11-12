@@ -15,6 +15,8 @@ export interface ProxyInfo {
   pwdValid?: boolean
   type: string
   inIframeError: boolean
+  shareDisable: boolean
+  peRequireValid: boolean
   ticketValidVO: TicketValidVO
 }
 class ShareProxy {

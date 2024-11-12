@@ -11,7 +11,7 @@
             </el-icon>
           </span>
         </el-tooltip>
-        <span class="ticket-title">{{ 'Ticket ' + $t('commons.setting') }}</span>
+        <span class="ticket-title">{{ 'Ticket ' + t('commons.setting') }}</span>
       </div>
       <div class="ticket-model-end">
         <el-checkbox
@@ -63,14 +63,16 @@
         <el-table-column prop="exp" :label="$t('visualization.over_time')" width="100">
           <template v-slot:header>
             <div class="ticket-exp-head">
-              <span>{{ $t('visualization.over_time') }}</span>
+              <span>{{ t('visualization.over_time') }}</span>
               <el-tooltip
                 class="item"
                 effect="dark"
-                :content="$t('link_ticket.time_tips')"
+                :content="t('link_ticket.time_tips')"
                 placement="top"
               >
-                <Icon name="dv-info"><dvInfo class="svg-icon" /></Icon>
+                <span class="exp-tips-span">
+                  <Icon name="dv-info"><dvInfo class="svg-icon" /></Icon>
+                </span>
               </el-tooltip>
             </div>
           </template>
@@ -112,12 +114,7 @@
         <el-table-column :label="$t('commons.operating')" width="80">
           <template v-slot="scope">
             <div class="ticket-row">
-              <el-tooltip
-                class="item"
-                effect="dark"
-                :content="$t('commons.delete')"
-                placement="top"
-              >
+              <el-tooltip class="item" effect="dark" :content="t('commons.delete')" placement="top">
                 <el-button text @click.stop="deleteTicket(scope.row, scope.$index)">
                   <template #icon>
                     <Icon name="icon_delete-trash_outlined"
@@ -220,7 +217,7 @@ const requireTicketChange = val => {
 const createLimit = (count?: number) => {
   const realCount = count ? count : state.tableData.length || 0
   if (realCount > 4) {
-    ElMessageBox.confirm('提示', {
+    ElMessageBox.confirm(t('chart.tips'), {
       confirmButtonType: 'primary',
       type: 'warning',
       confirmButtonText: t('common.roger_that'),
@@ -228,7 +225,7 @@ const createLimit = (count?: number) => {
       autofocus: false,
       showClose: false,
       showCancelButton: false,
-      tip: '最多支持创建5个Ticket'
+      tip: t('work_branch.max_ticket_count')
     })
     return false
   }
@@ -454,11 +451,14 @@ onMounted(() => {
       line-height: 22px;
       height: 22px;
       align-items: center;
-      svg {
-        margin-left: 4px;
-        width: 16px;
-        height: 16px;
-        cursor: pointer;
+      .exp-tips-span {
+        height: 18px;
+        svg {
+          margin-left: 4px;
+          width: 16px;
+          height: 16px;
+          cursor: pointer;
+        }
       }
     }
     :deep(.ticket-row) {

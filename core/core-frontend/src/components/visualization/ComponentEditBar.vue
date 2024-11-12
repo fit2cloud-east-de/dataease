@@ -48,7 +48,7 @@
       effect="dark"
       :placement="showBarTooltipPosition"
       content="查看数据"
-      v-if="element.innerType !== 'rich-text' && barShowCheck('details')"
+      v-if="!['picture-group', 'rich-text'].includes(element.innerType) && barShowCheck('details')"
     >
       <span>
         <el-icon class="bar-base-icon" @click="userViewEnlargeOpen($event, 'details')">
@@ -113,12 +113,19 @@
             >
             <el-dropdown-item
               @click="userViewEnlargeOpen($event, 'details')"
-              v-if="element.innerType !== 'rich-text' && barShowCheck('details')"
+              v-if="
+                !['picture-group', 'rich-text'].includes(element.innerType) &&
+                barShowCheck('details')
+              "
               >查看数据</el-dropdown-item
             >
             <el-dropdown-item
               style="padding: 0"
-              v-if="element.innerType !== 'rich-text' && barShowCheck('download') && showDownload"
+              v-if="
+                !['picture-group', 'rich-text'].includes(element.innerType) &&
+                barShowCheck('download') &&
+                showDownload
+              "
               @click.prevent
             >
               <el-dropdown style="width: 100%" trigger="hover" placement="right-start">
@@ -134,12 +141,9 @@
                     <el-dropdown-item @click="exportAsExcel">Excel</el-dropdown-item>
                     <el-dropdown-item
                       v-if="element.innerType === 'table-pivot'"
-                      :disabled="!enableFormattedExport"
                       @click="exportAsFormattedExcel"
                     >
-                      <span :title="enableFormattedExport ? '' : '树形模式暂不支持导出'"
-                        >Excel(带格式)</span
-                      >
+                      <span>Excel(带格式)</span>
                     </el-dropdown-item>
                     <el-dropdown-item @click="exportAsImage">图片</el-dropdown-item>
                   </el-dropdown-menu>
@@ -162,7 +166,7 @@
       trigger="click"
       placement="right-start"
       v-if="
-        element.innerType !== 'rich-text' &&
+        !['picture-group', 'rich-text'].includes(element.innerType) &&
         barShowCheck('previewDownload') &&
         authShow &&
         showDownload
@@ -178,10 +182,9 @@
           <el-dropdown-item @click="exportAsExcel">Excel</el-dropdown-item>
           <el-dropdown-item
             v-if="element.innerType === 'table-pivot'"
-            :disabled="!enableFormattedExport"
             @click="exportAsFormattedExcel"
           >
-            <span :title="enableFormattedExport ? '' : '树形模式暂不支持导出'">Excel(带格式)</span>
+            <span>Excel(带格式)</span>
           </el-dropdown-item>
           <el-dropdown-item @click="exportAsImage">图片</el-dropdown-item>
         </el-dropdown-menu>
@@ -435,11 +438,6 @@ const exportAsFormattedExcel = () => {
   exportPivotExcel(s2Instance, chart)
 }
 
-const enableFormattedExport = computed(() => {
-  const chart = dvMainStore.getViewDetails(element.value.id) as ChartObj
-  const mode = chart?.customAttr?.basicStyle?.tableLayoutMode
-  return mode === 'grid'
-})
 const exportAsExcel = () => {
   const viewDataInfo = dvMainStore.getViewDataDetails(element.value.id)
   const chartExtRequest = dvMainStore.getLastViewRequestInfo(element.value.id)

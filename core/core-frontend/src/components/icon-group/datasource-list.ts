@@ -14,6 +14,7 @@ import APIDs from '@/assets/svg/API-ds.svg'
 import ExcelDs from '@/assets/svg/Excel-ds.svg'
 import dorisDs from '@/assets/svg/doris-ds.svg'
 import OPCUADs from '@/assets/svg/OPCUA-ds.svg'
+import esDs from '@/assets/svg/es-ds.svg'
 const iconDatasourceMap = {
   mysql: mysqlDs,
   oracle: oracleDs,
@@ -30,7 +31,8 @@ const iconDatasourceMap = {
   API: APIDs,
   Excel: ExcelDs,
   doris: dorisDs,
-  OPCUA: OPCUADs
+  OPCUA: OPCUADs,
+  es: esDs
 }
 
 export { iconDatasourceMap }

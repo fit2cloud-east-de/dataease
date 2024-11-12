@@ -166,14 +166,18 @@ onMounted(() => {
           @click="editLine"
         >
           <el-icon>
-            <Icon name="icon_edit_outlined"><icon_edit_outlined class="svg-icon" /></Icon>
+            <Icon
+              ><icon_edit_outlined
+                :class="state.assistLineCfg.enable && 'primary-color'"
+                class="svg-icon"
+            /></Icon>
           </el-icon>
         </button>
       </span>
     </div>
 
     <el-row v-for="(item, index) in state.assistLineCfg.assistLine" :key="index" class="line-style">
-      <el-col :span="8">
+      <el-col :span="8" class="line-style">
         <span :title="item.name">{{ item.name }}</span>
       </el-col>
       <el-col :span="6">
@@ -184,10 +188,10 @@ onMounted(() => {
           t('chart.field_dynamic')
         }}</span>
       </el-col>
-      <el-col v-if="item.field === '0'" :span="10">
+      <el-col v-if="item.field === '0'" :span="10" class="line-style">
         <span :title="item.value">{{ item.value }}</span>
       </el-col>
-      <el-col v-else-if="item.field === '1'" :span="10">
+      <el-col v-else-if="item.field === '1'" :span="10" class="line-style">
         <template v-if="existField(item.curField)">
           <span :title="item.curField.name + '(' + t('chart.' + item.summary) + ')'">
             {{ item.curField.name + '(' + t('chart.' + item.summary) + ')' }}
@@ -208,6 +212,7 @@ onMounted(() => {
       class="dialog-css"
     >
       <assist-line-edit
+        :chart="props.chart"
         :line="state.assistLineCfg.assistLine"
         :quota-fields="quotaFields"
         :quota-ext-fields="quotaExtFields"
@@ -363,7 +368,7 @@ span {
   font-style: normal;
   font-weight: 400;
   line-height: 20px;
-  color: #a6a6a6 !important;
+  color: #a6a6a6;
   &.ed-button {
     color: var(--ed-color-primary) !important;
   }

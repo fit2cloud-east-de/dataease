@@ -15,6 +15,7 @@ import io.dataease.api.ds.vo.ExcelSheetData;
 import io.dataease.datasource.dao.auto.entity.CoreDatasource;
 import io.dataease.exception.DEException;
 import io.dataease.extensions.datasource.dto.DatasetTableDTO;
+import io.dataease.extensions.datasource.dto.DatasourceDTO;
 import io.dataease.extensions.datasource.dto.DatasourceRequest;
 import io.dataease.extensions.datasource.dto.TableField;
 import io.dataease.utils.AuthUtils;
@@ -39,6 +40,21 @@ public class ExcelUtils {
 
     private static TypeReference<List<TableField>> TableFieldListTypeReference = new TypeReference<List<TableField>>() {
     };
+
+    private static TypeReference<List<ExcelSheetData>> sheets = new TypeReference<List<ExcelSheetData>>() {
+    };
+
+    public static void mergeSheets(CoreDatasource requestDatasource, DatasourceDTO sourceData) {
+        List<ExcelSheetData> newSheets = JsonUtil.parseList(requestDatasource.getConfiguration(), sheets);
+        List<String> tableNames = newSheets.stream().map(ExcelSheetData::getDeTableName).collect(Collectors.toList());
+        List<ExcelSheetData> oldSheets = JsonUtil.parseList(sourceData.getConfiguration(), sheets);
+        for (ExcelSheetData oldSheet : oldSheets) {
+            if (!tableNames.contains(oldSheet.getDeTableName())) {
+                newSheets.add(oldSheet);
+            }
+        }
+        requestDatasource.setConfiguration(JsonUtil.toJSONString(newSheets).toString());
+    }
 
     public static List<DatasetTableDTO> getTables(DatasourceRequest datasourceRequest) throws DEException {
         List<DatasetTableDTO> tableDescs = new ArrayList<>();
@@ -311,7 +327,7 @@ public class ExcelUtils {
         if (StringUtils.isEmpty(value) || value.length() > 19) {
             return "TEXT";
         }
-        String regex = "^\\d+(\\.\\d+)?$";
+        String regex = "^-?\\d+(\\.\\d+)?$";
         if (!value.matches(regex)) {
             return "TEXT";
         }

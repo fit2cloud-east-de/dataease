@@ -48,13 +48,13 @@ watch(
 )
 
 const prevClick = () => {
-  let domWrapper = document.querySelector('.tab-wrapper')
+  let domWrapper = tabWrapper.value
   if (!domWrapper.scrollLeft) return
   domWrapper.scrollLeft -= 30
 }
 
 const nextClick = () => {
-  let domWrapper = document.querySelector('.tab-wrapper')
+  let domWrapper = tabWrapper.value
   domWrapper.scrollLeft += 30
 }
 </script>

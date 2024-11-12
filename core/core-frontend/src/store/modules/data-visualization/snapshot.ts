@@ -18,7 +18,8 @@ const {
   curOriginThemes,
   dataPrepareState,
   nowPanelTrackInfo,
-  nowPanelJumpInfo
+  nowPanelJumpInfo,
+  mobileInPc
 } = storeToRefs(dvMainStore)
 
 let defaultCanvasInfo = {
@@ -52,6 +53,20 @@ export const snapshotStore = defineStore('snapshot', {
       if (this.snapshotCacheTimes) {
         this.recordSnapshot('snapshotCatchToStore')
       }
+    },
+    recordSnapshotCacheToMobile(type, component = curComponent.value, otherComponent = null) {
+      if (mobileInPc.value && component) {
+        //移动端设计
+        useEmitt().emitter.emit('onMobileStatusChange', {
+          type: 'componentStyleChange',
+          value: {
+            type: type,
+            component: JSON.parse(JSON.stringify(component)),
+            otherComponent: otherComponent
+          }
+        })
+      }
+      this.recordSnapshotCache(type)
     },
     recordSnapshotCache(type?, viewId = 'all') {
       if (dataPrepareState.value) {
@@ -152,8 +167,9 @@ export const snapshotStore = defineStore('snapshot', {
     },
 
     recordSnapshot() {
-      this.styleChangeTimes = ++this.styleChangeTimes
-      if (dataPrepareState.value) {
+      // 移动端设计时暂不保存镜像
+      if (dataPrepareState.value && !mobileInPc.value) {
+        this.styleChangeTimes = ++this.styleChangeTimes
         const snapshotComponentData = deepCopy(componentData.value)
         dvMainStore.removeGroupArea(snapshotComponentData)
         // 添加新的快照

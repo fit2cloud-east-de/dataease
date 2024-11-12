@@ -23,6 +23,8 @@ import DialogueChart from '@/views/copilot/DialogueChart.vue'
 import { type Tree } from '@/views/visualized/data/dataset/form/CreatDsGroup.vue'
 import { cloneDeep } from 'lodash-es'
 import { iconFieldMap } from '@/components/icon-group/field-list'
+import { useI18n } from '@/hooks/web/useI18n'
+const { t } = useI18n()
 const quota = shallowRef([])
 const dimensions = shallowRef([])
 const datasetTree = shallowRef([])
@@ -105,8 +107,8 @@ const handleDatasetChange = () => {
   if (!!oldId && !!historyArr.value.length) {
     currentId = datasetId.value
     datasetId.value = oldId
-    const msg = `当前数据集为【${oldName}】，切换数据集将清空当前会话。`
-    ElMessageBox.confirm('确定要切换数据集吗？', {
+    const msg = t('copilot.ds_prefix') + oldName + t('copilot.ds_suffix')
+    ElMessageBox.confirm(t('copilot.confirm'), {
       confirmButtonType: 'primary',
       type: 'warning',
       tip: msg,
@@ -209,7 +211,7 @@ const queryAnswer = (event?: KeyboardEvent) => {
       <el-icon style="margin-right: 8px; font-size: 24px">
         <Icon name="copilot"><copilot class="svg-icon" /></Icon>
       </el-icon>
-      Copilot 对话分析
+      {{ t('copilot.talking_analysis') }}
     </div>
     <div class="copilot-service">
       <div class="dialogue">
@@ -243,7 +245,7 @@ const queryAnswer = (event?: KeyboardEvent) => {
         </div>
       </div>
       <div class="dataset-select" :style="{ width: showLeft ? 0 : '280px' }">
-        <el-tooltip effect="dark" content="收起" placement="left">
+        <el-tooltip effect="dark" :content="t('relation.retract')" placement="left">
           <p v-show="!showLeft" class="arrow-right" @click="handleShowLeft(true)">
             <el-icon>
               <Icon name="icon_right_outlined"><icon_right_outlined class="svg-icon" /></Icon>
@@ -251,19 +253,19 @@ const queryAnswer = (event?: KeyboardEvent) => {
           </p>
         </el-tooltip>
 
-        <el-tooltip effect="dark" content="展开" placement="left">
+        <el-tooltip effect="dark" :content="t('relation.expand')" placement="left">
           <p v-show="showLeft" class="left-outlined" @click="handleShowLeft(false)">
             <el-icon>
               <Icon name="icon_left_outlined"><icon_left_outlined class="svg-icon" /></Icon>
             </el-icon>
           </p>
         </el-tooltip>
-        <div class="title-dataset_select">选择数据集</div>
+        <div class="title-dataset_select">{{ t('copilot.choose_dataset') }}</div>
         <div style="margin: 0 16px" class="tree-select">
           <el-tree-select
             v-model="datasetId"
             :data="computedTree"
-            placeholder="请选择数据集"
+            :placeholder="t('copilot.pls_choose_dataset')"
             @change="handleDatasetChange"
             :props="dsSelectProps"
             style="width: 100%"

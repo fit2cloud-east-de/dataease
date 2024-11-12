@@ -2,7 +2,7 @@
 import { getCanvasStyle, getShapeItemStyle } from '@/utils/style'
 import ComponentWrapper from './ComponentWrapper.vue'
 import { changeStyleWithScale } from '@/utils/translate'
-import { computed, nextTick, ref, toRefs, watch, onBeforeUnmount, onMounted } from 'vue'
+import { computed, nextTick, ref, toRefs, watch, onBeforeUnmount, onMounted, reactive } from 'vue'
 import { changeRefComponentsSizeWithScalePoint } from '@/utils/changeComponentsSizeWithScale'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { storeToRefs } from 'pinia'
@@ -18,8 +18,10 @@ import CanvasFilterBtn from '@/custom-component/canvas-filter-btn/Component.vue'
 import { useEmitt } from '@/hooks/web/useEmitt'
 import DatasetParamsComponent from '@/components/visualization/DatasetParamsComponent.vue'
 import DeFullscreen from '@/components/visualization/common/DeFullscreen.vue'
+import EmptyBackground from '../../empty-background/src/EmptyBackground.vue'
+import LinkOptBar from '@/components/data-visualization/canvas/LinkOptBar.vue'
 const dvMainStore = dvMainStoreWithOut()
-const { pcMatrixCount, curComponent, mobileInPc, canvasState } = storeToRefs(dvMainStore)
+const { pcMatrixCount, curComponent, mobileInPc, canvasState, inMobile } = storeToRefs(dvMainStore)
 const openHandler = ref(null)
 const customDatasetParamsRef = ref(null)
 const emits = defineEmits(['onResetLayout'])
@@ -76,6 +78,11 @@ const props = defineProps({
   isSelector: {
     type: Boolean,
     default: false
+  },
+  // 显示悬浮按钮
+  showPopBar: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -89,7 +96,8 @@ const {
   previewActive,
   downloadStatus,
   outerScale,
-  outerSearchCount
+  outerSearchCount,
+  showPopBar
 } = toRefs(props)
 const domId = 'preview-' + canvasId.value
 const scaleWidthPoint = ref(100)
@@ -104,6 +112,9 @@ const refreshTimer = ref(null)
 const renderReady = ref(false)
 const dashboardActive = computed(() => {
   return dvInfo.value.type === 'dashboard'
+})
+const state = reactive({
+  initState: true
 })
 
 const curSearchCount = computed(() => {
@@ -126,6 +137,9 @@ const baseComponentData = computed(() =>
 )
 const canvasStyle = computed(() => {
   let style = {}
+  if (isMainCanvas(canvasId.value) && !isDashboard()) {
+    style['overflowY'] = 'hidden !important'
+  }
   if (canvasStyleData.value && canvasStyleData.value.width && isMainCanvas(canvasId.value)) {
     style = {
       ...getCanvasStyle(canvasStyleData.value),
@@ -227,7 +241,8 @@ const resetLayout = () => {
           baseComponentData.value,
           canvasStyleData.value,
           scaleMin.value || outerScale.value * 100,
-          scaleMinHeight || outerScale.value * 100
+          scaleMinHeight || outerScale.value * 100,
+          outerScale.value * 100
         )
         scaleMin.value = isMainCanvas(canvasId.value) ? scaleMin.value : outerScale.value * 100
       }
@@ -301,9 +316,9 @@ const winMsgHandle = event => {
     isMainCanvas(canvasId.value)
   ) {
     const attachParams = msgInfo.params
-    if (attachParams) {
-      dvMainStore.addOuterParamsFilter(attachParams, baseComponentData.value, 'outer')
-    }
+    state.initState = false
+    dvMainStore.addOuterParamsFilter(attachParams, baseComponentData.value, 'outer')
+    state.initState = true
   }
 }
 
@@ -383,7 +398,22 @@ const filterBtnShow = computed(
 const datasetParamsInit = item => {
   customDatasetParamsRef.value?.optInit(item)
 }
+const dataVPreview = computed(
+  () => dvInfo.value.type === 'dataV' && canvasId.value === 'canvas-main'
+)
 
+const linkOptBarShow = computed(() => {
+  return Boolean(
+    canvasStyleData.value.suspensionButtonAvailable &&
+      !inMobile.value &&
+      !mobileInPc.value &&
+      showPopBar.value
+  )
+})
+
+const downloadAsPDF = () => {
+  // test
+}
 defineExpose({
   restore
 })
@@ -394,9 +424,10 @@ defineExpose({
     :id="domId"
     class="canvas-container"
     :style="canvasStyle"
-    :class="{ 'de-download-custom': downloadStatus }"
+    :class="{ 'de-download-custom': downloadStatus, 'datav-preview': dataVPreview }"
     ref="previewCanvas"
     @mousedown="handleMouseDown"
+    v-if="state.initState"
   >
     <!--弹框触发区域-->
     <canvas-filter-btn v-if="filterBtnShow"></canvas-filter-btn>
@@ -441,9 +472,17 @@ defineExpose({
     </template>
     <user-view-enlarge ref="userViewEnlargeRef"></user-view-enlarge>
   </div>
+  <empty-background v-if="!state.initState" description="参数不能为空" img-type="noneWhite" />
   <de-fullscreen ref="fullScreeRef"></de-fullscreen>
   <dataset-params-component ref="customDatasetParamsRef"></dataset-params-component>
   <XpackComponent ref="openHandler" jsname="L2NvbXBvbmVudC9lbWJlZGRlZC1pZnJhbWUvT3BlbkhhbmRsZXI=" />
+  <link-opt-bar
+    v-if="linkOptBarShow"
+    ref="link-opt-bar"
+    :terminal="'pc'"
+    :canvas-style-data="canvasStyleData"
+    @link-export-pdf="downloadAsPDF"
+  />
 </template>
 
 <style lang="less" scoped>
@@ -466,5 +505,9 @@ defineExpose({
 
 .fix-button {
   position: fixed !important;
+}
+
+.datav-preview {
+  overflow-y: hidden !important;
 }
 </style>

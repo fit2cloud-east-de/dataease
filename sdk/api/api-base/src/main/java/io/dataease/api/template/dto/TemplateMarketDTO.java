@@ -2,6 +2,7 @@ package io.dataease.api.template.dto;
 
 import io.dataease.api.template.vo.MarketCategoryVO;
 import io.dataease.api.template.vo.MarketMetasVO;
+import io.dataease.i18n.Translator;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -55,8 +56,9 @@ public class TemplateMarketDTO implements Comparable<TemplateMarketDTO> {
         this.classify = manageDTO.getNodeType();
         if (manageDTO.getRecentUseTime() != null) {
             this.recentUseTime = manageDTO.getRecentUseTime();
-            this.categories.add(new MarketCategoryVO("最近使用"));
-            this.categoryNames.add("最近使用");
+            String name = Translator.get("i18n_template_recent");
+            this.categories.add(new MarketCategoryVO(name));
+            this.categoryNames.add(name);
         }
     }
 
@@ -70,13 +72,15 @@ public class TemplateMarketDTO implements Comparable<TemplateMarketDTO> {
         this.categoryNames = new ArrayList<>(Arrays.asList(categoryName)) ;
         if (recentUseTime != null) {
             this.recentUseTime = recentUseTime;
-            this.categories.add(new MarketCategoryVO("最近使用"));
-            this.categoryNames.add("最近使用");
+            String name = Translator.get("i18n_template_recent");
+            this.categories.add(new MarketCategoryVO(name));
+            this.categoryNames.add(name);
         }
         if ("Y".equalsIgnoreCase(suggest)) {
             this.suggest = "Y";
-            this.categories.add(new MarketCategoryVO("推荐"));
-            this.categoryNames.add("推荐");
+            String name = Translator.get("i18n_template_recommend");
+            this.categories.add(new MarketCategoryVO(name));
+            this.categoryNames.add(name);
         }
     }
 

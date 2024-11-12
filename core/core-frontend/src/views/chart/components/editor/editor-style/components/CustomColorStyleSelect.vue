@@ -172,7 +172,7 @@ const changeSeriesColor = () => {
   })
   if (changed) {
     state.value.basicStyleForm[seriesColorName.value] = cloneDeep(seriesColorState.seriesColor)
-    changeBasicStyle('seriesColor')
+    changeBasicStyle(seriesColorName.value)
   }
 }
 watch(
@@ -210,6 +210,7 @@ const customColorPickerRef = ref<InstanceType<typeof ElColorPicker>>()
 
 function selectColorCase(option) {
   state.value.basicStyleForm[colorSchemeName.value] = option.value
+  changeBasicStyle(colorSchemeName.value)
   colorCaseSelectorRef.value?.hide()
   changeColorOption(option)
 }
@@ -229,10 +230,17 @@ const changeColorOption = (option?) => {
       c.color = items[0].colors[i % length]
     })
     changeBasicStyle()
+    setupSeriesColor()
   }
 }
 const resetCustomColor = () => {
-  changeColorOption()
+  if (props.chart.type.includes('map')) {
+    changeColorOption()
+  } else {
+    state.value.basicStyleForm[seriesColorName.value] = []
+    changeBasicStyle(seriesColorName.value)
+    setupSeriesColor()
+  }
 }
 
 const switchColorCase = () => {
@@ -263,7 +271,7 @@ const switchColor = (index, c) => {
   customColorPickerRef.value?.show()
 }
 
-function changeBasicStyle(prop = 'colors') {
+function changeBasicStyle(prop = colorsName.value) {
   emits('changeBasicStyle', prop)
 }
 

@@ -89,7 +89,7 @@ public class MysqlEngineProvider extends EngineProvider {
             int size = tableField.getPrecision() * 4;
             switch (tableField.getDeExtractType()) {
                 case 0:
-                    Column_Fields.append("longtext").append(",`");
+                    Column_Fields.append("varchar(1024)").append(",`");
                     break;
                 case 1:
                     Column_Fields.append("datetime").append(",`");
@@ -104,7 +104,7 @@ public class MysqlEngineProvider extends EngineProvider {
                     Column_Fields.append("TINYINT(length)".replace("length", String.valueOf(tableField.getPrecision()))).append(",`");
                     break;
                 default:
-                    Column_Fields.append("longtext").append(",`");
+                    Column_Fields.append("varchar(1024)").append(",`");
                     break;
             }
         }

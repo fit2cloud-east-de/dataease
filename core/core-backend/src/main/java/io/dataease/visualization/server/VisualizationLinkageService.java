@@ -6,6 +6,7 @@ import io.dataease.api.visualization.dto.LinkageInfoDTO;
 import io.dataease.api.visualization.dto.VisualizationLinkageDTO;
 import io.dataease.api.visualization.request.VisualizationLinkageRequest;
 import io.dataease.api.visualization.vo.VisualizationLinkageFieldVO;
+import io.dataease.auth.DeLinkPermit;
 import io.dataease.chart.dao.auto.entity.CoreChartView;
 import io.dataease.chart.dao.auto.mapper.CoreChartViewMapper;
 import io.dataease.utils.BeanUtils;
@@ -108,6 +109,7 @@ public class VisualizationLinkageService implements VisualizationLinkageApi {
         return new BaseRspModel();
     }
 
+    @DeLinkPermit
     @Override
     public Map<String, List<String>> getVisualizationAllLinkageInfo(Long dvId) {
         List<LinkageInfoDTO> info = extVisualizationLinkageMapper.getPanelAllLinkageInfo(dvId);

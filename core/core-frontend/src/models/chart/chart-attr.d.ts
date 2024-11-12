@@ -205,6 +205,10 @@ declare interface ChartBasicStyle {
    * 地图主题风格
    */
   mapStyle: string
+  /**
+   * 自定义地图风格url
+   */
+  mapStyleUrl: string
   heatMapType?: string
   heatMapIntensity?: number
   heatMapRadius?: number
@@ -281,6 +285,47 @@ declare interface ChartBasicStyle {
    * 汇总表总计标签
    */
   summaryLabel: string
+  /**
+   * 符号地图符号大小最小值
+   */
+  mapSymbolSizeMin: number
+  /**
+   * 符号地图符号大小最大值
+   */
+  mapSymbolSizeMax: number
+  /**
+   * 显示标签
+   */
+  showLabel: boolean
+  /**
+   * 自适应缩放
+   */
+  autoFit: boolean
+  /**
+   * 地图中心点经纬度
+   */
+  mapCenter: {
+    /**
+     * 经度
+     */
+    longitude: number
+    /**
+     * 纬度
+     */
+    latitude: number
+  }
+  /**
+   * 缩放等级
+   */
+  zoomLevel: number
+  /**
+   * 符号地图自定义符号形状
+   */
+  customIcon: string
+  /**
+   * 表格鼠标悬浮样式
+   */
+  showHoverStyle: boolean
 }
 /**
  * 表头属性
@@ -402,6 +447,22 @@ declare interface ChartTableCellAttr {
    * 加粗
    */
   isBolder: boolean
+  /**
+   * 冻结
+   */
+  tableFreeze: boolean
+  /**
+   * 冻结列
+   */
+  tableColumnFreezeHead: number
+  /**
+   * 冻结行
+   */
+  tableRowFreezeHead: number
+  /**
+   * 合并单元格
+   */
+  mergeCells: boolean
 }
 
 /**
@@ -662,6 +723,15 @@ declare interface ChartMiscAttr {
    */
   mapLegendNumber: number
   /**
+   * 自定义区间类型，等间距，自定义
+   */
+  mapLegendRangeType: 'quantize' | 'custom'
+  /**
+   * 自定义区间类型为自定义(custom)时生效
+   * 自定义区间值
+   */
+  mapLegendCustomRange: number[]
+  /**
    * 流向地图配置
    */
   flowMapConfig: {
@@ -860,6 +930,14 @@ declare interface ChartLabelAttr {
    * 总计标签格式化设置
    */
   totalFormatter: BaseFormatter
+  /**
+   * 柱状图堆叠指标
+   */
+  showStackQuota: boolean
+  /**
+   * 全部显示
+   */
+  fullDisplay: boolean
 }
 /**
  * 提示设置

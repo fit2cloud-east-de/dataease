@@ -71,6 +71,8 @@ public class SQLConstants {
 
     public static final String WHERE_VALUE_VALUE = "'%s'";
 
+    public static final String WHERE_VALUE_VALUE_CH = "'-DENS-%s'";
+
     public static final String WHERE_NUMBER_VALUE = "%s";
 
     public static final String AGG_COUNT = "COUNT(*)";
@@ -96,4 +98,6 @@ public class SQLConstants {
     public static final String EMPTY_SIGN = "_empty_$";
 
     public static final String CONCAT = "CONCAT(%s, %s)";
+
+    public static final String MSSQL_N_PREFIX = "-DENS-";
 }

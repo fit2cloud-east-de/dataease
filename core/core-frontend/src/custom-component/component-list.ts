@@ -318,6 +318,7 @@ const list = [
     sizeX: 36,
     sizeY: 14,
     style: {
+      adaptation: 'adaptation',
       width: 600,
       height: 300
     },

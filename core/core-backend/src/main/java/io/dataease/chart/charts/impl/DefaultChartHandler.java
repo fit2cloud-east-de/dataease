@@ -14,6 +14,7 @@ import io.dataease.engine.sql.SQLProvider;
 import io.dataease.engine.trans.Dimension2SQLObj;
 import io.dataease.engine.trans.Quota2SQLObj;
 import io.dataease.engine.utils.Utils;
+import io.dataease.exception.DEException;
 import io.dataease.extensions.datasource.api.PluginManageApi;
 import io.dataease.extensions.datasource.dto.DatasetTableFieldDTO;
 import io.dataease.extensions.datasource.dto.DatasourceDTO;
@@ -21,10 +22,13 @@ import io.dataease.extensions.datasource.dto.DatasourceRequest;
 import io.dataease.extensions.datasource.dto.DatasourceSchemaDTO;
 import io.dataease.extensions.datasource.model.SQLMeta;
 import io.dataease.extensions.datasource.provider.Provider;
+import io.dataease.extensions.datasource.vo.DatasourceConfiguration;
+import io.dataease.extensions.datasource.vo.XpackPluginsDatasourceVO;
 import io.dataease.extensions.view.dto.*;
 import io.dataease.extensions.view.plugin.AbstractChartPlugin;
 import io.dataease.extensions.view.util.ChartDataUtil;
 import io.dataease.extensions.view.util.FieldUtil;
+import io.dataease.license.utils.LicenseUtil;
 import io.dataease.utils.BeanUtils;
 import io.dataease.utils.JsonUtil;
 import jakarta.annotation.PostConstruct;
@@ -266,14 +270,159 @@ public class DefaultChartHandler extends AbstractChartPlugin {
         return res;
     }
 
-    protected String assistSQL(String sql, List<ChartViewFieldDTO> assistFields) {
+    protected List<ChartViewFieldDTO> getAssistFields(List<ChartSeniorAssistDTO> list, List<ChartViewFieldDTO> yAxis, List<ChartViewFieldDTO> xAxis) {
+        List<ChartViewFieldDTO> res = new ArrayList<>();
+        for (ChartSeniorAssistDTO dto : list) {
+            DatasetTableFieldDTO curField = dto.getCurField();
+            ChartViewFieldDTO field = null;
+            String alias = "";
+            for (int i = 0; i < yAxis.size(); i++) {
+                ChartViewFieldDTO yField = yAxis.get(i);
+                if (Objects.equals(yField.getId(), curField.getId())) {
+                    field = yField;
+                    alias = String.format(SQLConstants.FIELD_ALIAS_Y_PREFIX, i);
+                    break;
+                }
+            }
+            if (ObjectUtils.isEmpty(field) && CollectionUtils.isNotEmpty(xAxis)) {
+                for (int i = 0; i < xAxis.size(); i++) {
+                    ChartViewFieldDTO xField = xAxis.get(i);
+                    if (StringUtils.equalsIgnoreCase(String.valueOf(xField.getId()), String.valueOf(curField.getId()))) {
+                        field = xField;
+                        alias = String.format(SQLConstants.FIELD_ALIAS_X_PREFIX, i);
+                        break;
+                    }
+                }
+            }
+            if (ObjectUtils.isEmpty(field)) {
+                continue;
+            }
+
+            ChartViewFieldDTO chartViewFieldDTO = new ChartViewFieldDTO();
+            BeanUtils.copyBean(chartViewFieldDTO, curField);
+            chartViewFieldDTO.setSummary(dto.getSummary());
+            chartViewFieldDTO.setOriginName(alias);// yAxis的字段别名，就是查找的字段名
+            res.add(chartViewFieldDTO);
+        }
+        return res;
+    }
+
+    public List<ChartSeniorAssistDTO> getDynamicThresholdFields(ChartViewDTO view) {
+        List<ChartSeniorAssistDTO> list = new ArrayList<>();
+        Map<String, Object> senior = view.getSenior();
+        if (ObjectUtils.isEmpty(senior)) {
+            return list;
+        }
+        ChartSeniorThresholdCfgDTO thresholdCfg = JsonUtil.parseObject((String) JsonUtil.toJSONString(senior.get("threshold")), ChartSeniorThresholdCfgDTO.class);
+
+        if (null == thresholdCfg || !thresholdCfg.isEnable()) {
+            return list;
+        }
+        List<TableThresholdDTO> tableThreshold = thresholdCfg.getTableThreshold();
+
+        if (ObjectUtils.isEmpty(tableThreshold)) {
+            return list;
+        }
+
+        List<ChartSeniorThresholdDTO> conditionsList = tableThreshold.stream()
+                .filter(item -> !ObjectUtils.isEmpty(item))
+                .map(TableThresholdDTO::getConditions)
+                .flatMap(List::stream)
+                .filter(condition -> StringUtils.equalsAnyIgnoreCase(condition.getType(), "dynamic"))
+                .toList();
+
+        List<ChartSeniorAssistDTO> assistDTOs = conditionsList.stream()
+                .flatMap(condition -> getConditionFields(condition).stream())
+                .filter(this::solveThresholdCondition)
+                .toList();
+
+        list.addAll(assistDTOs);
+
+        return list;
+    }
+
+    private boolean solveThresholdCondition(ChartSeniorAssistDTO fieldDTO) {
+        Long fieldId = fieldDTO.getFieldId();
+        String summary = fieldDTO.getValue();
+        if (ObjectUtils.isEmpty(fieldId) || StringUtils.isEmpty(summary)) {
+            return false;
+        }
+
+        DatasetTableFieldDTO datasetTableFieldDTO = datasetTableFieldManage.selectById(fieldId);
+        if (ObjectUtils.isEmpty(datasetTableFieldDTO)) {
+            return false;
+        }
+        ChartViewFieldDTO datasetTableField = new ChartViewFieldDTO();
+        BeanUtils.copyBean(datasetTableField, datasetTableFieldDTO);
+        fieldDTO.setCurField(datasetTableField);
+        fieldDTO.setSummary(summary);
+        return true;
+    }
+
+    private List<ChartSeniorAssistDTO> getConditionFields(ChartSeniorThresholdDTO condition) {
+        List<ChartSeniorAssistDTO> list = new ArrayList<>();
+        if ("between".equals(condition.getTerm())) {
+            if (!StringUtils.equalsIgnoreCase(condition.getDynamicMaxField().getSummary(), "value")) {
+                list.add(of(condition.getDynamicMaxField()));
+            }
+            if (!StringUtils.equalsIgnoreCase(condition.getDynamicMinField().getSummary(), "value")) {
+                list.add(of(condition.getDynamicMinField()));
+            }
+        } else {
+            if (!StringUtils.equalsIgnoreCase(condition.getDynamicField().getSummary(), "value")) {
+                list.add(of(condition.getDynamicField()));
+            }
+        }
+
+        return list;
+    }
+
+    private ChartSeniorAssistDTO of(ThresholdDynamicFieldDTO dynamicField) {
+        ChartSeniorAssistDTO conditionField = new ChartSeniorAssistDTO();
+        conditionField.setFieldId(Long.parseLong(dynamicField.getFieldId()));
+        conditionField.setValue(dynamicField.getSummary());
+        return conditionField;
+    }
+
+    protected String assistSQL(String sql, List<ChartViewFieldDTO> assistFields, Map<Long, DatasourceSchemaDTO> dsMap) {
+        // get datasource prefix and suffix
+        String dsType = dsMap.entrySet().iterator().next().getValue().getType();
+        String prefix = "";
+        String suffix = "";
+        if (Arrays.stream(DatasourceConfiguration.DatasourceType.values()).map(DatasourceConfiguration.DatasourceType::getType).toList().contains(dsType)) {
+            DatasourceConfiguration.DatasourceType datasourceType = DatasourceConfiguration.DatasourceType.valueOf(dsType);
+            prefix = datasourceType.getPrefix();
+            suffix = datasourceType.getSuffix();
+        } else {
+            if (LicenseUtil.licenseValid()) {
+                List<XpackPluginsDatasourceVO> xpackPluginsDatasourceVOS = pluginManage.queryPluginDs();
+                List<XpackPluginsDatasourceVO> list = xpackPluginsDatasourceVOS.stream().filter(ele -> StringUtils.equals(ele.getType(), dsType)).toList();
+                if (ObjectUtils.isNotEmpty(list)) {
+                    XpackPluginsDatasourceVO first = list.getFirst();
+                    prefix = first.getPrefix();
+                    suffix = first.getSuffix();
+                } else {
+                    DEException.throwException("当前数据源插件不存在");
+                }
+            }
+        }
+
+        boolean crossDs = Utils.isCrossDs(dsMap);
         StringBuilder stringBuilder = new StringBuilder();
         for (int i = 0; i < assistFields.size(); i++) {
             ChartViewFieldDTO dto = assistFields.get(i);
-            if (i == (assistFields.size() - 1)) {
-                stringBuilder.append(dto.getSummary() + "(" + dto.getOriginName() + ")");
+            if (crossDs) {
+                if (i == (assistFields.size() - 1)) {
+                    stringBuilder.append(dto.getSummary() + "(" + dto.getOriginName() + ")");
+                } else {
+                    stringBuilder.append(dto.getSummary() + "(" + dto.getOriginName() + "),");
+                }
             } else {
-                stringBuilder.append(dto.getSummary() + "(" + dto.getOriginName() + "),");
+                if (i == (assistFields.size() - 1)) {
+                    stringBuilder.append(dto.getSummary() + "(" + prefix + dto.getOriginName() + suffix + ")");
+                } else {
+                    stringBuilder.append(dto.getSummary() + "(" + prefix + dto.getOriginName() + suffix + "),");
+                }
             }
         }
         return "SELECT " + stringBuilder + " FROM (" + sql + ") tmp";
@@ -480,7 +629,8 @@ public class DefaultChartHandler extends AbstractChartPlugin {
                 if (StringUtils.isNotEmpty(compareCalc.getType())
                         && !StringUtils.equalsIgnoreCase(compareCalc.getType(), "none")) {
                     if (Arrays.asList(ChartConstants.M_Y).contains(compareCalc.getType())) {
-                        if (StringUtils.equalsIgnoreCase(compareCalc.getField() + "", filterDTO.getFieldId()) && filterDTO.getFilterType() == 0) {
+                        if (StringUtils.equalsIgnoreCase(compareCalc.getField() + "", filterDTO.getFieldId())
+                                && (filterDTO.getFilterType() == 0 || filterDTO.getFilterType() == 2)) {
                             // -1 year
                             try {
                                 Calendar calendar = Calendar.getInstance();

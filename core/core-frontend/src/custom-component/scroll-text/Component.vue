@@ -16,6 +16,7 @@ const textOut = ref(null)
 const scrollScale0 = ref('100%')
 const scrollScale100 = ref('100%')
 let timeId = null
+const textOutClientWidth = ref(200)
 
 const props = defineProps({
   propValue: {
@@ -31,10 +32,15 @@ const props = defineProps({
         propValue: ''
       }
     }
+  },
+  showPosition: {
+    required: false,
+    type: String,
+    default: 'preview'
   }
 })
 
-const { element } = toRefs(props)
+const { element, showPosition } = toRefs(props)
 const dvMainStore = dvMainStoreWithOut()
 const { editMode, curComponent, canvasStyleData } = storeToRefs(dvMainStore)
 
@@ -103,10 +109,11 @@ const marqueeTxt = computed(
 )
 
 const setEdit = () => {
-  if (element.value['isLock']) return
-  canEdit.value = true
-  // 全选
-  selectText(text.value)
+  if (['canvas', 'canvasDataV', 'edit'].includes(showPosition.value) && !element.value['isLock']) {
+    canEdit.value = true
+    // 全选
+    selectText(text.value)
+  }
 }
 const selectText = element => {
   const selection = window.getSelection()
@@ -129,9 +136,7 @@ const varStyle = computed(() => [
     '--scroll-speed': `${
       element.value.style.scrollSpeed === 0 || !textOut.value
         ? 0
-        : (textOut.value.clientWidth * 100) /
-          canvasStyleData.value.scale /
-          element.value.style.scrollSpeed
+        : (textOutClientWidth.value + text.value.clientWidth) / element.value.style.scrollSpeed
     }s`,
     '--scroll-scale0': `${scrollScale0.value}`,
     '--scroll-scale100': `${scrollScale100.value}`
@@ -140,30 +145,21 @@ const varStyle = computed(() => [
 
 const init = () => {
   timeId = setInterval(() => {
-    if (textOut.value && text.value) {
-      const textValue = text.value.clientWidth * 100
-      const fontLength = document.getElementsByClassName('marquee-txt')[0]?.innerText?.length
-      const fontSizeLength = fontLength * element.value.style.fontSize * canvasStyleData.value.scale
-      if (textValue < fontSizeLength) {
-        scrollScale0.value = (textValue * 100) / textValue + '%'
-        scrollScale100.value = '100%'
-      } else {
-        scrollScale0.value = '100%'
-        scrollScale100.value = (-(fontSizeLength + 5000) * 100) / textValue + '%'
-      }
+    const outerId = ['canvas', 'canvasDataV', 'edit'].includes(showPosition.value)
+      ? 'shape-id-' + element.value.id
+      : 'wrapper-outer-id-' + element.value.id
+    const componentOut = document.getElementById(outerId)
+    if (componentOut && text.value) {
+      const textValue = text.value.clientWidth
+      textOutClientWidth.value = componentOut.clientWidth
+      scrollScale0.value = (textOutClientWidth.value * 100) / textValue + '%'
+      scrollScale100.value = '-100%'
     } else {
       scrollScale0.value = '100%'
       scrollScale100.value = '-100%'
     }
   }, 1000)
 }
-
-const textStyle = computed(() => {
-  return {
-    verticalAlign: element.value['style'].verticalAlign
-  }
-})
-
 onMounted(() => {
   init()
 })
@@ -184,7 +180,6 @@ onMounted(() => {
       :contenteditable="canEdit"
       :class="{ 'can-edit': canEdit, 'marquee-txt': marqueeTxt }"
       tabindex="0"
-      :style="textStyle"
       @paste="clearStyle"
       @mousedown="handleMousedown"
       @blur="handleBlur"
@@ -193,7 +188,7 @@ onMounted(() => {
     ></div>
   </div>
   <div v-else class="v-text preview" ref="textOut" :style="varStyle">
-    <div class="marquee-txt" :style="textStyle" ref="text" v-html="element['propValue']"></div>
+    <div class="marquee-txt" ref="text" v-html="element['propValue']"></div>
   </div>
 </template>
 
@@ -201,11 +196,9 @@ onMounted(() => {
 .v-text {
   width: 100%;
   height: 100%;
-  display: table;
+  display: flex;
+  align-items: center;
   div {
-    display: table-cell;
-    width: 100%;
-    height: 100%;
     outline: none;
     word-break: break-all;
     padding: 4px;
@@ -214,6 +207,9 @@ onMounted(() => {
 
   .can-edit {
     cursor: text;
+    width: 100%;
+    display: grid;
+    align-items: center;
     height: 100%;
   }
 }

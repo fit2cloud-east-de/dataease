@@ -1,5 +1,7 @@
 import type { ComponentInfo } from '@/api/chart'
 import { guid } from '@/views/visualized/data/dataset/form/util.js'
+import { useI18n } from '@/hooks/web/useI18n'
+const { t } = useI18n()
 
 const infoFormat = (obj: ComponentInfo) => {
   const { id, name, deType, type, datasetId } = obj
@@ -67,7 +69,7 @@ const infoFormat = (obj: ComponentInfo) => {
 const addQueryCriteriaConfig = () => {
   const componentInfo: ComponentInfo = {
     id: '',
-    name: '未命名',
+    name: t('v_query.unnamed'),
     deType: 0,
     type: 'VARCHAR',
     datasetId: ''

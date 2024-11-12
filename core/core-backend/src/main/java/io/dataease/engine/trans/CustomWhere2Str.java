@@ -17,6 +17,7 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @Author Junjun
@@ -77,6 +78,13 @@ public class CustomWhere2Str {
         if (ObjectUtils.isEmpty(field)) {
             return null;
         }
+
+        String dsType = null;
+        if (dsMap != null && dsMap.entrySet().iterator().hasNext()) {
+            Map.Entry<Long, DatasourceSchemaDTO> next = dsMap.entrySet().iterator().next();
+            dsType = next.getValue().getType();
+        }
+
         Map<String, String> paramMap = Utils.mergeParam(fieldParam, chartParam);
         String whereName = "";
         String originName;
@@ -90,9 +98,17 @@ public class CustomWhere2Str {
                 originName = calcFieldExp;
             }
         } else if (ObjectUtils.isNotEmpty(field.getExtField()) && field.getExtField() == 1) {
-            originName = String.format(SQLConstants.FIELD_NAME, tableObj.getTableAlias(), field.getDataeaseName());
+            if (StringUtils.equalsIgnoreCase(dsType, "es")) {
+                originName = String.format(SQLConstants.FIELD_NAME, tableObj.getTableAlias(), field.getOriginName());
+            } else {
+                originName = String.format(SQLConstants.FIELD_NAME, tableObj.getTableAlias(), field.getDataeaseName());
+            }
         } else {
-            originName = String.format(SQLConstants.FIELD_NAME, tableObj.getTableAlias(), field.getDataeaseName());
+            if (StringUtils.equalsIgnoreCase(dsType, "es")) {
+                originName = String.format(SQLConstants.FIELD_NAME, tableObj.getTableAlias(), field.getOriginName());
+            } else {
+                originName = String.format(SQLConstants.FIELD_NAME, tableObj.getTableAlias(), field.getDataeaseName());
+            }
         }
         if (field.getDeType() == 1) {
             if (field.getDeExtractType() == 0 || field.getDeExtractType() == 5) {
@@ -114,7 +130,14 @@ public class CustomWhere2Str {
                     }
                 }
                 // 此处获取标准格式的日期
-                whereName = originName;
+                if (StringUtils.equalsIgnoreCase(field.getType(), "date")
+                        || (StringUtils.equalsIgnoreCase(dsMap.entrySet().iterator().next().getValue().getType(), "oracle") && StringUtils.equalsIgnoreCase(field.getType(), "timestamp"))) {
+                    whereName = String.format(SQLConstants.DE_CAST_DATE_FORMAT, originName,
+                            SQLConstants.DEFAULT_DATE_FORMAT,
+                            SQLConstants.DEFAULT_DATE_FORMAT);
+                } else {
+                    whereName = originName;
+                }
             }
         } else if (field.getDeType() == 2 || field.getDeType() == 3) {
             if (field.getDeExtractType() == 0 || field.getDeExtractType() == 5) {
@@ -135,7 +158,12 @@ public class CustomWhere2Str {
 
         if (StringUtils.equalsIgnoreCase(item.getFilterType(), "enum")) {
             if (ObjectUtils.isNotEmpty(item.getEnumValue())) {
-                res = "(" + whereName + " IN ('" + String.join("','", item.getEnumValue()) + "'))";
+                if (StringUtils.containsIgnoreCase(field.getType(), "NVARCHAR")
+                        || StringUtils.containsIgnoreCase(field.getType(), "NCHAR")) {
+                    res = "(" + whereName + " IN (" + item.getEnumValue().stream().map(str -> "'" + SQLConstants.MSSQL_N_PREFIX + str + "'").collect(Collectors.joining(",")) + "))";
+                } else {
+                    res = "(" + whereName + " IN ('" + String.join("','", item.getEnumValue()) + "'))";
+                }
             }
         } else {
             if (field.getDeType() == 1 && isCross) {
@@ -156,9 +184,19 @@ public class CustomWhere2Str {
             } else if (StringUtils.equalsIgnoreCase(item.getTerm(), "not_empty")) {
                 whereValue = "''";
             } else if (StringUtils.containsIgnoreCase(item.getTerm(), "in") || StringUtils.containsIgnoreCase(item.getTerm(), "not in")) {
-                whereValue = "('" + String.join("','", value.split(",")) + "')";
+                if (StringUtils.containsIgnoreCase(field.getType(), "NVARCHAR")
+                        || StringUtils.containsIgnoreCase(field.getType(), "NCHAR")) {
+                    whereValue = "(" + Arrays.stream(value.split(",")).map(str -> "'" + SQLConstants.MSSQL_N_PREFIX + str + "'").collect(Collectors.joining(",")) + ")";
+                } else {
+                    whereValue = "('" + String.join("','", value.split(",")) + "')";
+                }
             } else if (StringUtils.containsIgnoreCase(item.getTerm(), "like")) {
-                whereValue = "'%" + value + "%'";
+                if (StringUtils.containsIgnoreCase(field.getType(), "NVARCHAR")
+                        || StringUtils.containsIgnoreCase(field.getType(), "NCHAR")) {
+                    whereValue = "'" + SQLConstants.MSSQL_N_PREFIX + "%" + value + "%'";
+                } else {
+                    whereValue = "'%" + value + "%'";
+                }
             } else {
                 // 如果是时间字段过滤，当条件是等于和不等于的时候转换成between和not between
                 if (field.getDeType() == 1) {
@@ -199,7 +237,12 @@ public class CustomWhere2Str {
                         whereValue = String.format(SQLConstants.WHERE_VALUE_VALUE, value);
                     }
                 } else {
-                    whereValue = String.format(SQLConstants.WHERE_VALUE_VALUE, value);
+                    if (StringUtils.containsIgnoreCase(field.getType(), "NVARCHAR")
+                            || StringUtils.containsIgnoreCase(field.getType(), "NCHAR")) {
+                        whereValue = String.format(SQLConstants.WHERE_VALUE_VALUE_CH, value);
+                    } else {
+                        whereValue = String.format(SQLConstants.WHERE_VALUE_VALUE, value);
+                    }
                 }
             }
             SQLObj build = SQLObj.builder()

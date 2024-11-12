@@ -3,6 +3,7 @@ import { divide, multiply } from 'mathjs'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { storeToRefs } from 'pinia'
 import { groupSizeStyleAdaptor } from '@/utils/style'
+import { nextTick } from 'vue'
 
 const dvMainStore = dvMainStoreWithOut()
 const { componentData, curComponentIndex, canvasStyleData } = storeToRefs(dvMainStore)
@@ -25,17 +26,18 @@ export function changeSizeWithScale(scale) {
   return changeComponentsSizeWithScale(scale)
 }
 
-export function changeComponentsSizeWithScale(scale) {
-  const componentDataCopy = deepCopy(componentData.value)
+function changeComponentsSizeWithScaleCircle(componentDataCopy, scale) {
   componentDataCopy.forEach(component => {
     Object.keys(component.style).forEach(key => {
       if (needToChangeDirectionAttrs.width.includes(key)) {
         // 根据原来的比例获取样式原来的尺寸
         // 再用原来的尺寸 * 现在的比例得出新的尺寸
-        component.style[key] = format(
-          getOriginStyle(component.style[key], canvasStyleData.value.scale),
-          scale
-        )
+        if (!!component.style[key]) {
+          component.style[key] = format(
+            getOriginStyle(component.style[key], canvasStyleData.value.scale),
+            scale
+          )
+        }
       } else if (needToChangeDirectionAttrs.height.includes(key)) {
         // 根据原来的比例获取样式原来的尺寸
         // 再用原来的尺寸 * 现在的比例得出新的尺寸
@@ -45,18 +47,30 @@ export function changeComponentsSizeWithScale(scale) {
         )
       }
     })
+
+    if (['Group'].includes(component.component)) {
+      changeComponentsSizeWithScaleCircle(component.propValue, scale)
+    } else if (['DeTabs'].includes(component.component)) {
+      component.propValue.forEach(tabItem => {
+        changeComponentsSizeWithScaleCircle(tabItem.componentData, scale)
+      })
+    }
     // 如果是分组组件 则要进行分组内部组件groupStyle进行深度计算
     // 计算逻辑 Group 中样式 * groupComponent.groupStyle[sonKey].
     if (['Group', 'DeTabs'].includes(component.component)) {
       try {
-        groupSizeStyleAdaptor(component)
+        nextTick(() => groupSizeStyleAdaptor(component))
       } catch (e) {
         // 旧Group适配
         console.error('group adaptor error:' + e)
       }
     }
   })
+}
 
+function changeComponentsSizeWithScale(scale) {
+  const componentDataCopy = deepCopy(componentData.value)
+  changeComponentsSizeWithScaleCircle(componentDataCopy, scale)
   dvMainStore.setComponentData(componentDataCopy)
   // 更新画布数组后，需要重新设置当前组件，否则在改变比例后，直接拖动圆点改变组件大小不会生效
   dvMainStore.setCurComponent({
@@ -93,7 +107,8 @@ export function changeRefComponentsSizeWithScalePoint(
   componentDataRef,
   canvasStyleDataRef,
   scaleWidth,
-  scaleHeight
+  scaleHeight,
+  outScale
 ) {
   componentDataRef.forEach(component => {
     Object.keys(component.style).forEach(key => {
@@ -102,14 +117,14 @@ export function changeRefComponentsSizeWithScalePoint(
         // 根据原来的比例获取样式原来的尺寸
         // 再用原来的尺寸 * 现在的比例得出新的尺寸
         component.style[key] = format(
-          getOriginStyle(component.style[key], canvasStyleDataRef.scale),
+          getOriginStyle(component.style[key], canvasStyleDataRef.scale || outScale),
           scaleWidth
         )
       } else if (needToChangeDirectionAttrs.height.includes(key)) {
         // 根据原来的比例获取样式原来的尺寸
         // 再用原来的尺寸 * 现在的比例得出新的尺寸
         component.style[key] = format(
-          getOriginStyle(component.style[key], canvasStyleDataRef.scaleHeight),
+          getOriginStyle(component.style[key], canvasStyleDataRef.scaleHeight || outScale),
           scaleHeight
         )
       }

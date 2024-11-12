@@ -81,12 +81,9 @@ export function download2AppTemplate(downloadType, canvasDom, name, attachParams
 export function downloadCanvas2(type, canvasDom, name, callBack?) {
   toPng(canvasDom)
     .then(dataUrl => {
-      const a = document.createElement('a')
-      a.setAttribute('download', name)
-      a.href = dataUrl
       if (type === 'img') {
         const a = document.createElement('a')
-        a.setAttribute('download', name)
+        a.setAttribute('download', name + '.png')
         a.href = dataUrl
         document.body.appendChild(a)
         a.click()
@@ -161,17 +158,8 @@ export function dataURLToBlob(dataUrl) {
   return new Blob([u8arr], { type: mime })
 }
 
-// 解析静态文件
-export function findStaticSource(callBack) {
-  const staticResource = []
-  // 系统背景文件
-  if (
-    typeof canvasStyleData.value.background === 'string' &&
-    canvasStyleData.value.background.indexOf('static-resource') > -1
-  ) {
-    staticResource.push(canvasStyleData.value.background)
-  }
-  componentData.value.forEach(item => {
+function findStaticSourceInner(componentDataInfo, staticResource) {
+  componentDataInfo.forEach(item => {
     if (
       typeof item.commonBackground.outerImage === 'string' &&
       item.commonBackground.outerImage.indexOf('static-resource') > -1
@@ -185,8 +173,37 @@ export function findStaticSource(callBack) {
       item.propValue['url'].indexOf('static-resource') > -1
     ) {
       staticResource.push(item.propValue['url'])
+    } else if (
+      item.component === 'picture-group' &&
+      item.propValue['urlList'] &&
+      item.propValue['urlList'].length > 0
+    ) {
+      item.propValue['urlList'].forEach(urlInfo => {
+        if (urlInfo.url.indexOf('static-resource') > -1) {
+          staticResource.push(urlInfo.url)
+        }
+      })
+    } else if (item.component === 'Group') {
+      findStaticSourceInner(item.propValue, staticResource)
+    } else if (item.component === 'DeTabs') {
+      item.propValue.forEach(tabItem => {
+        findStaticSourceInner(tabItem.componentData, staticResource)
+      })
     }
   })
+}
+
+// 解析静态文件
+export function findStaticSource(callBack) {
+  const staticResource = []
+  // 系统背景文件
+  if (
+    typeof canvasStyleData.value.background === 'string' &&
+    canvasStyleData.value.background.indexOf('static-resource') > -1
+  ) {
+    staticResource.push(canvasStyleData.value.background)
+  }
+  findStaticSourceInner(componentData.value, staticResource)
   if (staticResource.length > 0) {
     try {
       findResourceAsBase64({ resourcePathList: staticResource }).then(rsp => {

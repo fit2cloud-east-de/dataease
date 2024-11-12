@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CSSProperties, computed, toRefs, PropType } from 'vue'
+import { computed, toRefs, PropType, CSSProperties } from 'vue'
 import Chart from '@/views/chart/components/views/index.vue'
 
 const props = defineProps({
@@ -53,20 +53,18 @@ const props = defineProps({
     type: Boolean,
     required: false,
     default: false
+  },
+  suffixId: {
+    type: String,
+    required: false,
+    default: 'common'
   }
 })
 
 const { element, view, active, searchCount, scale } = toRefs(props)
 const autoStyle = computed(() => {
   if (element.value.innerType === 'rich-text') {
-    return {
-      position: 'absolute',
-      height: 100 / scale.value + '%!important',
-      width: 100 / scale.value + '%!important',
-      left: 50 * (1 - 1 / scale.value) + '%', // 放大余量 除以 2
-      top: 50 * (1 - 1 / scale.value) + '%', // 放大余量 除以 2
-      transform: 'scale(' + scale.value + ')'
-    } as CSSProperties
+    return { zoom: scale.value }
   } else {
     return {}
   }
@@ -88,6 +86,7 @@ const onPointClick = param => {
       :show-position="showPosition"
       :search-count="searchCount"
       :disabled="disabled"
+      :suffixId="suffixId"
       @onPointClick="onPointClick"
     ></chart>
   </div>
