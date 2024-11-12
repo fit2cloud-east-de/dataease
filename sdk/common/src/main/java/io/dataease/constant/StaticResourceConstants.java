@@ -1,6 +1,7 @@
 package io.dataease.constant;
 
 import java.io.File;
+import java.util.regex.Matcher;
 
 import static io.dataease.utils.StaticResourceUtils.ensureSuffix;
 
@@ -11,7 +12,7 @@ public class StaticResourceConstants {
 
     public static final String FILE_SEPARATOR = File.separator;
 
-    public static final String USER_HOME = "/opt/dataease2.0/data".replaceAll("/",FILE_SEPARATOR);
+    public static final String USER_HOME = "/opt/dataease2.0/data".replaceAll("/", Matcher.quoteReplacement(FILE_SEPARATOR));
 
     public static String WORK_DIR = ensureSuffix(USER_HOME, FILE_SEPARATOR) + "static-resource" + FILE_SEPARATOR;
 

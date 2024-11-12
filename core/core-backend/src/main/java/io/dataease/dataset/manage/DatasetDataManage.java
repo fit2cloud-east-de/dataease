@@ -1,6 +1,5 @@
 package io.dataease.dataset.manage;
 
-import com.alibaba.nacos.shaded.com.google.gson.JsonObject;
 import io.dataease.api.chart.dto.DeSortField;
 import io.dataease.api.dataset.dto.*;
 import io.dataease.api.dataset.union.DatasetGroupInfoDTO;

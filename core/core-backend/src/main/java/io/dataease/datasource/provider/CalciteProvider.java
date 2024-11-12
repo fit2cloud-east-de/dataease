@@ -940,6 +940,8 @@ public class CalciteProvider extends Provider {
                                 schema = JdbcSchema.create(rootSchema, ds.getSchemaAlias(), dataSource, null, configuration.getDataBase());
                                 rootSchema.add(ds.getSchemaAlias(), schema);
                                 break;
+                            case OPCUA:
+                                break;
                             default:
                                 configuration = JsonUtil.parseObject(ds.getConfiguration(), Mysql.class);
                                 if (StringUtils.isNotBlank(configuration.getUsername())) {
