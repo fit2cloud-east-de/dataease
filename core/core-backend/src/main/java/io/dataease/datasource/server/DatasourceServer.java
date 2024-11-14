@@ -312,7 +312,9 @@ public class DatasourceServer implements DatasourceApi {
                 }
             }
         } else if (dataSourceDTO.getType().equals(DatasourceConfiguration.DatasourceType.OPCUA.name())) {
+
             DatasourceConfiguration configuration = JsonUtil.parseObject(dataSourceDTO.getConfiguration(), DatasourceConfiguration.class);
+
             if ("sync".equals(configuration.getConnectionType())) {
 
                 CoreDatasourceTask coreDatasourceTask = new CoreDatasourceTask();
@@ -330,6 +332,7 @@ public class DatasourceServer implements DatasourceApi {
                         DEException.throwException("结束时间不能小于开始时间！");
                     }
                 }
+
                 coreDatasourceTask.setTaskStatus(TaskStatus.WaitingForExecution.name());
                 datasourceTaskServer.insert(coreDatasourceTask);
                 datasourceSyncManage.addSchedule(coreDatasourceTask);
@@ -347,15 +350,11 @@ public class DatasourceServer implements DatasourceApi {
                         DEException.throwException("Failed to create table " + datasourceRequest.getTable() + ": " + e.getMessage());
                     }
                 }
-
             }
-
-
         } else {
             checkParams(dataSourceDTO.getConfiguration());
             calciteProvider.update(dataSourceDTO);
         }
-
 
         return dataSourceDTO;
     }
@@ -448,23 +447,28 @@ public class DatasourceServer implements DatasourceApi {
             dataSourceManage.checkName(dataSourceDTO);
             dataSourceManage.innerEdit(requestDatasource);
         } else if (dataSourceDTO.getType().equals(DatasourceConfiguration.DatasourceType.OPCUA.name())) {
-            requestDatasource.setEnableDataFill(null);
-            CoreDatasourceTask coreDatasourceTask = new CoreDatasourceTask();
-            BeanUtils.copyBean(coreDatasourceTask, dataSourceDTO.getSyncSetting());
-            coreDatasourceTask.setName(requestDatasource.getName() + "-task");
-            coreDatasourceTask.setDsId(requestDatasource.getId());
-            if (StringUtils.equalsIgnoreCase(coreDatasourceTask.getSyncRate(), RIGHTNOW.toString())) {
-                coreDatasourceTask.setStartTime(System.currentTimeMillis() - 20 * 1000);
-                coreDatasourceTask.setCron(null);
-            } else {
-                if (StringUtils.equalsIgnoreCase(coreDatasourceTask.getEndLimit(), "1") && coreDatasourceTask.getStartTime() > coreDatasourceTask.getEndTime()) {
-                    DEException.throwException("结束时间不能小于开始时间！");
+
+            DatasourceConfiguration configuration = JsonUtil.parseObject(dataSourceDTO.getConfiguration(), DatasourceConfiguration.class);
+            if ("sync".equals(configuration.getConnectionType())) {
+                requestDatasource.setEnableDataFill(null);
+                CoreDatasourceTask coreDatasourceTask = new CoreDatasourceTask();
+                BeanUtils.copyBean(coreDatasourceTask, dataSourceDTO.getSyncSetting());
+                coreDatasourceTask.setName(requestDatasource.getName() + "-task");
+                coreDatasourceTask.setDsId(requestDatasource.getId());
+                if (StringUtils.equalsIgnoreCase(coreDatasourceTask.getSyncRate(), RIGHTNOW.toString())) {
+                    coreDatasourceTask.setStartTime(System.currentTimeMillis() - 20 * 1000);
+                    coreDatasourceTask.setCron(null);
+                } else {
+                    if (StringUtils.equalsIgnoreCase(coreDatasourceTask.getEndLimit(), "1") && coreDatasourceTask.getStartTime() > coreDatasourceTask.getEndTime()) {
+                        DEException.throwException("结束时间不能小于开始时间！");
+                    }
                 }
+                coreDatasourceTask.setTaskStatus(TaskStatus.WaitingForExecution.toString());
+                datasourceTaskServer.update(coreDatasourceTask);
+                datasourceSyncManage.deleteSchedule(datasourceTaskServer.selectByDSId(dataSourceDTO.getId()));
+                datasourceSyncManage.addSchedule(coreDatasourceTask);
             }
-            coreDatasourceTask.setTaskStatus(TaskStatus.WaitingForExecution.toString());
-            datasourceTaskServer.update(coreDatasourceTask);
-            datasourceSyncManage.deleteSchedule(datasourceTaskServer.selectByDSId(dataSourceDTO.getId()));
-            datasourceSyncManage.addSchedule(coreDatasourceTask);
+
             dataSourceManage.checkName(dataSourceDTO);
             dataSourceManage.innerEdit(requestDatasource);
 
@@ -960,10 +964,10 @@ public class DatasourceServer implements DatasourceApi {
 
     private void preCheckDs(DatasourceDTO datasource) throws DEException {
         List<String> list = datasourceTypes().stream().map(DatasourceConfiguration.DatasourceType::getType).collect(Collectors.toList());
-        if (LicenseUtil.licenseValid()) {
-            List<XpackPluginsDatasourceVO> xpackPluginsDatasourceVOS = pluginManage.queryPluginDs();
-            xpackPluginsDatasourceVOS.forEach(ele -> list.add(ele.getType()));
-        }
+//        if (LicenseUtil.licenseValid()) {
+//            List<XpackPluginsDatasourceVO> xpackPluginsDatasourceVOS = pluginManage.queryPluginDs();
+//            xpackPluginsDatasourceVOS.forEach(ele -> list.add(ele.getType()));
+//        }
 
         if (!list.contains(datasource.getType())) {
             DEException.throwException("Datasource type not supported.");
