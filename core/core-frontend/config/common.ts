@@ -13,6 +13,11 @@ import svgLoader from 'vite-svg-loader'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components-secondary/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components-secondary/resolvers'
+import legacy from '@vitejs/plugin-legacy'
+import browserslist from 'browserslist'
+
+const browserslistConfig = browserslist.loadConfig({ path: '.' })
+
 const root = process.cwd()
 
 export function pathResolve(dir: string) {
@@ -22,6 +27,9 @@ export default {
   base: './',
   plugins: [
     Vue(),
+    legacy({
+      targets: browserslistConfig,
+    }),
     svgLoader({
       svgo: false,
       defaultImport: 'component' // or 'raw'
