@@ -1003,11 +1003,7 @@ public class CKQueryProvider extends QueryProvider {
     }
 
     public String getTotalCount(boolean isTable, String sql, Datasource ds) {
-        if (isTable) {
-            return "SELECT COUNT(*) from " + String.format(CKConstants.KEYWORD_TABLE, sql);
-        } else {
-            return "SELECT COUNT(*) from ( " + sqlFix(sql) + " ) DE_COUNT_TEMP";
-        }
+        return  null;
     }
 
     @Override
@@ -1742,7 +1738,7 @@ public class CKQueryProvider extends QueryProvider {
             }
             originField = originField.replaceAll("[\\t\\n\\r]]", "");
             // 正则提取[xxx]
-            String regex = "\\[(.*?)]";
+            String regex = "\\[([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\\]";
             Pattern pattern = Pattern.compile(regex);
             Matcher matcher = pattern.matcher(originField);
             Set<String> ids = new HashSet<>();

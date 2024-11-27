@@ -145,6 +145,8 @@ public class DorisQueryProvider extends QueryProvider {
                 if (f.getDeExtractType() == 1) {
                     if (f.getDeType() == 2 || f.getDeType() == 3) {
                         fieldName = String.format(DorisConstants.UNIX_TIMESTAMP, originField) + "*1000";
+                    } else if (f.getDeType().equals(DeTypeConstants.DE_STRING)) {
+                        fieldName = String.format(DorisConstants.CAST, originField, DorisConstants.VARCHAR);
                     } else {
                         fieldName = originField;
                     }
@@ -1691,7 +1693,7 @@ public class DorisQueryProvider extends QueryProvider {
             }
             originField = originField.replaceAll("[\\t\\n\\r]]", "");
             // 正则提取[xxx]
-            String regex = "\\[(.*?)]";
+            String regex = "\\[([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\\]";
             Pattern pattern = Pattern.compile(regex);
             Matcher matcher = pattern.matcher(originField);
             Set<String> ids = new HashSet<>();
