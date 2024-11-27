@@ -35,6 +35,8 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Semaphore;
+import java.util.stream.Collectors;
 
 /**
  * @program: dataease
@@ -44,6 +46,9 @@ import java.util.concurrent.ExecutionException;
  **/
 @Service("opcUaProvider")
 public class OpcUaProvider extends Provider {
+
+    private static Semaphore semaphore = new Semaphore(5);
+
     @Override
     public List<String[]> getData(DatasourceRequest datasourceRequest) throws Exception {
         return null;
@@ -96,7 +101,12 @@ public class OpcUaProvider extends Provider {
             throw new RuntimeException("can not find endpoint");
         }
 
-        EndpointDescription configPoint = EndpointUtil.updateUrl(endpointDescription, endPoint.substring(endPoint.indexOf("//")+2 , endPoint.lastIndexOf(":")), Integer.parseInt(endPoint.substring( endPoint.lastIndexOf(":")+1)));
+        String host = endPoint.substring(endPoint.indexOf("//")+2 , endPoint.lastIndexOf(":"));
+        String port = endPoint.substring( endPoint.lastIndexOf(":")+1);
+        port = port.substring(0, port.indexOf("/"));
+
+        EndpointDescription configPoint =
+                EndpointUtil.updateUrl(endpointDescription,host, Integer.parseInt(port));
 
         OpcUaClientConfigBuilder cfg = new OpcUaClientConfigBuilder();
         cfg.setEndpoint(configPoint);
@@ -140,11 +150,11 @@ public class OpcUaProvider extends Provider {
 
             List<String[]> dataList = new ArrayList<>();
 
-            for (String table: tables  ) {
-                OpcUaData opcUaData = readNode(client, table);
+            List<OpcUaData> opcUaDataList = readNodes(client, tables);
+            opcUaDataList.forEach(opcUaData -> {
                 String[] str = fetchResult(opcUaData, tableFields);
                 dataList.add(str);
-            }
+            });
 
             result.put("fieldList", tableFields);
             result.put("dataList", dataList);
@@ -160,10 +170,54 @@ public class OpcUaProvider extends Provider {
     }
 
 
+    private List<OpcUaData> readNodes (OpcUaClient client , List<String> nodeIds)  throws Exception {
 
-    private OpcUaData readNode(OpcUaClient client , String nodeId) throws Exception {
+        //获取一把锁
+        semaphore.acquire();
+
+        List<OpcUaData> opcUaDataList = new ArrayList<>();
+
+        client.connect().get();
+
+        List<DataValue> dataValueList = client.readValues(
+                0.0,
+                TimestampsToReturn.Both,
+                nodeIds.stream().map(NodeId::parse).collect(Collectors.toList())
+        ).get();
+
+        for (int i = 0; i < dataValueList.size(); i++) {
+            opcUaDataList.add(transformOpcuaData(dataValueList.get(i), nodeIds.get(i))) ;
+        }
+
+        //释放一把锁
+        semaphore.release();
+
+        return opcUaDataList;
+    }
+
+
+    private OpcUaData transformOpcuaData (DataValue dataValue , String  nodeId) {
 
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+        OpcUaData opcUaData = new OpcUaData();
+
+        Variant value = dataValue.getValue();
+
+        opcUaData.setValue(value.getValue().toString());
+        opcUaData.setNodeId(nodeId);
+        opcUaData.setServerTime( dataValue.getServerTime() == null ? null : simpleDateFormat.format(dataValue.getServerTime().getJavaDate()));
+        opcUaData.setSourceTime( dataValue.getSourceTime() == null ? null : simpleDateFormat.format(dataValue.getSourceTime().getJavaDate()));
+        opcUaData.setCurrentTime(simpleDateFormat.format(new Date()));
+        opcUaData.setServerPicoseconds(dataValue.getServerPicoseconds()==null?null:dataValue.getServerPicoseconds().toString());
+        opcUaData.setSourcePicoseconds(dataValue.getSourcePicoseconds()==null?null: dataValue.getSourcePicoseconds().toString());
+
+        opcUaData.setStatus(dataValue.getStatusCode().isGood() ? "Good" : dataValue.getStatusCode().isBad() ? "Bad" : dataValue.getStatusCode().isUncertain() ? "uncertain" : "Unknown" );
+
+        return opcUaData;
+    }
+
+    private OpcUaData readNode(OpcUaClient client , String nodeId) throws Exception {
 
         client.connect().get();
 
@@ -173,22 +227,7 @@ public class OpcUaProvider extends Provider {
                 NodeId.parse(nodeId)
         ).get();
 
-        OpcUaData opcUaData = new OpcUaData();
-
-        Variant value = dataValue.getValue();
-
-        opcUaData.setValue(value.getValue().toString());
-
-        opcUaData.setNodeId(nodeId);
-
-        opcUaData.setServerTime( dataValue.getServerTime() == null ? null : simpleDateFormat.format(dataValue.getServerTime().getJavaDate()));
-        opcUaData.setSourceTime( dataValue.getSourceTime() == null ? null : simpleDateFormat.format(dataValue.getSourceTime().getJavaDate()));
-        opcUaData.setCurrentTime(simpleDateFormat.format(new Date()));
-
-        opcUaData.setServerPicoseconds(dataValue.getServerPicoseconds()==null?null:dataValue.getServerPicoseconds().toString());
-        opcUaData.setSourcePicoseconds(dataValue.getSourcePicoseconds()==null?null: dataValue.getSourcePicoseconds().toString());
-
-        opcUaData.setStatus(dataValue.getStatusCode().isGood() ? "Good" : dataValue.getStatusCode().isBad() ? "Bad" : dataValue.getStatusCode().isUncertain() ? "uncertain" : "Unknown" );
+        OpcUaData opcUaData = transformOpcuaData(dataValue, nodeId);
 
         client.disconnect().get();
 
