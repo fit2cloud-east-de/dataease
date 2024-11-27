@@ -425,7 +425,7 @@ export default {
 
   .preview-container {
     flex: 1;
-    font-family: AlibabaPuHuiTi;
+    font-family: PingFang SC;
     font-size: 14px;
     overflow-y: auto;
     box-sizing: border-box;

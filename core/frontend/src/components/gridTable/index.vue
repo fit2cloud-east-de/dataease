@@ -216,7 +216,7 @@ export default {
     }
 
     ::v-deep .el-pagination__total {
-      font-family: "AlibabaPuHuiTi";
+      font-family: "PingFang SC";
       font-style: normal;
       font-weight: 400;
       font-size: 14px;

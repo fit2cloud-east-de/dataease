@@ -1440,7 +1440,7 @@ export default {
   box-shadow: 2px 2px 4px rgba(31, 35, 41, 0.08);
 
   .name {
-    font-family: 'AlibabaPuHuiTi';
+    font-family: 'PingFang SC';
     font-style: normal;
     font-weight: 500;
     font-size: 16px;

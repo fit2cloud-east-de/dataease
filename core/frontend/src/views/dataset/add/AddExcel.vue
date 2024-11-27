@@ -680,7 +680,7 @@ export default {
     height: 100%;
     width: 240px;
     padding: 16px 12px;
-    font-family: AlibabaPuHuiTi;
+    font-family: PingFang SC;
     border-right: 1px solid rgba(31, 35, 41, 0.15);
 
     .select-ds {
@@ -749,7 +749,7 @@ export default {
   }
 
   .table-detail {
-    font-family: AlibabaPuHuiTi;
+    font-family: PingFang SC;
     flex: 1;
     overflow-x: auto;
 
@@ -784,7 +784,7 @@ export default {
       overflow-y: auto;
 
       .result-num {
-        font-family: AlibabaPuHuiTi;
+        font-family: PingFang SC;
         font-size: 14px;
         font-weight: 400;
         color: var(--deTextSecondary, #646a73);

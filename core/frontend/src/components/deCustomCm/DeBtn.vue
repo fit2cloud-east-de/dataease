@@ -155,7 +155,7 @@ $B: null;
   }
 }
 @include b(button) {
-  font-family: AlibabaPuHuiTi;
+  font-family: PingFang SC;
   font-size: 14px;
   font-weight: 400;
   line-height: 1;

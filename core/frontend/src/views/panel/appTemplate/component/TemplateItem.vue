@@ -227,7 +227,7 @@ export default {
 }
 
 .de-model-text {
-  font-family: "AlibabaPuHuiTi";
+  font-family: "PingFang SC";
   font-style: normal;
   font-weight: 400;
   font-size: 14px;
@@ -242,7 +242,7 @@ export default {
 }
 
 .de-model-text-market {
-  font-family: "AlibabaPuHuiTi";
+  font-family: "PingFang SC";
   font-style: normal;
   color: #1f2329;
   display: inline-block;

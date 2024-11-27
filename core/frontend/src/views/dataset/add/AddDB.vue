@@ -544,7 +544,7 @@ export default {
     height: 100%;
     width: 240px;
     padding: 16px 12px;
-    font-family: AlibabaPuHuiTi;
+    font-family: PingFang SC;
     border-right: 1px solid rgba(31, 35, 41, 0.15);
 
     .select-ds {
@@ -582,7 +582,7 @@ export default {
         align-items: center;
         box-sizing: border-box;
         padding: 12px;
-        font-family: AlibabaPuHuiTi;
+        font-family: PingFang SC;
         font-size: 14px;
         font-weight: 400;
         color: var(--deTextPrimary, #1f2329);
@@ -627,7 +627,7 @@ export default {
   }
 
   .table-detail {
-    font-family: AlibabaPuHuiTi;
+    font-family: PingFang SC;
     flex: 1;
     overflow: hidden;
 
@@ -684,7 +684,7 @@ export default {
       .result-num {
         font-weight: 400;
         display: inline-block;
-        font-family: AlibabaPuHuiTi;
+        font-family: PingFang SC;
         color: var(--deTextSecondary, #646a73);
         margin-bottom: 16px;
       }

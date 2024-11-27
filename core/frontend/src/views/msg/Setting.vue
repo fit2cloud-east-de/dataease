@@ -272,7 +272,7 @@ export default {
   background-color: var(--SiderBG, #f7f8fa);
   font-size: 12px;
   color: var(--TableColor, #3d4d66);
-  font-family: AlibabaPuHuiTi;
+  font-family: PingFang SC;
   font-size: 14px;
   font-weight: 500;
   padding: 0 12px

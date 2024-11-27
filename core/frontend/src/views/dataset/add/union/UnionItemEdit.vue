@@ -250,7 +250,7 @@ export default {
 <style lang="scss" scoped>
 .union-container {
   height: 275px;
-  font-family: AlibabaPuHuiTi;
+  font-family: PingFang SC;
 }
 .union-header {
   display: flex;

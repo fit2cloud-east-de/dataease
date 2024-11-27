@@ -321,7 +321,7 @@ export default {
 </script>
 <style lang="scss" scoped>
 .driver-detail {
-  font-family: AlibabaPuHuiTi;
+  font-family: PingFang SC;
   width: 100%;
   height: 100%;
   overflow: auto;
@@ -376,7 +376,7 @@ export default {
       .name-descript {
         margin: 0;
         margin-left: 10px;
-        font-family: AlibabaPuHuiTi;
+        font-family: PingFang SC;
         font-weight: 400;
         display: flex;
         flex-direction: column;

@@ -596,7 +596,7 @@ export default {
 
   .de-dataset-name {
     display: flex;
-    font-family: AlibabaPuHuiTi;
+    font-family: PingFang SC;
     align-items: center;
     margin-bottom: 20px;
 

@@ -429,7 +429,7 @@ export default {
     .active-template {
       margin: 4px 0 20px 0;
       padding-right: 24px;
-      font-family: "AlibabaPuHuiTi";
+      font-family: "PingFang SC";
       font-style: normal;
       font-weight: 500;
       font-size: 16px;

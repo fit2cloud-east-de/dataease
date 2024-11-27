@@ -110,7 +110,7 @@ export default {
   width: 50%;
 
   & > p {
-    font-family: AlibabaPuHuiTi;
+    font-family: PingFang SC;
     font-size: 14px;
     font-weight: 500;
     margin: 0;

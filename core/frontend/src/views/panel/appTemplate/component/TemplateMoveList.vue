@@ -148,7 +148,7 @@ export default {
     align-items: center;
     border-radius: 4px;
     color: var(--deTextPrimary, #1f2329);
-    font-family: "AlibabaPuHuiTi";
+    font-family: "PingFang SC";
     font-style: normal;
     font-weight: 500;
     font-size: 14px;

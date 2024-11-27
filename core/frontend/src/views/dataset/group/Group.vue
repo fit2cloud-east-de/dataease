@@ -1246,7 +1246,7 @@ export default {
   .no-tdata {
     text-align: center;
     margin-top: 80px;
-    font-family: AlibabaPuHuiTi;
+    font-family: PingFang SC;
     font-size: 14px;
     color: var(--deTextSecondary, #646a73);
     font-weight: 400;
@@ -1380,7 +1380,7 @@ export default {
     display: flex;
     align-items: center;
     padding: 12px 9px;
-    font-family: AlibabaPuHuiTi;
+    font-family: PingFang SC;
     font-size: 14px;
     font-weight: 400;
 

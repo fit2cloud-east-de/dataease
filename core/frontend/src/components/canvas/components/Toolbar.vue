@@ -739,7 +739,7 @@ export default {
     display: inline-block;
     font-weight: 400 !important;
     font-size: 16px;
-    font-family: AlibabaPuHuiTi;
+    font-family: PingFang SC;
     line-height: 1;
     white-space: nowrap;
     cursor: pointer;
