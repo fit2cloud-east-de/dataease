@@ -1,18 +1,19 @@
 <script lang="ts" setup>
 import noLic from './nolic.vue'
-import { ref, useAttrs, onMounted } from 'vue'
-import { execute, randomKey, formatArray } from './convert'
-import { loadPluginApi, xpackModelApi } from '@/api/plugin'
-import { useCache } from '@/hooks/web/useCache'
-import { i18n } from '@/plugins/vue-i18n'
+import {ref, useAttrs, onMounted} from 'vue'
+import {execute, randomKey, formatArray} from './convert'
+import {loadPluginApi, xpackModelApi} from '@/api/plugin'
+import {useCache} from '@/hooks/web/useCache'
+import {i18n} from '@/plugins/vue-i18n'
 import * as Vue from 'vue'
 import axios from 'axios'
 import * as Pinia from 'pinia'
 import router from '@/router'
-import { useEmitt } from '@/hooks/web/useEmitt'
+import {useEmitt} from '@/hooks/web/useEmitt'
 import request from '@/config/axios'
-const { wsCache } = useCache()
-import { isNull } from '@/utils/utils'
+
+const {wsCache} = useCache()
+import {isNull} from '@/utils/utils'
 
 const plugin = ref()
 
@@ -129,7 +130,7 @@ onMounted(async () => {
       window['MittAllDe'] = useEmitt().emitter.all
       window['I18nDe'] = i18n
       const url = `/xpackComponent/pluginStaticInfo/${moduleName}`
-      request.get({ url }).then(async res => {
+      request.get({url}).then(async res => {
         new Function(res.data || res)()
         const xpack = await window[moduleName].mapping[attrs.jsname]
         plugin.value = xpack.default
