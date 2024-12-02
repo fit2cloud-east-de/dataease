@@ -8,7 +8,7 @@ import { i18n } from '@/plugins/vue-i18n'
 import * as Vue from 'vue'
 import axios from 'axios'
 import * as Pinia from 'pinia'
-import * as vueRouter from 'vue-router'
+import router from '@/router'
 import { useEmitt } from '@/hooks/web/useEmitt'
 import request from '@/config/axios'
 const { wsCache } = useCache()
@@ -40,7 +40,7 @@ const importProxy = (bytesArray: any[]) => {
     )}/${formatArray(bytesArray[10])}/${formatArray(bytesArray[11])}/${formatArray(
       bytesArray[12]
     )}.vue`
-  )
+    )
   promise
     .then((res: any) => {
       plugin.value = res.default
@@ -122,12 +122,12 @@ onMounted(async () => {
       const xpack = await window[moduleName].mapping[attrs.jsname]
       plugin.value = xpack.default
     } else {
-      window['Vue'] = Vue
-      window['Axios'] = axios
-      window['Pinia'] = Pinia
-      window['vueRouter'] = vueRouter
-      window['MittAll'] = useEmitt().emitter.all
-      window['I18n'] = i18n
+      window['VueDe'] = Vue
+      window['AxiosDe'] = axios
+      window['PiniaDe'] = Pinia
+      window['vueRouterDe'] = router
+      window['MittAllDe'] = useEmitt().emitter.all
+      window['I18nDe'] = i18n
       const url = `/xpackComponent/pluginStaticInfo/${moduleName}`
       request.get({ url }).then(async res => {
         new Function(res.data || res)()
