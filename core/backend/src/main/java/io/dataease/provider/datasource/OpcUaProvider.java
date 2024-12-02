@@ -103,7 +103,9 @@ public class OpcUaProvider extends Provider {
 
         String host = endPoint.substring(endPoint.indexOf("//")+2 , endPoint.lastIndexOf(":"));
         String port = endPoint.substring( endPoint.lastIndexOf(":")+1);
-        port = port.substring(0, port.indexOf("/"));
+        if (port.contains("/")) {
+            port = port.substring(0, port.indexOf("/"));
+        }
 
         EndpointDescription configPoint =
                 EndpointUtil.updateUrl(endpointDescription,host, Integer.parseInt(port));
