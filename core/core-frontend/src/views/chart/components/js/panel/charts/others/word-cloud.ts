@@ -99,7 +99,7 @@ export class WordCloud extends G2PlotChartView<WordCloudOptions, G2WordCloud> {
         weightField: 'value',
         colorField: 'field',
         wordStyle: {
-          fontFamily: chart.fontFamily ? chart.fontFamily : 'Verdana',
+          fontFamily: 'Verdana',
           fontSize: (misc.wordSizeRange ?? DEFAULT_MISC.wordSizeRange) as [number, number],
           rotation: [0, 0],
           padding: misc.wordSpacing ?? DEFAULT_MISC.wordSpacing
