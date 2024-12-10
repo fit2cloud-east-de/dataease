@@ -772,8 +772,10 @@ public class DatasourceServer implements DatasourceApi {
     private static final Integer append = 1;
 
     public ExcelFileData excelUpload(@RequestParam("file") MultipartFile file, @RequestParam("id") long datasourceId, @RequestParam("editType") Integer editType) throws DEException {
-        CoreDatasource coreDatasource = dataSourceManage.getCoreDatasource(datasourceId);
-
+        CoreDatasource coreDatasource = null;
+        if (ObjectUtils.isNotEmpty(datasourceId) && 0L != datasourceId) {
+            coreDatasource = dataSourceManage.getCoreDatasource(datasourceId);
+        }
         ExcelUtils excelUtils = new ExcelUtils();
         ExcelFileData excelFileData = excelUtils.excelSaveAndParse(file);
 
