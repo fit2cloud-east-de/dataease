@@ -537,6 +537,9 @@ export const exportExcelDownload = (chart, callBack?) => {
     request.dataEaseBi = true
   }
   const method = request.downloadType === 'dataset' ? innerExportDataSetDetails : innerExportDetails
+  if (request.viewInfo?.customAttr?.basicStyle?.tablePageMode) {
+    request.viewInfo.customAttr.basicStyle.tablePageMode = 'page'
+  }
   method(request)
     .then(res => {
       if (linkStore.getLinkToken || isDataEaseBi.value || appStore.getIsIframe) {
