@@ -158,10 +158,15 @@ const resourceOptFinish = param => {
 
 const originResourceTree = shallowRef([])
 
-const sortTypeChange = sortType => {
+const handleSortTypeChange = sortType => {
   state.datasetTree = treeSort(originResourceTree.value, sortType)
   state.curSortType = sortType
   wsCache.set('TreeSort-dataset', state.curSortType)
+}
+
+const sortTypeChange = sortType => {
+  state.datasetTree = treeSort(originResourceTree.value, sortType)
+  state.curSortType = sortType
 }
 
 const resourceCreate = (pid, name) => {
@@ -703,20 +708,20 @@ const defaultTab = [
 
 const sortList = [
   {
-    name: t('data_set.by_creation_time'),
+    name: t('visualization.time_asc'),
     value: 'time_asc'
   },
   {
-    name: t('data_set.by_creation_time_de'),
+    name: t('visualization.time_desc'),
     value: 'time_desc',
     divided: true
   },
   {
-    name: t('data_set.by_name_ascending'),
+    name: t('visualization.name_asc'),
     value: 'name_asc'
   },
   {
-    name: t('data_set.order_by_name'),
+    name: t('visualization.name_desc'),
     value: 'name_desc'
   }
 ]
@@ -847,7 +852,7 @@ const getMenuList = (val: boolean) => {
               </el-icon>
             </template>
           </el-input>
-          <el-dropdown @command="sortTypeChange" trigger="click">
+          <el-dropdown @command="handleSortTypeChange" trigger="click">
             <el-icon class="filter-icon-span">
               <el-tooltip :offset="16" effect="dark" :content="sortTypeTip" placement="top">
                 <Icon name="dv-sort-asc" class="opt-icon"
@@ -1377,7 +1382,7 @@ const getMenuList = (val: boolean) => {
 }
 
 .custom-tree {
-  height: calc(100vh - 148px);
+  height: calc(100vh - 172px);
   padding: 0 8px;
 }
 

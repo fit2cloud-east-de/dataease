@@ -592,12 +592,26 @@ const getOptionFromCascade = () => {
   selectValue.value = config.value.multiple ? [] : undefined
   debounceOptions(1)
 }
+const selectHideClick = () => {
+  useEmitt().emitter.emit('select-hide_lick', config.value.id)
+}
+
+const hideClick = id => {
+  if (id === config.value.id) return
+  const vnode = single.value || mult.value
+  vnode?.handleClickOutside?.()
+}
 
 onBeforeMount(() => {
   init()
   useEmitt({
     name: `${config.value.id}-select`,
     callback: getOptionFromCascade
+  })
+
+  useEmitt({
+    name: 'select-hide_lick',
+    callback: hideClick
   })
 })
 
@@ -617,12 +631,14 @@ defineExpose({
     :placeholder="placeholderText"
     v-loading="loading"
     filterable
+    @click="selectHideClick"
     @change="handleValueChange"
     :popper-class="
       visible ? 'load-select filter-select-popper_class' : 'filter-select-popper_class'
     "
     multiple
     show-checked
+    scrollbar-always-on
     clearable
     :style="selectStyle"
     collapse-tags
@@ -633,7 +649,9 @@ defineExpose({
     v-else
     v-model="selectValue"
     key="single"
+    @click="selectHideClick"
     :placeholder="placeholderText"
+    scrollbar-always-on
     v-loading="loading"
     @change="handleValueChange"
     clearable

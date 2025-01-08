@@ -31,6 +31,7 @@ import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -53,8 +54,10 @@ public class CalciteProvider extends Provider {
     private EngineManage engineManage;
     protected ExtendedJdbcClassLoader extendedJdbcClassLoader;
     private Map<Long, ExtendedJdbcClassLoader> customJdbcClassLoaders = new HashMap<>();
-    private final String FILE_PATH = "/opt/dataease2.0/drivers";
-    private final String CUSTOM_PATH = "/opt/dataease2.0/custom-drivers/";
+    @Value("${dataease.path.driver:/opt/dataease2.0/drivers}")
+    private String FILE_PATH;
+    @Value("${dataease.path.custom-drivers:/opt/dataease2.0/custom-drivers/}")
+    private String CUSTOM_PATH;
     private static String split = "DE";
 
     @Resource
@@ -268,13 +271,17 @@ public class CalciteProvider extends Provider {
             ResultSet resultSet = null;
             try (Connection con = getConnectionFromPool(datasourceRequest.getDatasource().getId()); Statement statement = getStatement(con, 30)) {
                 datasourceRequest.setDsVersion(con.getMetaData().getDatabaseMajorVersion());
-                if (datasourceRequest.getDatasource().getType().equalsIgnoreCase("mongo") || isDorisCatalog(datasourceRequest)) {
+                if (datasourceRequest.getDatasource().getType().equalsIgnoreCase("mongo")) {
                     resultSet = statement.executeQuery("select * from " + String.format(" `%s`", table) + " limit 0 offset 0 ");
                     return fetchResultField(resultSet);
                 }
-                resultSet = statement.executeQuery(getTableFiledSql(datasourceRequest));
+                if (isDorisCatalog(datasourceRequest)) {
+                    resultSet = statement.executeQuery("desc " + String.format(" `%s`", table));
+                } else {
+                    resultSet = statement.executeQuery(getTableFiledSql(datasourceRequest));
+                }
                 while (resultSet.next()) {
-                    TableField tableFieldDesc = getTableFieldDesc(datasourceRequest, resultSet);
+                    TableField tableFieldDesc = getTableFieldDesc(datasourceRequest, resultSet, 3);
                     boolean repeat = false;
                     for (TableField ele : datasetTableFields) {
                         if (StringUtils.equalsIgnoreCase(ele.getOriginName(), tableFieldDesc.getOriginName())) {
@@ -351,6 +358,9 @@ public class CalciteProvider extends Provider {
                 break;
             case redshift:
                 configuration = JsonUtil.parseObject(coreDatasource.getConfiguration(), Redshift.class);
+                break;
+            case h2:
+                configuration = JsonUtil.parseObject(coreDatasource.getConfiguration(), H2.class);
                 break;
             case ck:
                 configuration = JsonUtil.parseObject(coreDatasource.getConfiguration(), CK.class);
@@ -694,7 +704,7 @@ public class CalciteProvider extends Provider {
         }
     }
 
-    private TableField getTableFieldDesc(DatasourceRequest datasourceRequest, ResultSet resultSet) throws SQLException {
+    private TableField getTableFieldDesc(DatasourceRequest datasourceRequest, ResultSet resultSet, int commentIndex) throws SQLException {
         TableField tableField = new TableField();
         tableField.setOriginName(resultSet.getString(1));
         tableField.setType(resultSet.getString(2).toUpperCase());
@@ -702,7 +712,7 @@ public class CalciteProvider extends Provider {
         int deType = FieldUtils.transType2DeType(tableField.getType());
         tableField.setDeExtractType(deType);
         tableField.setDeType(deType);
-        tableField.setName(resultSet.getString(3));
+        tableField.setName(resultSet.getString(commentIndex));
         try {
             tableField.setPrimary(resultSet.getInt(4) > 0);
         } catch (Exception e) {
@@ -1100,6 +1110,9 @@ public class CalciteProvider extends Provider {
             case impala:
                 sql = String.format("DESCRIBE `%s`", datasourceRequest.getTable());
                 break;
+            case h2:
+                sql = String.format("SELECT COLUMN_NAME, DATA_TYPE, REMARKS FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%s'", datasourceRequest.getTable());
+                break;
             default:
                 break;
         }
@@ -1412,13 +1425,13 @@ public class CalciteProvider extends Provider {
             CalciteConnection calciteConnection = connection.unwrap(CalciteConnection.class);
             SchemaPlus rootSchema = calciteConnection.getRootSchema();
             if (rootSchema.getSubSchema(String.format(SQLConstants.SCHEMA, dsId)) == null) {
-                DEException.throwException("请检查数据源的有效性！");
+                DEException.throwException(Translator.get("i18n_check_datasource_connection"));
             }
             JdbcSchema jdbcSchema = rootSchema.getSubSchema(String.format(SQLConstants.SCHEMA, dsId)).unwrap(JdbcSchema.class);
             BasicDataSource basicDataSource = (BasicDataSource) jdbcSchema.getDataSource();
             return basicDataSource.getConnection();
         } catch (Exception e) {
-            DEException.throwException("连接无效, " + e.getMessage());
+            DEException.throwException(Translator.get("i18n_invalid_connection") + e.getMessage());
         }
         return null;
     }

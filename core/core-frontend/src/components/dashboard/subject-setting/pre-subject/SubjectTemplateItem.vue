@@ -22,8 +22,8 @@
       </div>
       <div class="title-main">
         <div class="title-area">
-          <span style="margin-top: 8px; margin-left: 8px" :title="subjectItem.name">{{
-            subjectItem.name
+          <span style="margin-top: 8px; margin-left: 8px" :title="t(subjectItem.name)">{{
+            t(subjectItem.name)
           }}</span>
         </div>
         <div class="edit-area" v-if="subjectItem.type === 'self'">

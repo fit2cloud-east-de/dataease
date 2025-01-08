@@ -7,12 +7,14 @@ import {
   configPlotTooltipEvent,
   getPadding,
   getTooltipContainer,
+  getTooltipItemConditionColor,
   getTooltipSeriesTotalMap,
   setGradientColor,
   TOOLTIP_TPL
 } from '../../common/common_antv'
 import { isEmpty } from 'lodash-es'
 import { useI18n } from '@/hooks/web/useI18n'
+import { DEFAULT_BASIC_STYLE } from '@/views/chart/components/editor/util/chart'
 const { t } = useI18n()
 
 /**
@@ -28,12 +30,13 @@ export class Waterfall extends G2PlotChartView<WaterfallOptions, G2Waterfall> {
     'title-selector',
     'legend-selector',
     'x-axis-selector',
-    'y-axis-selector'
+    'y-axis-selector',
+    'threshold'
   ]
   propertyInner: EditorPropertyInner = {
     'background-overall-component': ['all'],
     'border-style': ['all'],
-    'basic-style-selector': ['colors', 'alpha', 'gradient'],
+    'basic-style-selector': ['colors', 'alpha', 'gradient', 'columnWidthRatio'],
     'label-selector': ['fontSize', 'color', 'vPosition', 'labelFormatter'],
     'tooltip-selector': ['fontSize', 'color', 'backgroundColor', 'seriesTooltipFormatter', 'show'],
     'title-selector': [
@@ -70,7 +73,8 @@ export class Waterfall extends G2PlotChartView<WaterfallOptions, G2Waterfall> {
       'axisLabel',
       'axisLabelFormatter',
       'showLengthLimit'
-    ]
+    ],
+    threshold: ['lineThreshold']
   }
   axis: AxisType[] = ['xAxis', 'yAxis', 'filter', 'drill', 'extLabel', 'extTooltip']
   axisConfig = {
@@ -137,10 +141,24 @@ export class Waterfall extends G2PlotChartView<WaterfallOptions, G2Waterfall> {
     const customAttr = parseJson(chart.customAttr)
     const { colors, gradient, alpha } = customAttr.basicStyle
     const [risingColorRgba, fallingColorRgba, totalColorRgba] = colors
+
+    let columnWidthRatio
+    const _v = customAttr.basicStyle.columnWidthRatio ?? DEFAULT_BASIC_STYLE.columnWidthRatio
+    if (_v >= 1 && _v <= 100) {
+      columnWidthRatio = _v / 100.0
+    } else if (_v < 1) {
+      columnWidthRatio = 1 / 100.0
+    } else if (_v > 100) {
+      columnWidthRatio = 1
+    }
+    if (columnWidthRatio) {
+      options.columnWidthRatio = columnWidthRatio
+    }
+
     return {
       ...options,
       total: {
-        label: '合计',
+        label: t('chart.total'),
         style: {
           fill: setGradientColor(hexColorToRGBA(totalColorRgba, alpha), gradient, 270)
         }
@@ -222,17 +240,24 @@ export class Waterfall extends G2PlotChartView<WaterfallOptions, G2Waterfall> {
           .filter(item => formatterMap[item.data.quotaList[0].id])
           .forEach(item => {
             const formatter = formatterMap[item.data.quotaList[0].id]
-            const value = valueFormatter(parseFloat(item.value as string), formatter.formatterCfg)
+            const itemValue = (item.value + '').replace(/,/g, '')
+            formatter.formatterCfg.type = 'value'
+            const value = valueFormatter(parseFloat(itemValue), formatter.formatterCfg)
             const name = isEmpty(formatter.chartShowName) ? formatter.name : formatter.chartShowName
             result.push({ ...item, name, value })
           })
         head.data.dynamicTooltipValue?.forEach(item => {
           const formatter = formatterMap[item.fieldId]
           if (formatter) {
-            const value = valueFormatter(parseFloat(item.value), formatter.formatterCfg)
+            const itemValue = (item.value + '').replace(/,/g, '')
+            const value = valueFormatter(parseFloat(itemValue), formatter.formatterCfg)
             const name = isEmpty(formatter.chartShowName) ? formatter.name : formatter.chartShowName
             result.push({ color: 'grey', name, value })
           }
+        })
+        result.forEach(item => {
+          const color = getTooltipItemConditionColor(item)
+          item.color = color
         })
         return result
       },
@@ -260,7 +285,7 @@ export class Waterfall extends G2PlotChartView<WaterfallOptions, G2Waterfall> {
         ...tmp.legend,
         items: [
           {
-            name: '增加',
+            name: t('chart.increase'),
             value: '',
             marker: {
               style: {
@@ -269,7 +294,7 @@ export class Waterfall extends G2PlotChartView<WaterfallOptions, G2Waterfall> {
             }
           },
           {
-            name: '减少',
+            name: t('chart.decrease'),
             value: '',
             marker: {
               style: {
@@ -278,7 +303,7 @@ export class Waterfall extends G2PlotChartView<WaterfallOptions, G2Waterfall> {
             }
           },
           {
-            name: '合计',
+            name: t('chart.total'),
             value: '',
             marker: {
               style: {
@@ -293,6 +318,7 @@ export class Waterfall extends G2PlotChartView<WaterfallOptions, G2Waterfall> {
 
   protected setupOptions(chart: Chart, options: WaterfallOptions): WaterfallOptions {
     return flow(
+      this.addConditionsStyleColorToData,
       this.configTheme,
       this.configLegend,
       this.configBasicStyle,
@@ -300,7 +326,8 @@ export class Waterfall extends G2PlotChartView<WaterfallOptions, G2Waterfall> {
       this.configTooltip,
       this.configXAxis,
       this.configYAxis,
-      this.configMeta
+      this.configMeta,
+      this.configBarConditions
     )(chart, options)
   }
 

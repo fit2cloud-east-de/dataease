@@ -76,6 +76,7 @@
           :canvas-view-info="canvasViewInfo"
           :canvas-id="element.id + '--' + tabItem.name"
           :class="moveActive ? 'canvas-move-in' : ''"
+          :canvas-position="'tab'"
           :canvas-active="editableTabsValue === tabItem.name"
           :font-family="fontFamily"
         ></de-canvas>
@@ -266,7 +267,7 @@ const curPreviewGap = computed(() =>
 function sureCurTitle() {
   state.curItem.title = state.textarea
   state.dialogVisible = false
-  snapshotStore.recordSnapshotCache()
+  snapshotStore.recordSnapshotCache('sureCurTitle')
 }
 
 function addTab() {
@@ -279,7 +280,7 @@ function addTab() {
   }
   element.value.propValue.push(newTab)
   editableTabsValue.value = newTab.name
-  snapshotStore.recordSnapshotCache()
+  snapshotStore.recordSnapshotCache('addTab')
 }
 
 function deleteCur(param) {
@@ -321,11 +322,11 @@ function handleCommand(command) {
       break
     case 'deleteCur':
       deleteCur(command.param)
-      snapshotStore.recordSnapshotCache()
+      snapshotStore.recordSnapshotCache('deleteCur')
       break
     case 'copyCur':
       copyCur(command.param)
-      snapshotStore.recordSnapshotCache()
+      snapshotStore.recordSnapshotCache('copyCur')
       break
   }
 }
@@ -422,10 +423,16 @@ const headClass = computed(() => {
 const titleStyle = itemName => {
   if (editableTabsValue.value === itemName) {
     return {
+      textDecoration: element.value.style.textDecoration,
+      fontStyle: element.value.style.fontStyle,
+      fontWeight: element.value.style.fontWeight,
       fontSize: (element.value.style.activeFontSize || 18) * scale.value + 'px'
     }
   } else {
     return {
+      textDecoration: element.value.style.textDecoration,
+      fontStyle: element.value.style.fontStyle,
+      fontWeight: element.value.style.fontWeight,
       fontSize: (element.value.style.fontSize || 16) * scale.value + 'px'
     }
   }
@@ -481,20 +488,6 @@ watch(
   },
   { deep: true }
 )
-
-watch(
-  () => editableTabsValue.value,
-  () => {
-    nextTick(() => {
-      useEmitt().emitter.emit('tabCanvasChange-' + activeCanvasId.value)
-    })
-  },
-  { deep: true }
-)
-
-const activeCanvasId = computed(() => {
-  return element.value.id + '--' + editableTabsValue.value
-})
 
 const reShow = () => {
   state.tabShow = false

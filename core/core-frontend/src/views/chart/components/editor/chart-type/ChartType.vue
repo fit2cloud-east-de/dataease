@@ -95,6 +95,7 @@ const groupActiveChange = category => {
               class="item-top"
               :class="props.type === chartInfo.value ? 'item-active' : ''"
               :data-id="'UserView&' + chartInfo.value"
+              :title="chartInfo.title"
             >
               <Icon
                 class-name="item-top-icon"
@@ -232,6 +233,10 @@ const groupActiveChange = category => {
     color: #a6a6a6;
     font-size: 12px;
     text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 88px;
   }
 }
 

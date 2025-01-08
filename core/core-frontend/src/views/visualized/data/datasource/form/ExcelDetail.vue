@@ -25,6 +25,7 @@ import { cloneDeep, debounce } from 'lodash-es'
 import { uploadFile } from '@/api/datasource'
 import { useEmitt } from '@/hooks/web/useEmitt'
 import { iconFieldMap } from '@/components/icon-group/field-list'
+import { boolean } from 'mathjs'
 
 export interface Param {
   editType: number
@@ -63,10 +64,14 @@ const props = defineProps({
       })
     },
     type: Object
+  },
+  isSupportSetKey: {
+    type: boolean,
+    required: true
   }
 })
 
-const { param } = toRefs(props)
+const { param, isSupportSetKey } = toRefs(props)
 
 const { t } = useI18n()
 const { emitter } = useEmitt()
@@ -175,6 +180,9 @@ const handleExcelDel = () => {
 }
 
 const uploadSuccess = response => {
+  if (!response) {
+    return
+  }
   if (response?.code !== 0) {
     state.excelData = []
     activeTab.value = ''
@@ -183,6 +191,9 @@ const uploadSuccess = response => {
     ElMessage.warning(response.msg)
     return
   }
+  columns.value = []
+  Object.assign(sheetObj, cloneDeep(defaultSheetObj))
+  multipleSelection.value = []
   uploading.value = false
   if (!param.value.name) {
     param.value.name = response.data.excelLabel
@@ -737,7 +748,7 @@ defineExpose({
               class-name="checkbox-table"
               :label="t('datasource.set_key')"
               width="100"
-              v-if="param.editType === 0"
+              v-if="param.editType === 0 && isSupportSetKey"
             >
               <template #default="scope">
                 <el-checkbox
@@ -812,6 +823,7 @@ defineExpose({
     width: 800px;
     padding-top: 16px;
     height: calc(100vh - 280px);
+    min-height: 700px;
 
     .dropdown-icon {
       .down-outlined {

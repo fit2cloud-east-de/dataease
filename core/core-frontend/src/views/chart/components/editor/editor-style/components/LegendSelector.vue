@@ -214,15 +214,17 @@ const changeLegendNumber = (prop?) => {
   prop ? changeMisc(prop) : ''
 }
 const changeRangeItem = (prop, index) => {
-  console.log(state.legendForm.miscForm.mapLegendCustomRange[index])
-  console.log(mapLegendCustomRangeCacheList[index])
   if (state.legendForm.miscForm.mapLegendCustomRange[index] === null) {
     state.legendForm.miscForm.mapLegendCustomRange[index] = cloneDeep(
       mapLegendCustomRangeCacheList[index]
     )
-    console.log(state.legendForm.miscForm.mapLegendCustomRange[index])
   }
   changeMisc(prop)
+}
+const getMapCustomRange = index => {
+  if (index === 0) return t('chart.min')
+  if (index === state.legendForm.miscForm.mapLegendNumber) return t('chart.max')
+  return ''
 }
 onMounted(() => {
   init()
@@ -303,7 +305,7 @@ onMounted(() => {
         v-if="showProperty('fontSize')"
       >
         <template #label> &nbsp; </template>
-        <el-tooltip content="字号" :effect="toolTip" placement="top">
+        <el-tooltip :content="t('chart.font_size')" :effect="toolTip" placement="top">
           <el-select
             style="width: 108px"
             :effect="themes"
@@ -349,7 +351,7 @@ onMounted(() => {
                 :label="false"
                 @change="changeMisc('mapAutoLegend')"
               >
-                自定义
+                {{ t('chart.custom_case') }}
               </el-radio>
             </el-form-item>
           </el-col>
@@ -360,7 +362,7 @@ onMounted(() => {
               <el-form-item
                 class="form-item"
                 :class="'form-item-' + themes"
-                label="图例区间划分"
+                :label="t('chart.legend_range_division')"
                 prop="miscForm.mapLegendRangeType"
               >
                 <el-radio
@@ -369,9 +371,9 @@ onMounted(() => {
                   v-model="state.legendForm.miscForm.mapLegendRangeType"
                   :label="'quantize'"
                   @change="changeLegendCustomType('mapLegendRangeType')"
-                  style="width: 80px"
+                  style="width: 75px"
                 >
-                  等分区间
+                  {{ t('chart.legend_equal_range') }}
                 </el-radio>
                 <el-radio
                   size="small"
@@ -380,7 +382,7 @@ onMounted(() => {
                   :label="'custom'"
                   @change="changeLegendCustomType('mapLegendRangeType')"
                 >
-                  自定义区间
+                  {{ t('chart.legend_custom_range') }}
                 </el-radio>
               </el-form-item>
             </el-col>
@@ -413,9 +415,8 @@ onMounted(() => {
               v-for="(_value, index) in state.legendForm.miscForm.mapLegendCustomRange"
             >
               <el-col :span="8">
-                <label class="ed-form-item__label">
-                  {{ index === 0 ? '最小值' : '' }}
-                  {{ index === state.legendForm.miscForm.mapLegendNumber ? '最大值' : '' }}
+                <label class="ed-form-item__label text_ellipsis" :title="getMapCustomRange(index)">
+                  {{ getMapCustomRange(index) }}
                 </label>
               </el-col>
               <el-col :span="16">
@@ -721,5 +722,12 @@ onMounted(() => {
   &.position-divider--dark {
     background: rgba(235, 235, 235, 0.15);
   }
+}
+.text_ellipsis {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 80px;
+  display: inline-block !important;
 }
 </style>

@@ -2,6 +2,7 @@ package io.dataease.api.permissions.setting.api;
 
 import com.github.xiaoymin.knife4j.annotations.ApiSupport;
 import io.dataease.api.permissions.setting.vo.PerSettingItemVO;
+import io.dataease.license.config.XpackResource;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,6 +15,7 @@ import java.util.List;
 
 @Tag(name = "认证相关设置")
 @ApiSupport(order = 882)
+@XpackResource
 public interface PerSettingApi {
 
     @Operation(summary = "查询设置")
@@ -27,4 +29,16 @@ public interface PerSettingApi {
     @Hidden
     @GetMapping("/baisc/single/{key}")
     String singleValue(@PathVariable("key") String key);
+
+    @Operation(summary = "查询MFA设置")
+    @GetMapping("/mfa/query")
+    List<PerSettingItemVO> mfaSetting();
+
+    @Operation(summary = "保存MFA设置")
+    @PostMapping("/mfa/save")
+    void saveMfa(@RequestBody List<PerSettingItemVO> settings);
+
+    @Operation(summary = "查询MFA状态")
+    @GetMapping("/mfaStatus")
+    Integer mfaStatus();
 }

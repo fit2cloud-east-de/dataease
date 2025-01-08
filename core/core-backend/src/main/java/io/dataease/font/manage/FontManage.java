@@ -7,14 +7,13 @@ import io.dataease.chart.dao.auto.entity.CoreChartView;
 import io.dataease.exception.DEException;
 import io.dataease.font.dao.auto.entity.CoreFont;
 import io.dataease.font.dao.auto.mapper.CoreFontMapper;
-import io.dataease.utils.BeanUtils;
-import io.dataease.utils.FileUtils;
-import io.dataease.utils.IDUtils;
+import io.dataease.utils.*;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import org.springframework.core.io.ResourceLoader;
 
+import java.awt.*;
 import java.io.*;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -36,7 +36,9 @@ import java.util.UUID;
 @Component
 public class FontManage {
 
-    private static String path = "/opt/dataease2.0/data/font/";
+    @Value("${dataease.path.font:/opt/dataease2.0/data/font/}")
+    private String path;
+
     @Resource
     private CoreFontMapper coreFontMapper;
     @Autowired
@@ -151,7 +153,7 @@ public class FontManage {
         return fontDtos;
     }
 
-    private static FontDto saveFile(MultipartFile file, String fileNameUUID) throws DEException {
+    private FontDto saveFile(MultipartFile file, String fileNameUUID) throws DEException {
         FontDto fontDto = new FontDto();
         try {
             String filename = file.getOriginalFilename();
@@ -181,9 +183,10 @@ public class FontManage {
                 unit = "KB";
                 size = Double.valueOf(String.format("%.2f", (double) length / 1024));
             }
+            Font font = Font.createFont(Font.TRUETYPE_FONT, new File(filePath));
             fontDto.setSize(size);
             fontDto.setSizeType(unit);
-
+            fontDto.setName(font.getFontName());
         } catch (Exception e) {
             DEException.throwException(e);
         }

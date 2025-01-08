@@ -108,6 +108,11 @@ export class Scatter extends G2PlotChartView<ScatterOptions, G2Scatter> {
       xField: 'field',
       yField: 'value',
       colorField: 'category',
+      meta: {
+        field: {
+          type: 'cat'
+        }
+      },
       appendPadding: getPadding(chart),
       interactions: [
         {

@@ -66,17 +66,17 @@ const getCurLocation = () => {
   }
   return queryRedirectPath
 }
-
+const enterHandler = e => {
+  e.target.blur()
+  e.stopPropagation()
+  handleLogin()
+}
 const formRef = ref<FormInstance | undefined>()
 const duringLogin = ref(true)
 const handleLogin = () => {
   if (!formRef.value) return
   formRef.value.validate(async (valid: boolean) => {
     if (valid) {
-      /* if (!checkUsername(state.loginForm.username) || !validatePwd(state.loginForm.password)) {
-        ElMessage.error('用户名或密码错误')
-        return
-      } */
       const name = state.loginForm.username.trim()
       const pwd = state.loginForm.password
       if (!wsCache.get(appStore.getDekey)) {
@@ -84,21 +84,31 @@ const handleLogin = () => {
         wsCache.set(appStore.getDekey, res.data)
       }
       const param = { name: rsaEncryp(name), pwd: rsaEncryp(pwd) }
+      const isLdap = activeName.value === 'ldap'
+      if (isLdap) {
+        param['origin'] = 1
+      }
       duringLogin.value = true
       cleanPlatformFlag()
       loginApi(param)
         .then(res => {
-          const { token, exp } = res.data
-          userStore.setToken(token)
-          userStore.setExp(exp)
-          userStore.setTime(Date.now())
-          if (!xpackLoadFail.value && xpackInvalidPwd.value?.invokeMethod) {
+          const { token, exp, mfa } = res.data
+          if (!isLdap && !xpackLoadFail.value && xpackInvalidPwd.value?.invokeMethod) {
             const param = {
-              methodName: 'init'
+              methodName: 'init',
+              args: res.data
             }
             xpackInvalidPwd?.value.invokeMethod(param)
             return
           }
+          if (!isLdap && mfa?.enabled) {
+            xpackLoginHandler.value?.invokeMethod({ methodName: 'toMfa', args: mfa })
+            duringLogin.value = false
+            return
+          }
+          userStore.setToken(token)
+          userStore.setExp(exp)
+          userStore.setTime(Date.now())
           const queryRedirectPath = getCurLocation()
           router.push({ path: queryRedirectPath })
         })
@@ -108,21 +118,16 @@ const handleLogin = () => {
     }
   })
 }
-const ldapValidate = callback => {
-  if (!formRef.value) return
-  formRef.value.validate((valid: boolean) => {
-    if (valid && callback) {
-      duringLogin.value = true
-      callback()
-    }
-  })
-}
-const ldapFeedback = () => {
-  duringLogin.value = false
-}
-const invalidPwdCb = val => {
+const invalidPwdCb = cbParam => {
+  const val = cbParam['status']
   duringLogin.value = !!val
   if (val) {
+    const mfa = cbParam['mfa']
+    if (mfa?.enabled) {
+      xpackLoginHandler.value?.invokeMethod({ methodName: 'toMfa', args: mfa })
+      duringLogin.value = false
+      return
+    }
     const queryRedirectPath = getCurLocation()
     router.push({ path: queryRedirectPath })
   }
@@ -299,17 +304,24 @@ onMounted(async () => {
               <img v-if="loginLogoUrl && axiosFinished" :src="loginLogoUrl" alt="" />
             </div>
             <div class="login-welcome">
-              {{ slogan || '人人可用的开源 BI 工具' }}
+              {{ slogan || t('system.available_to_everyone') }}
             </div>
             <div class="login-form">
-              <div class="default-login-tabs" v-if="activeName === 'simple'">
+              <div
+                class="default-login-tabs"
+                v-if="activeName === 'simple' || activeName === 'ldap'"
+              >
                 <div class="login-form-title">
-                  <span>账号登录</span>
+                  <span>{{
+                    activeName === 'ldap' ? t('login.ldap_login') : t('login.account_login')
+                  }}</span>
                 </div>
                 <el-form-item class="login-form-item" prop="username">
                   <el-input
                     v-model="state.loginForm.username"
-                    :placeholder="t('common.account') + '/' + t('commons.email')"
+                    :placeholder="`${t('common.account')}${
+                      activeName === 'simple' ? '/' + t('commons.email') : ''
+                    }`"
                     autofocus
                   />
                 </el-form-item>
@@ -321,7 +333,7 @@ onMounted(async () => {
                     maxlength="30"
                     show-word-limit
                     autocomplete="new-password"
-                    @keypress.enter="handleLogin"
+                    @keypress.enter.stop="enterHandler"
                   />
                 </el-form-item>
                 <div class="login-btn">
@@ -339,15 +351,6 @@ onMounted(async () => {
                   </div>
                 </div>
               </div>
-
-              <XpackComponent
-                class="default-login-tabs"
-                :active-name="activeName"
-                :login-form="state.loginForm"
-                @validate="ldapValidate"
-                @feedback="ldapFeedback"
-                jsname="L2NvbXBvbmVudC9sb2dpbi9MZGFw"
-              />
 
               <XpackComponent
                 ref="xpackLoginHandler"

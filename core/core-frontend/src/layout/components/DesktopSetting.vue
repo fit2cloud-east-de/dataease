@@ -1,12 +1,7 @@
 <script lang="ts" setup>
 import iconSetting from '@/assets/svg/icon-setting.svg'
-import TopDocCard from '@/layout/components/TopDocCard.vue'
 import copilot from '@/assets/svg/copilot.svg'
 import LangSelector from '@/layout/components/LangSelector.vue'
-import topEnterpriseTrial from '@/assets/svg/top-enterprise-trial.svg'
-import topHelpDoc from '@/assets/svg/top-help-doc.svg'
-import topProductBbs from '@/assets/svg/top-product-bbs.svg'
-import topTechnology from '@/assets/svg/top-technology.svg'
 import { useRouter } from 'vue-router'
 import TopDesktopCard from './TopDesktopCard.vue'
 import icon_right_outlined from '@/assets/svg/icon_right_outlined.svg'
@@ -16,7 +11,6 @@ import dvPreviewDownload from '@/assets/svg/dv-preview-download.svg'
 import ToolboxCfg from './ToolboxCfg.vue'
 import { findBaseParams } from '@/api/aiComponent'
 import icon_more_outlined from '@/assets/svg/icon_more_outlined.svg'
-import msgNotice from '@/assets/svg/msg-notice.svg'
 import { usePermissionStore } from '@/store/modules/permission'
 import { useAppearanceStoreWithOut } from '@/store/modules/appearance'
 import { msgCountApi } from '@/api/msg'
@@ -30,25 +24,11 @@ const badgeCount = ref('0')
 const permissionStore = usePermissionStore()
 const appearanceStore = useAppearanceStoreWithOut()
 const navigateBg = computed(() => appearanceStore.getNavigateBg)
-const help = computed(() => appearanceStore.getHelp)
-const cardInfoList = [
-  { name: '帮助文档', url: help.value || 'https://dataease.io/docs/v2/', icon: topHelpDoc },
-  { name: '产品论坛', url: 'https://bbs.fit2cloud.com/c/de/6', icon: topProductBbs },
-  {
-    name: '技术博客',
-    url: 'https://blog.fit2cloud.com/categories/dataease',
-    icon: topTechnology
-  },
-  { name: '企业版试用', url: 'https://jinshuju.net/f/TK5TTd', icon: topEnterpriseTrial }
-]
 const { push, resolve } = useRouter()
 const redirectUser = () => {
   const sysMenu = resolve('/sys-setting')
   const kidPath = sysMenu.matched[0].children[0].path
   push(`${sysMenu.path}/${kidPath}`)
-}
-const msgNoticePush = () => {
-  push('/msg/msg-fill')
 }
 const initShowToolbox = () => {
   showToolbox.value = permissionStore.getRouters.some(route => route.path === '/toolbox')
@@ -93,18 +73,6 @@ onMounted(() => {
     >
       <Icon><dvPreviewDownload @click="downloadClick" class="svg-icon" /></Icon>
     </el-icon>
-  </el-tooltip>
-  <el-tooltip effect="dark" :content="$t('v_query.msg_center')" placement="bottom">
-    <el-badge
-      style="margin-left: 10px"
-      :hidden="[0, '0'].includes(badgeCount)"
-      :value="badgeCount"
-      class="ed-badge_custom"
-    >
-      <el-icon class="preview-download_icon" :class="navigateBg === 'light' && 'is-light-setting'">
-        <Icon><msgNotice @click="msgNoticePush" class="svg-icon" /></Icon>
-      </el-icon>
-    </el-badge>
   </el-tooltip>
   <el-tooltip
     class="box-item"
@@ -151,29 +119,6 @@ onMounted(() => {
           ></TopDesktopCard>
         </div>
         <div class="border-top">
-          <el-popover
-            :teleported="false"
-            popper-class="popper-class_ai-copilot"
-            placement="left-start"
-            :width="224"
-            trigger="click"
-            ><template #default>
-              <div style="display: flex; padding: 8px; flex-wrap: wrap">
-                <top-doc-card
-                  :span="12"
-                  v-for="(item, index) in cardInfoList"
-                  :key="index"
-                  :card-info="item"
-                ></top-doc-card>
-              </div>
-            </template>
-            <template #reference
-              ><div class="item-select_info">
-                {{ $t('commons.help_center') }}
-                <el-icon style="font-size: 16px">
-                  <Icon><icon_right_outlined></icon_right_outlined></Icon>
-                </el-icon></div></template
-          ></el-popover>
           <el-popover
             :teleported="false"
             popper-class="popper-class_ai-copilot"

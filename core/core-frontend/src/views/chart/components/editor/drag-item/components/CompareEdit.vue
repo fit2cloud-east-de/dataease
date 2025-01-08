@@ -37,9 +37,9 @@ const state = reactive({
 })
 
 const dateFormatterList = [
-  { name: '年', value: 'y' },
-  { name: '年月', value: 'y_M' },
-  { name: '年月日', value: 'y_M_d' }
+  { name: t('chart.y'), value: 'y' },
+  { name: t('chart.y_M'), value: 'y_M' },
+  { name: t('chart.y_M_d'), value: 'y_M_d' }
 ]
 
 const changeDateFormatter = () => {
@@ -61,6 +61,94 @@ const initDateFormatter = () => {
     changeDateFormatter()
   }
 }
+
+const hintStr = computed<string>(() => {
+  let dataFormatter = state.dateFormatter
+  const checkedField = state.fieldList.filter(ele => ele.id === compareItem.value.compareCalc.field)
+  if (checkedField && checkedField.length > 0) {
+    dataFormatter = checkedField[0].dateStyle
+  }
+  switch (dataFormatter) {
+    case 'y_M_d':
+      switch (compareItem.value.compareCalc.type) {
+        case 'day_mom':
+          switch (compareItem.value.compareCalc.resultData) {
+            case 'pre':
+              return t('chart.compare_calc_day_pre')
+            case 'sub':
+              return t('chart.compare_calc_day_sub')
+            case 'percent':
+              return t('chart.compare_calc_day_percent')
+          }
+          break
+        case 'month_yoy':
+        case 'month_mom':
+          switch (compareItem.value.compareCalc.resultData) {
+            case 'pre':
+              return t('chart.compare_calc_month_pre')
+            case 'sub':
+              return t('chart.compare_calc_month_sub')
+            case 'percent':
+              return t('chart.compare_calc_month_percent')
+          }
+          break
+        case 'year_yoy':
+        case 'year_mom':
+          switch (compareItem.value.compareCalc.resultData) {
+            case 'pre':
+              return t('chart.compare_calc_year_pre')
+            case 'sub':
+              return t('chart.compare_calc_year_sub')
+            case 'percent':
+              return t('chart.compare_calc_year_percent')
+          }
+          break
+      }
+      break
+    case 'y_M':
+      switch (compareItem.value.compareCalc.type) {
+        case 'month_yoy':
+        case 'month_mom':
+          switch (compareItem.value.compareCalc.resultData) {
+            case 'pre':
+              return t('chart.compare_calc_month_pre_m')
+            case 'sub':
+              return t('chart.compare_calc_month_sub_m')
+            case 'percent':
+              return t('chart.compare_calc_month_percent_m')
+          }
+          break
+        case 'year_yoy':
+        case 'year_mom':
+          switch (compareItem.value.compareCalc.resultData) {
+            case 'pre':
+              return t('chart.compare_calc_year_pre_m')
+            case 'sub':
+              return t('chart.compare_calc_year_sub_m')
+            case 'percent':
+              return t('chart.compare_calc_year_percent_m')
+          }
+          break
+      }
+      break
+    case 'y':
+      switch (compareItem.value.compareCalc.type) {
+        case 'year_yoy':
+        case 'year_mom':
+          switch (compareItem.value.compareCalc.resultData) {
+            case 'pre':
+              return t('chart.compare_calc_year_pre_y')
+            case 'sub':
+              return t('chart.compare_calc_year_sub_y')
+            case 'percent':
+              return t('chart.compare_calc_year_percent_y')
+          }
+          break
+      }
+      break
+  }
+  return ''
+})
 
 watch(
   () => props.chart,
@@ -208,18 +296,14 @@ initDateFormatter()
       </el-form-item>
 
       <el-form-item :label="t('chart.compare_calc_expression')">
-        <span v-if="compareItem.compareCalc.resultData === 'pre'" class="exp-style">上期数据</span>
-        <span v-if="compareItem.compareCalc.resultData === 'sub'" class="exp-style"
-          >本期数据 - 上期数据</span
-        >
-        <span v-else-if="compareItem.compareCalc.resultData === 'percent'" class="exp-style"
-          >(本期数据 / |上期数据| - 1) * 100%</span
-        >
+        <span class="exp-style">
+          {{ hintStr }}
+        </span>
       </el-form-item>
 
       <el-form-item :label="t('chart.tip')">
         <span class="exp-style" style="padding-top: 2px">
-          当对比日期需要过滤时，请使用过滤组件实现过滤；使用图表过滤器，仪表板下钻和联动等功能，会导致结果不一致
+          {{ t('chart.compare_calc_tip') }}
         </span>
       </el-form-item>
     </el-form>

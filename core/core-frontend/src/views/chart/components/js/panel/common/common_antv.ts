@@ -1,4 +1,4 @@
-import { hexColorToRGBA, isAlphaColor, isTransparent, measureText, parseJson } from '../../util'
+import { hexColorToRGBA, hexToRgba, measureText, parseJson } from '../../util'
 import {
   DEFAULT_BASIC_STYLE,
   DEFAULT_LEGEND_STYLE,
@@ -34,6 +34,8 @@ import { centroid } from '@turf/centroid'
 import type { Plot } from '@antv/g2plot'
 import type { PickOptions } from '@antv/g2plot/lib/core/plot'
 import { defaults } from 'lodash-es'
+import { useI18n } from '@/hooks/web/useI18n'
+const { t: tI18n } = useI18n()
 
 export function getPadding(chart: Chart): number[] {
   if (chart.drill) {
@@ -185,7 +187,6 @@ export function getLabel(chart: Chart) {
             layout.push({ type: 'hide-overlap' })
           } else {
             layout.push({ type: 'limit-in-plot' })
-            layout.push({ type: 'fixed-overlap' })
             layout.push({ type: 'hide-overlap' })
           }
         }
@@ -265,7 +266,8 @@ export function getMultiSeriesTooltip(chart: Chart) {
           const formatter = formatterMap[item.data.quotaList[0].id]
           const value = valueFormatter(parseFloat(item.value as string), formatter.formatterCfg)
           const name = isEmpty(formatter.chartShowName) ? formatter.name : formatter.chartShowName
-          result.push({ ...item, name, value })
+          const color = getTooltipItemConditionColor(item)
+          result.push({ ...item, name, value, ...(color ? { color } : {}) })
         })
       head.data.dynamicTooltipValue?.forEach(item => {
         const formatter = formatterMap[item.fieldId]
@@ -1132,10 +1134,14 @@ export class CustomZoom extends Zoom {
       'l7-button-control',
       container,
       () => {
-        this.mapsService.setZoomAndCenter(
-          this.controlOption['initZoom'],
-          this.controlOption['center']
-        )
+        if (this.controlOption['bounds']) {
+          this.mapsService.fitBounds(this.controlOption['bounds'], { animate: true })
+        } else {
+          this.mapsService.setZoomAndCenter(
+            this.controlOption['initZoom'],
+            this.controlOption['center']
+          )
+        }
       }
     )
     if (this.controlOption.showZoom) {
@@ -1184,31 +1190,118 @@ export class CustomZoom extends Zoom {
     } as IZoomControlOption
   }
 }
-export function configL7Zoom(chart: Chart, plot: L7Plot<PlotOptions> | Scene) {
+export function configL7Zoom(chart: Chart, scene: Scene) {
   const { basicStyle } = parseJson(chart.customAttr)
-  const plotScene = plot instanceof Scene ? plot : plot.scene
-  const zoomOption = plotScene?.getControlByName('zoom')
+  const zoomOption = scene?.getControlByName('zoom')
   if (zoomOption) {
-    plotScene.removeControl(zoomOption)
+    scene.removeControl(zoomOption)
   }
   if (shouldHideZoom(basicStyle)) {
     return
   }
-  if (!plotScene?.getControlByName('zoom')) {
-    let initZoom = basicStyle.autoFit === false ? basicStyle.zoomLevel : 2.5
-    let center = getCenter(basicStyle)
-    if (['map', 'bubble-map'].includes(chart.type)) {
-      initZoom = plotScene.getZoom()
-      center = plotScene.getCenter()
+  if (!scene?.getControlByName('zoom')) {
+    if (!scene.map) {
+      scene.once('loaded', () => {
+        scene.map.on('complete', () => {
+          const initZoom = basicStyle.autoFit === false ? basicStyle.zoomLevel : scene.getZoom()
+          const center =
+            basicStyle.autoFit === false
+              ? [basicStyle.mapCenter.longitude, basicStyle.mapCenter.latitude]
+              : [scene.map.getCenter().lng, scene.map.getCenter().lat]
+          const newZoomOptions = {
+            initZoom: initZoom,
+            center: center,
+            buttonColor: basicStyle.zoomButtonColor,
+            buttonBackground: basicStyle.zoomBackground
+          } as any
+          scene.addControl(new CustomZoom(newZoomOptions))
+        })
+      })
+    } else {
+      const newZoomOptions = {
+        buttonColor: basicStyle.zoomButtonColor,
+        buttonBackground: basicStyle.zoomBackground
+      } as any
+      if (basicStyle.autoFit === false) {
+        newZoomOptions.initZoom = basicStyle.zoomLevel
+        newZoomOptions.center = [basicStyle.mapCenter.longitude, basicStyle.mapCenter.latitude]
+      } else {
+        const coordinates: [][] = []
+        if (chart.type === 'flow-map') {
+          const startAxis = chart.xAxis
+          const endAxis = chart.xAxisExt
+          if (startAxis?.length === 2) {
+            chart.data?.tableRow?.forEach(row => {
+              coordinates.push([row[startAxis[0].dataeaseName], row[startAxis[1].dataeaseName]])
+            })
+          }
+          if (endAxis?.length === 2) {
+            chart.data?.tableRow?.forEach(row => {
+              coordinates.push([row[endAxis[0].dataeaseName], row[endAxis[1].dataeaseName]])
+            })
+          }
+        } else {
+          const axis = chart.xAxis
+          if (axis?.length === 2) {
+            chart.data?.tableRow?.forEach(row => {
+              coordinates.push([row[axis[0].dataeaseName], row[axis[1].dataeaseName]])
+            })
+          }
+        }
+        newZoomOptions.bounds = calculateBounds(coordinates)
+      }
+      scene.addControl(new CustomZoom(newZoomOptions))
     }
-    const newZoomOptions = {
-      initZoom: initZoom,
-      center: center,
+  }
+}
+/**
+ * 计算经纬度数据的边界点
+ * @param coordinates 经纬度数组 [[lng, lat], [lng, lat], ...]
+ * @returns {[[number, number], [number, number]]} 返回东北角和西南角的坐标
+ */
+export function calculateBounds(coordinates: number[][]): {
+  northEast: [number, number]
+  southWest: [number, number]
+} {
+  if (!coordinates || coordinates.length === 0) {
+    return {
+      northEast: [180, 90],
+      southWest: [-180, -90]
+    }
+  }
+
+  let maxLng = -180
+  let minLng = 180
+  let maxLat = -90
+  let minLat = 90
+
+  coordinates.forEach(([lng, lat]) => {
+    maxLng = Math.max(maxLng, lng)
+    minLng = Math.min(minLng, lng)
+    maxLat = Math.max(maxLat, lat)
+    minLat = Math.min(minLat, lat)
+  })
+
+  return [
+    [maxLng, maxLat], // 东北角坐标
+    [minLng, minLat] // 西南角坐标
+  ]
+}
+
+export function configL7PlotZoom(chart: Chart, plot: L7Plot<PlotOptions>) {
+  const { basicStyle } = parseJson(chart.customAttr)
+  if (shouldHideZoom(basicStyle)) {
+    return
+  }
+  plot.once('loaded', () => {
+    const zoomOptions = {
+      initZoom: plot.scene.getZoom(),
+      center: plot.scene.getCenter(),
       buttonColor: basicStyle.zoomButtonColor,
       buttonBackground: basicStyle.zoomBackground
     } as any
-    addCustomZoom(plotScene, newZoomOptions)
-  }
+    plot.scene.addControl(new CustomZoom(zoomOptions))
+  })
 }
 
 function setStyle(elements: HTMLElement[], styleProp: string, value) {
@@ -1242,30 +1335,6 @@ function shouldHideZoom(basicStyle: any): boolean {
   )
 }
 
-/**
- * 获取地图中心点
- * @param basicStyle
- */
-function getCenter(basicStyle: any): [number, number] {
-  let center: [number, number] = [
-    DEFAULT_BASIC_STYLE.mapCenter.longitude,
-    DEFAULT_BASIC_STYLE.mapCenter.latitude
-  ]
-  if (basicStyle.autoFit === false) {
-    center = [basicStyle.mapCenter.longitude, basicStyle.mapCenter.latitude]
-  }
-  return center
-}
-
-/**
- * 添加自定义缩放控件
- * @param plotScene
- * @param newZoomOptions
- */
-function addCustomZoom(plotScene: Scene, newZoomOptions: any): void {
-  plotScene.addControl(new CustomZoom(newZoomOptions))
-}
-
 const G2_TOOLTIP_WRAPPER = 'g2-tooltip-wrapper'
 export function getTooltipContainer(id) {
   let wrapperDom = document.getElementById(G2_TOOLTIP_WRAPPER)
@@ -1283,6 +1352,7 @@ export function getTooltipContainer(id) {
   g2Tooltip.classList.add('g2-tooltip')
   // 最多半屏，鼠标移入可滚动
   g2Tooltip.style.maxHeight = '50%'
+  g2Tooltip.style.maxWidth = '25%'
   g2Tooltip.style.overflowY = 'auto'
   g2Tooltip.style.display = 'none'
   g2Tooltip.style.position = 'fixed'
@@ -1349,7 +1419,7 @@ export function configPlotTooltipEvent<O extends PickOptions, P extends Plot<O>>
     plot.chart.getTheme().components.tooltip.y = event.clientY
   })
   // https://github.com/antvis/G2/blob/master/src/chart/controller/tooltip.ts#hideTooltip
-  plot.on('plot:mouseleave', () => {
+  plot.on('plot:leave', () => {
     const tooltipCtl = plot.chart.getController('tooltip')
     if (!tooltipCtl) {
       return
@@ -1360,6 +1430,22 @@ export function configPlotTooltipEvent<O extends PickOptions, P extends Plot<O>>
       container.style.display = 'none'
     }
     tooltipCtl.hideTooltip()
+  })
+  // 移动端处理，关闭其他图表的提示
+  plot.on('plot:touchstart', () => {
+    const wrapperDom = document.getElementById(G2_TOOLTIP_WRAPPER)
+    if (wrapperDom) {
+      const tooltipCtl = plot.chart.getController('tooltip')
+      if (!tooltipCtl) {
+        return
+      }
+      const container = tooltipCtl.tooltip.cfg.container
+      for (const ele of wrapperDom.children) {
+        if (container.id !== ele.id) {
+          ele.style.display = 'none'
+        }
+      }
+    }
   })
 }
 
@@ -1373,7 +1459,8 @@ export const TOOLTIP_TPL =
 export function getConditions(chart: Chart) {
   const { threshold } = parseJson(chart.senior)
   const annotations = []
-  if (!threshold.enable || chart.type === 'area-stack') return annotations
+  if (!threshold.enable || chart.type === 'area-stack' || chart.type === 'symbolic-map')
+    return annotations
   const conditions = threshold.lineThreshold ?? []
   const yAxisIds = chart.yAxis.map(i => i.id)
   for (const field of conditions) {
@@ -1599,4 +1686,226 @@ export function configYaxisTitleLengthLimit(chart, plot) {
     ev.view.options.axes.yAxisExt.title.originalText = yAxis.name
     ev.view.options.axes.yAxisExt.title.text = wrappedTitle
   })
+}
+
+/**
+ * 调整原始数据options.data
+ * 添加conditionColor字段，用于保存符合条件的颜色
+ * conditionColor 为数组，多个指标多个颜色，按照指标的顺序
+ * @param chart
+ * @param options
+ */
+export const addConditionsStyleColorToData = (chart: Chart, options) => {
+  const { threshold } = parseJson(chart.senior)
+  if (!threshold.enable) return options
+  options.data.forEach(item => {
+    item['conditionColor'] = []
+    // 条形图的值字段是xField，柱形图的值字段是yField
+    const valueField = chart.type === 'bar-horizontal' ? options.xField : options.yField
+    // 对称条形图区分左右值，value、 valueExt,quotaList只有一个
+    if (chart.type === 'bidirectional-bar') {
+      valueField.forEach(value => {
+        const quotaList = value === 'value' ? chart.yAxis : chart.yAxisExt
+        const conditionColor = getColorByConditions([quotaList[0]?.id], item[value], chart)
+        if (conditionColor) {
+          item[item[options.xField] + '-' + value] = conditionColor
+        }
+      })
+    } else if (item.quotaList?.length) {
+      const quotaList = item.quotaList.map(q => q.id) ?? []
+      quotaList.forEach((q, index) => {
+        // 定义后，在 handleConditionsStyle 函数中使用
+        let currentValue = item[valueField]
+        if (chart.type === 'progress-bar') {
+          currentValue = item['progress']
+        }
+        const cColor = getColorByConditions([q], currentValue, chart)
+        if (cColor) {
+          item.conditionColor.push(cColor)
+        } else {
+          item.conditionColor = undefined
+        }
+      })
+    }
+  })
+  return options
+}
+
+/**
+ * 辅助函数：获取颜色, 根据条件以及值计算
+ * @param quotaList 指标列表
+ * @param values 值
+ */
+const getColorByConditions = (quotaList: [], values: number | number[], chart) => {
+  const { threshold } = parseJson(chart.senior)
+  const { basicStyle } = parseJson(chart.customAttr)
+  const currentValue = Array.isArray(values) ? values[1] - values[0] : values
+  if (!currentValue) return undefined
+  // 同样的指标只取最后一个
+  const conditionMap = new Map()
+  for (const condition of threshold.lineThreshold ?? []) {
+    conditionMap.set(condition.fieldId, condition)
+  }
+  for (const condition of conditionMap.values()) {
+    if (chart.type === 'progress-bar' && chart.yAxisExt?.[0]?.id !== quotaList[0]) continue
+    if (!quotaList.includes(condition.fieldId) && chart.type !== 'waterfall') continue
+    for (const tc of condition.conditions) {
+      if (
+        (tc.term === 'between' && currentValue >= tc.min && currentValue <= tc.max) ||
+        (tc.term === 'lt' && currentValue < tc.value) ||
+        (tc.term === 'le' && currentValue <= tc.value) ||
+        (tc.term === 'gt' && currentValue > tc.value) ||
+        (tc.term === 'ge' && currentValue >= tc.value)
+      ) {
+        let tmpColor = hexToRgba(tc.color, basicStyle.alpha)
+        if (basicStyle.gradient) {
+          let vhAngle = ['bar-horizontal', 'progress-bar'].includes(chart.type) ? 0 : 270
+          if (chart.type === 'bidirectional-bar') {
+            const yAxis = chart.yAxis.find(item => item.id === condition.fieldId)
+            vhAngle = getBidirectionalAngle(basicStyle, yAxis ? 0 : 1)
+          }
+          tmpColor = setGradientColor(tmpColor, true, vhAngle)
+        }
+        return tmpColor
+      }
+    }
+  }
+}
+
+/**
+ * 处理柱条图的样式
+ * 柱条的颜色
+ * 提示marker的颜色
+ * 注: 原始options中tooltip已经配置了customItems,这里将会忽略
+ * @param chart
+ * @param options
+ */
+export function handleConditionsStyle(chart: Chart, options: O) {
+  const { threshold } = parseJson(chart.senior)
+  if (!threshold.enable) return options
+  const { basicStyle } = parseJson(chart.customAttr)
+  // 该字段出处 addConditionsStyleColorToData
+  const colorField = 'conditionColor'
+  // 配置条件样式的颜色字段
+  const rawFields = options.rawFields || []
+  rawFields.push(colorField)
+  // 辅助函数：配置柱条样式颜色，条形图为barStyle,柱形图为columnStyle
+  const columnStyle = data => {
+    return {
+      ...options.columnStyle,
+      ...options.barStyle,
+      ...(data[colorField]?.[0] ? { fill: data[colorField][0] } : {})
+    }
+  }
+  let newColor = undefined
+  if (chart.type === 'bidirectional-bar') {
+    rawFields.push(options.xField)
+    newColor = getBidirectionalBarColor(chart, basicStyle, options)
+  } else if (chart.type === 'waterfall') {
+    newColor = getWaterfallColor(basicStyle, chart)
+  }
+  const tmpOption = {
+    ...options,
+    rawFields,
+    columnStyle: columnStyle,
+    barStyle: columnStyle,
+    tooltip: {
+      ...options.tooltip,
+      ...(options.tooltip['customItems']
+        ? {}
+        : {
+            customItems: originalItems => {
+              originalItems.forEach(item => {
+                if (item.data?.[colorField]) {
+                  item.color = item.data[colorField][0]
+                }
+              })
+              return originalItems
+            }
+          })
+    },
+    ...(newColor ? { color: newColor } : {})
+  }
+  return tmpOption
+}
+
+/**
+ * 配置瀑布图的color
+ * 瀑布color,这个图表固定为基础样式中颜色的前三个颜色，第一个为增加，第二个为减少，第三个为总计
+ * @param basicStyle
+ * @param chart
+ */
+const getWaterfallColor = (basicStyle, chart) => {
+  const waterfallBasicColors = getBasicColors(chart, basicStyle, 270)
+  return data => {
+    if (data['$$isTotal$$']) return waterfallBasicColors[2]
+    const values = data['$$yField$$']
+    const newColor = getColorByConditions([], values, chart)
+    return newColor ?? (values[1] > values[0] ? waterfallBasicColors[0] : waterfallBasicColors[1])
+  }
+}
+
+/**
+ * 配置对称条形图的color
+ * @param basicStyle
+ * @param options
+ */
+const getBidirectionalBarColor = (chart, basicStyle, options) => {
+  const basicColors = getBasicColors(chart, basicStyle, 270)
+  return ref => {
+    const obj = options.data.find(item => item[ref[options.xField] + '-' + ref['series-field-key']])
+    if (obj) {
+      return obj[ref[options.xField] + '-' + ref['series-field-key']]
+    }
+    return ref['series-field-key'] === 'value' ? basicColors[0] : basicColors[1]
+  }
+}
+
+/**
+ * 获取基础颜色
+ * @param chart
+ * @param basicStyle
+ * @param angle
+ */
+const getBasicColors = (chart, basicStyle, angle) => {
+  const baseColors = []
+  basicStyle.colors?.forEach((color, index) => {
+    if (chart.type === 'bidirectional-bar') {
+      baseColors.push(
+        setGradientColor(
+          hexToRgba(color, basicStyle.alpha),
+          true,
+          getBidirectionalAngle(basicStyle, index)
+        )
+      )
+    } else {
+      baseColors.push(setGradientColor(hexToRgba(color, basicStyle.alpha), true, angle))
+    }
+  })
+  return basicStyle.gradient ? baseColors : basicStyle.colors
+}
+
+/**
+ * 获取对称条形图颜色的渐变角度
+ * @param basicStyle
+ * @param index
+ */
+const getBidirectionalAngle = (basicStyle, index) => {
+  let vhAngle = 180 - index * 180
+  if (basicStyle.layout === 'vertical') {
+    vhAngle = index === 0 ? 280 : 90
+  }
+  return vhAngle
+}
+
+/**
+ * tooltip验证条件样式中的颜色，有就使用，否则使用原始颜色
+ * @param item
+ */
+export const getTooltipItemConditionColor = item => {
+  let color = item.color
+  if (item.data?.['conditionColor']) {
+    color = item.data['conditionColor'][0]
+  }
+  return color
 }

@@ -47,6 +47,7 @@ import { findParentIdByChildIdRecursive } from '@/utils/canvasUtils'
 import { XpackComponent } from '@/components/plugin'
 import treeSort, { treeParentWeight } from '@/utils/treeSortUtils'
 import router from '@/router'
+import { cancelRequestBatch } from '@/config/axios/service'
 const { wsCache } = useCache()
 
 const dvMainStore = dvMainStoreWithOut()
@@ -232,8 +233,16 @@ const filterNode = (value: string, data: BusiTreeNode) => {
   if (!value) return true
   return data.name?.toLocaleLowerCase().includes(value.toLocaleLowerCase())
 }
+//取消之前请求
+const cancelPreRequest = () => {
+  cancelRequestBatch('/dataVisualization/findById')
+  cancelRequestBatch('/chartData/getData')
+  cancelRequestBatch('/linkage/getVisualizationAllLinkageInfo/**')
+  cancelRequestBatch('/linkJump/queryVisualizationJumpInfo/**')
+}
 
 const nodeClick = (data: BusiTreeNode) => {
+  cancelPreRequest()
   selectedNodeKey.value = data.id
   if (data.leaf) {
     emit('nodeClick', data)
@@ -520,10 +529,15 @@ const sortTypeTip = computed(() => {
   return sortList.find(ele => ele.value === state.curSortType).name
 })
 
-const sortTypeChange = sortType => {
+const handleSortTypeChange = sortType => {
   state.resourceTree = treeSort(state.originResourceTree, sortType)
   state.curSortType = sortType
   wsCache.set('TreeSort-' + curCanvasType.value, state.curSortType)
+}
+
+const sortTypeChange = sortType => {
+  state.resourceTree = treeSort(state.originResourceTree, sortType)
+  state.curSortType = sortType
 }
 
 watch(filterText, val => {
@@ -628,7 +642,7 @@ defineExpose({
           </el-icon>
         </template>
       </el-input>
-      <el-dropdown @command="sortTypeChange" trigger="click">
+      <el-dropdown @command="handleSortTypeChange" trigger="click">
         <el-icon class="filter-icon-span">
           <el-tooltip :offset="16" effect="dark" :content="sortTypeTip" placement="top">
             <Icon v-if="state.curSortType.includes('asc')" name="dv-sort-asc" class="opt-icon"
@@ -694,18 +708,14 @@ defineExpose({
               /></Icon>
             </el-icon>
             <span :title="node.label" class="label-tooltip">{{ node.label }}</span>
-
-            <div
-              class="icon-more flex-align-center"
-              v-if="data.weight >= 7 && showPosition === 'preview'"
-            >
+            <div class="icon-more" v-if="data.weight >= 7 && showPosition === 'preview'">
               <el-icon
                 v-on:click.stop
                 v-if="data.leaf"
                 class="hover-icon"
                 @click="resourceEdit(data.id)"
               >
-                <Icon name="icon_edit_outlined"><icon_edit_outlined class="svg-icon" /></Icon>
+                <Icon><icon_edit_outlined class="svg-icon" /></Icon>
               </el-icon>
               <handle-more
                 @handle-command="
@@ -849,7 +859,7 @@ defineExpose({
   padding-right: 4px;
 
   .label-tooltip {
-    width: calc(100% - 66px);
+    width: 100%;
     margin-left: 8.75px;
     overflow: hidden;
     white-space: nowrap;
@@ -857,12 +867,17 @@ defineExpose({
   }
   .icon-more {
     margin-left: auto;
-    visibility: hidden;
+    display: none;
   }
 
-  &:hover .icon-more {
-    margin-left: auto;
-    visibility: visible;
+  &:hover {
+    .label-tooltip {
+      width: calc(100% - 78px);
+    }
+
+    .icon-more {
+      display: inline-flex;
+    }
   }
 
   .icon-screen-new {

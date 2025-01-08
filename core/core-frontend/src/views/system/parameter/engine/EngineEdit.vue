@@ -60,6 +60,13 @@ const configRules = {
       trigger: 'blur'
     }
   ],
+  'configuration.jdbc': [
+    {
+      required: true,
+      message: t('datasource.please_input_jdbc_url'),
+      trigger: 'blur'
+    }
+  ],
   'configuration.extraParams': [
     {
       required: false,
@@ -77,28 +84,28 @@ const configRules = {
   'configuration.initialPoolSize': [
     {
       required: true,
-      message: t('common.inputText') + t('datasource.initial_pool_size'),
+      message: t('common.inputText') + ' ' + t('datasource.initial_pool_size'),
       trigger: 'blur'
     }
   ],
   'configuration.minPoolSize': [
     {
       required: true,
-      message: t('common.inputText') + t('datasource.min_pool_size'),
+      message: t('common.inputText') + ' ' + t('datasource.min_pool_size'),
       trigger: 'blur'
     }
   ],
   'configuration.maxPoolSize': [
     {
       required: true,
-      message: t('common.inputText') + t('datasource.max_pool_size'),
+      message: t('common.inputText') + ' ' + t('datasource.max_pool_size'),
       trigger: 'blur'
     }
   ],
   'configuration.queryTimeout': [
     {
       required: true,
-      message: t('common.inputText') + t('datasource.query_timeout'),
+      message: t('common.inputText') + ' ' + t('datasource.query_timeout'),
       trigger: 'blur'
     }
   ]
@@ -135,6 +142,7 @@ const defaultInfo = {
   fileName: '',
   configuration: {
     host: '',
+    jdbc: '',
     port: 8081,
     dataBase: '',
     username: '',
@@ -282,14 +290,33 @@ defineExpose({
           />
         </el-select>
       </el-form-item>
-      <el-form-item :label="t('datasource.host')" prop="configuration.host">
+      <el-form-item
+        :label="t('datasource.host')"
+        prop="configuration.jdbc"
+        v-if="nodeInfo.type === 'h2'"
+      >
+        <el-input
+          v-model="nodeInfo.configuration.jdbc"
+          :placeholder="t('data_source.jdbc_connection_string')"
+          autocomplete="off"
+        />
+      </el-form-item>
+      <el-form-item
+        :label="t('datasource.host')"
+        prop="configuration.host"
+        v-if="nodeInfo.type !== 'h2'"
+      >
         <el-input
           v-model="nodeInfo.configuration.host"
           :placeholder="t('datasource._ip_address')"
           autocomplete="off"
         />
       </el-form-item>
-      <el-form-item :label="t('datasource.port')" prop="configuration.port">
+      <el-form-item
+        :label="t('datasource.port')"
+        prop="configuration.port"
+        v-if="nodeInfo.type !== 'h2'"
+      >
         <el-input-number
           v-model="nodeInfo.configuration.port"
           autocomplete="off"
@@ -331,17 +358,20 @@ defineExpose({
           autocomplete="off"
         />
       </el-form-item>
-      <span class="de-expand" @click="showPriority = !showPriority"
-        >{{ t('datasource.priority') }}
-        <el-icon>
-          <Icon
-            ><component
-              class="svg-icon"
-              :is="showPriority ? icon_down_outlined : icon_down_outlined1"
-            ></component
-          ></Icon>
-        </el-icon>
-      </span>
+      <el-form-item>
+        <span class="de-expand_engine" @click="showPriority = !showPriority"
+          >{{ t('datasource.priority') }}
+          <el-icon>
+            <Icon
+              ><component
+                class="svg-icon"
+                :is="showPriority ? icon_down_outlined : icon_down_outlined1"
+              ></component
+            ></Icon>
+          </el-icon>
+        </span>
+      </el-form-item>
+
       <template v-if="showPriority">
         <el-row :gutter="24" class="mb16">
           <el-col :span="12">
@@ -353,6 +383,7 @@ defineExpose({
                 v-model="nodeInfo.configuration.initialPoolSize"
                 controls-position="right"
                 autocomplete="off"
+                class="w100-input"
                 :placeholder="t('common.inputText') + t('datasource.initial_pool_size')"
                 type="number"
                 :min="0"
@@ -365,6 +396,7 @@ defineExpose({
                 v-model="nodeInfo.configuration.minPoolSize"
                 controls-position="right"
                 autocomplete="off"
+                class="w100-input"
                 :placeholder="t('common.inputText') + t('datasource.min_pool_size')"
                 type="number"
                 :min="0"
@@ -377,6 +409,7 @@ defineExpose({
             <el-form-item :label="t('datasource.max_pool_size')" prop="configuration.maxPoolSize">
               <el-input-number
                 v-model="nodeInfo.configuration.maxPoolSize"
+                class="w100-input"
                 controls-position="right"
                 autocomplete="off"
                 :placeholder="t('common.inputText') + t('datasource.max_pool_size')"
@@ -391,6 +424,7 @@ defineExpose({
               prop="configuration.queryTimeout"
             >
               <el-input-number
+                class="w100-input"
                 v-model="nodeInfo.configuration.queryTimeout"
                 controls-position="right"
                 autocomplete="off"
@@ -416,6 +450,24 @@ defineExpose({
 </template>
 <style lang="less">
 .basic-param-drawer {
+  .de-expand_engine {
+    font-family: var(--de-custom_font, 'PingFang');
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 22px;
+    color: var(--ed-color-primary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+
+    .ed-icon {
+      margin-left: 4px;
+    }
+  }
+
+  .w100-input {
+    width: 100%;
+  }
   .ed-drawer__footer {
     height: 64px !important;
     padding: 16px 24px !important;

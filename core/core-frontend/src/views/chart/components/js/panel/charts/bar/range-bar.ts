@@ -21,6 +21,7 @@ import {
 } from '@/views/chart/components/js/panel/charts/bar/common'
 import { Datum } from '@antv/g2plot/esm/types/common'
 import { useI18n } from '@/hooks/web/useI18n'
+import { DEFAULT_BASIC_STYLE } from '@/views/chart/components/editor/util/chart'
 
 const { t } = useI18n()
 const DEFAULT_DATA = []
@@ -45,7 +46,7 @@ export class RangeBar extends G2PlotChartView<BarOptions, Bar> {
       type: 'q'
     }
   }
-  properties = BAR_RANGE_EDITOR_PROPERTY
+  properties = BAR_RANGE_EDITOR_PROPERTY.filter(p => p !== 'threshold')
   propertyInner = {
     ...BAR_EDITOR_PROPERTY_INNER,
     'label-selector': ['hPosition', 'color', 'fontSize', 'labelFormatter', 'showGap'],
@@ -322,6 +323,19 @@ export class RangeBar extends G2PlotChartView<BarOptions, Bar> {
         barStyle
       }
     }
+    let barWidthRatio
+    const _v = basicStyle.columnWidthRatio ?? DEFAULT_BASIC_STYLE.columnWidthRatio
+    if (_v >= 1 && _v <= 100) {
+      barWidthRatio = _v / 100.0
+    } else if (_v < 1) {
+      barWidthRatio = 1 / 100.0
+    } else if (_v > 100) {
+      barWidthRatio = 1
+    }
+    if (barWidthRatio) {
+      options.barWidthRatio = barWidthRatio
+    }
+
     return options
   }
 

@@ -85,5 +85,14 @@ public class EngineServer implements EngineApi {
         engineManage.validate(deEngineMapper.selectById(id));
     }
 
+    @Override
+    public boolean supportSetKey() throws Exception {
+        List<CoreDeEngine> deEngines = deEngineMapper.selectList(null);
+        if (CollectionUtils.isEmpty(deEngines)) {
+            return false;
+        } else {
+            return !deEngines.getFirst().getType().equalsIgnoreCase("h2");
+        }
 
+    }
 }

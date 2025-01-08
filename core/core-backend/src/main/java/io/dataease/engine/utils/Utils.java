@@ -146,6 +146,8 @@ public class Utils {
                 return "%Y" + split + "%u";
             case "y_M_d":
                 return "yyyy" + split + "MM" + split + "dd";
+            case "M_d":
+                return "MM" + split + "dd";
             case "H_m_s":
                 return "HH:mm:ss";
             case "y_M_d_H_m":

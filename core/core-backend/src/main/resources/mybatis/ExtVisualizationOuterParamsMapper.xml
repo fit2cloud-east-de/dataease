@@ -94,26 +94,35 @@
   </select>
 
     <delete id="deleteOuterParamsTargetWithVisualizationId" >
-        DELETE poptvi
-        FROM
-            visualization_outer_params_target_view_info poptvi,
-            visualization_outer_params_info popi,
-            visualization_outer_params pop
+        DELETE FROM
+            visualization_outer_params_target_view_info poptvi
         WHERE
-            poptvi.params_info_id = popi.params_info_id
-            AND popi.params_id = pop.params_id
-            AND pop.visualization_id = #{visualizationId}
-	</delete>
+            poptvi.params_info_id IN (
+               SELECT params_info_id FROM
+                (
+                    SELECT poptvi.params_info_id FROM
+                        visualization_outer_params_target_view_info poptvi
+                            INNER JOIN visualization_outer_params_info popi ON poptvi.params_info_id = popi.params_info_id
+                            INNER JOIN visualization_outer_params pop ON popi.params_id = pop.params_id
+                    WHERE pop.visualization_id = #{visualizationId}
+                ) tmp
+            )
+    </delete>
 
     <delete id="deleteOuterParamsInfoWithVisualizationId" >
-        DELETE popi
-        FROM
-            visualization_outer_params_info popi,
-            visualization_outer_params pop
+        DELETE FROM
+            visualization_outer_params_info popi
         WHERE
-             popi.params_id = pop.params_id
-            AND pop.visualization_id = #{visualizationId}
-	</delete>
+            popi.params_id IN (
+                SELECT params_id FROM
+                    (
+                        SELECT popi.params_id FROM
+                            visualization_outer_params_info popi
+                                INNER JOIN visualization_outer_params pop ON popi.params_id = pop.params_id
+                        WHERE pop.visualization_id = #{visualizationId}
+                    ) tmp
+            )
+    </delete>
 
     <delete id="deleteOuterParamsWithVisualizationId" >
         DELETE pop

@@ -157,6 +157,7 @@ onMounted(() => {
                 class="select-color-item"
                 :class="{ active: state.basicStyleForm.colorScheme === option.value }"
                 @click="selectNode(option)"
+                :title="option.name"
               >
                 <div style="float: left">
                   <span
@@ -245,6 +246,10 @@ onMounted(() => {
 
   .cases-list__text {
     margin-left: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 30px;
   }
 }
 .tab-header {

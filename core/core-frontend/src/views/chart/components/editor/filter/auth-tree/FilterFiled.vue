@@ -1,10 +1,8 @@
 <script lang="ts" setup>
 import icon_searchOutline_outlined from '@/assets/svg/icon_search-outline_outlined.svg'
 import icon_deleteTrash_outlined from '@/assets/svg/icon_delete-trash_outlined.svg'
-import { ref, inject, computed, watch, onBeforeMount, toRefs, nextTick } from 'vue'
+import { ref, inject, computed, watch, onBeforeMount, toRefs } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
-import type { SelectConfig } from '../TimeDialog.vue'
-import TimeDialog from '@/views/chart/components/editor/filter/TimeDialog.vue'
 import { multFieldValuesForPermissions } from '@/api/dataset'
 import {
   textOptions,
@@ -23,9 +21,7 @@ export interface Item {
   enumValue: string
   name: string
   value: number
-  filterTypeTime?: string
   timeValue: string
-  dynamicTimeSetting?: SelectConfig
 }
 
 type Props = {
@@ -42,9 +38,7 @@ const props = withDefaults(defineProps<Props>(), {
     deType: 0,
     enumValue: '',
     name: '',
-    filterTypeTime: 'dateValue',
     value: null,
-    dynamicTimeSetting: null,
     timeValue: ''
   })
 })
@@ -157,10 +151,6 @@ const filterTypeChange = () => {
   initEnumOptions()
 }
 
-const filterTypeChangeTime = () => {
-  item.value.term = ''
-  item.value.timeValue = null
-}
 const initEnumOptions = () => {
   // 查找枚举值
   if (authTargetType.value === 'sysParams') {
@@ -173,80 +163,6 @@ const initEnumOptions = () => {
       enumList.value = optionData(res.data)
     })
   }
-}
-
-const dialogVisible = ref(false)
-const timeDialog = ref()
-const handleClick = () => {
-  dialogVisible.value = true
-  nextTick(() => {
-    timeDialog.value.init(item.value.dynamicTimeSetting || {})
-  })
-}
-
-const relativeToCurrentTypeMap = {
-  year: '年',
-  month: '月',
-  date: '日',
-  datetime: '日'
-}
-
-const confirmTimeSelect = () => {
-  item.value.dynamicTimeSetting = { ...timeDialog.value.curComponent }
-  const {
-    timeGranularity,
-    timeNum,
-    relativeToCurrentType,
-    around,
-    arbitraryTime,
-    relativeToCurrent
-  } = item.value.dynamicTimeSetting
-  if (relativeToCurrent !== 'custom') {
-    item.value.timeValue = [
-      {
-        label: '今年',
-        value: 'thisYear'
-      },
-      {
-        label: '去年',
-        value: 'lastYear'
-      },
-      {
-        label: '本月',
-        value: 'thisMonth'
-      },
-      {
-        label: '上月',
-        value: 'lastMonth'
-      },
-      {
-        label: '今天',
-        value: 'today'
-      },
-      {
-        label: '昨天',
-        value: 'yesterday'
-      },
-      {
-        label: '月初',
-        value: 'monthBeginning'
-      },
-      {
-        label: '年初',
-        value: 'yearBeginning'
-      }
-    ].find(ele => ele.value === relativeToCurrent).label
-    dialogVisible.value = false
-    return
-  }
-  item.value.timeValue = `${timeNum}${relativeToCurrentTypeMap[relativeToCurrentType]}${
-    around === 'f' ? '前' : '后'
-  }`
-  if (timeGranularity === 'datetime') {
-    item.value.timeValue += new Date(arbitraryTime).toLocaleString().split(' ')[1]
-  }
-
-  dialogVisible.value = false
 }
 
 const optionData = data => {
@@ -272,9 +188,7 @@ const selectItem = ({ name, id, deType }) => {
     enumValue: '',
     value: '',
     term: '',
-    filterTypeTime: 'dateValue',
-    timeValue: '',
-    dynamicTimeSetting: {}
+    timeValue: ''
   })
   filterListInit(deType)
   checklist.value = []
@@ -296,16 +210,6 @@ const filterListInit = deType => {
   }
 }
 
-const filterListTime = [
-  {
-    value: 'dateValue',
-    label: '固定值'
-  },
-  {
-    value: 'dynamicDate',
-    label: '动态值'
-  }
-]
 const clearAll = () => {
   checklist.value = []
 }
@@ -394,42 +298,22 @@ const emits = defineEmits(['update:item', 'del'])
         </template>
       </el-dropdown>
       <div class="white-nowrap flex-align-center" style="position: relative" v-if="item.fieldId">
-        <template v-if="item.deType !== 1">
-          <span class="filed-title">{{ t('auth.screen_method') }}</span>
-          <el-select
-            size="small"
-            @change="filterTypeChange"
-            v-model="item.filterType"
-            :placeholder="t('auth.select')"
+        <span class="filed-title">{{ t('auth.screen_method') }}</span>
+        <el-select
+          size="small"
+          @change="filterTypeChange"
+          v-model="item.filterType"
+          :placeholder="t('auth.select')"
+        >
+          <el-option
+            v-for="ele in filterList"
+            :key="ele.value"
+            :label="ele.label"
+            :value="ele.value"
           >
-            <el-option
-              v-for="ele in filterList"
-              :key="ele.value"
-              :label="ele.label"
-              :value="ele.value"
-            >
-            </el-option>
-          </el-select>
-          <span class="filed-title">{{ t('auth.fixed_value') }}</span>
-        </template>
-        <template v-else>
-          <el-select
-            size="small"
-            class="w100"
-            style="margin-left: 16px"
-            @change="filterTypeChangeTime"
-            v-model="item.filterTypeTime"
-            :placeholder="t('auth.select')"
-          >
-            <el-option
-              v-for="ele in filterListTime"
-              :key="ele.value"
-              :label="ele.label"
-              :value="ele.value"
-            >
-            </el-option>
-          </el-select>
-        </template>
+          </el-option>
+        </el-select>
+        <span class="filed-title">{{ t('auth.fixed_value') }}</span>
         <template v-if="item.filterType === 'logic'">
           <el-select
             class="w100"
@@ -473,26 +357,13 @@ const emits = defineEmits(['update:item', 'del'])
             <div class="bottom-line"></div>
           </template>
           <template v-else-if="!['null', 'empty', 'not_null', 'not_empty'].includes(item.term)">
-            <el-input
-              v-if="item.deType === 1 && item.filterTypeTime === 'dynamicDate' && !item.timeValue"
-              @click="handleClick"
-              readonly
-              class="w70 mar5"
-              size="small"
-              v-model="item.timeValue"
-            />
             <el-tooltip
               class="item"
-              v-else-if="item.deType === 1 && item.filterTypeTime === 'dynamicDate'"
+              v-if="item.deType === 1"
               effect="light"
               :content="item.timeValue"
               placement="top"
-              ><el-input
-                @click="handleClick"
-                readonly
-                class="w70 mar5"
-                size="small"
-                v-model="item.timeValue"
+              ><el-input class="w70 mar5" size="small" v-model="item.timeValue"
             /></el-tooltip>
             <el-input v-else class="w70 mar5" size="small" v-model="item.value" />
             <div class="bottom-line"></div>
@@ -533,9 +404,9 @@ const emits = defineEmits(['update:item', 'del'])
                   <span>+</span>
                 </li>
               </ul>
-              <button class="select-all" @click="selectAll">
+              <el-button style="width: 100%" type="primary" @click="selectAll">
                 {{ t('auth.select_all') }}
-              </button>
+              </el-button>
             </div>
             <div class="mod-left right-de">
               <div class="right-top clearfix">
@@ -577,23 +448,19 @@ const emits = defineEmits(['update:item', 'del'])
                   >
                     <label>{{ i }}</label>
                   </el-tooltip>
-                  <el-icon @click="delChecks(idx)" style="opacity: 1">
-                    <Icon name="icon_delete-trash_outlined"
-                      ><icon_deleteTrash_outlined class="svg-icon"
-                    /></Icon>
+                  <el-icon @click="delChecks(idx)" style="color: #646a73">
+                    <Icon><icon_deleteTrash_outlined class="svg-icon" /></Icon>
                   </el-icon>
                 </li>
               </ul>
               <div class="right-menu-foot">
                 <div class="footer-left">&nbsp;</div>
-                <div class="confirm-btn" @click="confirm">
+                <el-button type="primary" @click="confirm">
                   {{ t('auth.sure') }}
-                </div>
+                </el-button>
                 <div class="footer-right">
-                  <el-icon @click="clearAll">
-                    <Icon name="icon_delete-trash_outlined"
-                      ><icon_deleteTrash_outlined class="svg-icon"
-                    /></Icon>
+                  <el-icon style="color: #646a73" @click="clearAll">
+                    <Icon><icon_deleteTrash_outlined class="svg-icon" /></Icon>
                   </el-icon>
                 </div>
               </div>
@@ -607,21 +474,6 @@ const emits = defineEmits(['update:item', 'del'])
         /></Icon>
       </el-icon>
     </div>
-    <el-dialog
-      class="create-dialog"
-      append-to-body
-      v-model="dialogVisible"
-      title="日期设置"
-      width="420"
-    >
-      <TimeDialog ref="timeDialog"></TimeDialog>
-      <template #footer>
-        <div class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="confirmTimeSelect"> 确定 </el-button>
-        </div>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -999,7 +851,6 @@ const emits = defineEmits(['update:item', 'del'])
           line-height: 28px;
           height: 28px;
           display: inline-block;
-          opacity: 0;
         }
 
         label {
@@ -1036,44 +887,6 @@ const emits = defineEmits(['update:item', 'del'])
           text-align: center;
           border-radius: 999px;
         }
-      }
-    }
-
-    .select-all {
-      box-sizing: border-box;
-      margin: 0;
-      overflow: visible;
-      position: relative;
-      font-weight: 400;
-      white-space: nowrap;
-      border: 1px solid transparent;
-      transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
-      user-select: none;
-      touch-action: manipulation;
-      padding: 0 15px;
-      font-size: 12px;
-      outline: 0;
-      color: #fff;
-      border-color: #2e74ff;
-      text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.12);
-      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.045);
-      align-items: center;
-      justify-content: center;
-      line-height: 1;
-      -webkit-appearance: button;
-      cursor: pointer;
-      border-radius: 0;
-      background: #2153d4;
-      padding-left: 5px;
-      text-align: center;
-      display: inline-block;
-      width: 100%;
-      height: 25px;
-
-      &:hover {
-        border: 1px solid transparent;
-        background: #4794ff;
-        color: #fff;
       }
     }
 
@@ -1114,7 +927,7 @@ const emits = defineEmits(['update:item', 'del'])
       height: 30px;
       text-align: right;
       line-height: 30px;
-      margin-top: 5px;
+      margin-top: 9px;
       border-top: 1px solid hsla(0, 0%, 59%, 0.1);
 
       .footer-left {
@@ -1125,35 +938,6 @@ const emits = defineEmits(['update:item', 'del'])
       .footer-right {
         float: right;
         padding-left: 10px;
-        cursor: pointer;
-      }
-
-      .confirm-btn {
-        box-sizing: border-box;
-        position: relative;
-        font-weight: 400;
-        white-space: nowrap;
-        text-align: center;
-        background-image: none;
-        border: 1px solid transparent;
-        transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
-        user-select: none;
-        touch-action: manipulation;
-        height: 28px;
-        padding: 0 15px;
-        font-size: 12px;
-        border-radius: 2px;
-        outline: 0;
-        color: #fff;
-        background-color: #2e74ff;
-        border-color: #2e74ff;
-        text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.12);
-        box-shadow: 0 2px 0 rgba(0, 0, 0, 0.045);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        line-height: 1;
-        -webkit-appearance: button;
         cursor: pointer;
       }
     }

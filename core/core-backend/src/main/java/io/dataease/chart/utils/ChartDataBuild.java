@@ -1649,6 +1649,8 @@ public class ChartDataBuild {
                 return "yyyy" + split + "MM";
             case "y_M_d":
                 return "yyyy" + split + "MM" + split + "dd";
+            case "M_d":
+                return "MM" + split + "dd";
             case "H_m_s":
                 return "HH:mm:ss";
             case "y_M_d_H":
@@ -1726,6 +1728,7 @@ public class ChartDataBuild {
                 }
                 return StringUtils.join(list, splitter);
             case "y_M_d":
+            case "M_d":
                 return dayGapStr;
             case "y_M_d_H":
                 if (!dayGapStr.isEmpty()) {

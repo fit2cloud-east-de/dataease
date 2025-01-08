@@ -26,6 +26,7 @@ import Cron from '@/components/cron/src/Cron.vue'
 import { ComponentPublicInstance } from 'vue'
 import { XpackComponent } from '@/components/plugin'
 import { iconFieldMap } from '@/components/icon-group/field-list'
+import { boolean } from 'mathjs'
 const { t } = useI18n()
 const prop = defineProps({
   form: {
@@ -56,10 +57,14 @@ const prop = defineProps({
     required: false,
     default: 1,
     type: Number
+  },
+  isSupportSetKey: {
+    type: boolean,
+    required: true
   }
 })
 
-const { form, activeStep } = toRefs(prop)
+const { form, activeStep, isSupportSetKey } = toRefs(prop)
 
 const state = reactive({
   itemRef: []
@@ -105,13 +110,20 @@ const defaultApiItem = {
       raw: '',
       kvs: []
     },
+    page: {
+      pageType: 'empty',
+      requestData: [],
+      responseData: []
+    },
     authManager: {
       verification: '',
       username: '',
       password: ''
     }
   },
-  fields: []
+  fields: [],
+  useJsonPath: false,
+  jsonPath: ''
 }
 
 const initForm = type => {
@@ -275,28 +287,28 @@ const setRules = () => {
     'configuration.initialPoolSize': [
       {
         required: true,
-        message: t('common.inputText') + t('datasource.initial_pool_size'),
+        message: t('common.inputText') + ' ' + t('datasource.initial_pool_size'),
         trigger: 'blur'
       }
     ],
     'configuration.minPoolSize': [
       {
         required: true,
-        message: t('common.inputText') + t('datasource.min_pool_size'),
+        message: t('common.inputText') + ' ' + t('datasource.min_pool_size'),
         trigger: 'blur'
       }
     ],
     'configuration.maxPoolSize': [
       {
         required: true,
-        message: t('common.inputText') + t('datasource.max_pool_size'),
+        message: t('common.inputText') + ' ' + t('datasource.max_pool_size'),
         trigger: 'blur'
       }
     ],
     'configuration.queryTimeout': [
       {
         required: true,
-        message: t('common.inputText') + t('datasource.query_timeout'),
+        message: t('common.inputText') + ' ' + t('datasource.query_timeout'),
         trigger: 'blur'
       }
     ],
@@ -409,7 +421,13 @@ const addApiItem = item => {
     apiItem.serialNumber = serialNumber1 + serialNumber2
   }
   nextTick(() => {
-    editApiItem.value.initApiItem(apiItem, form.value, activeName.value, editItem)
+    editApiItem.value.initApiItem(
+      apiItem,
+      form.value,
+      activeName.value,
+      editItem,
+      isSupportSetKey.value
+    )
   })
 }
 
@@ -761,7 +779,7 @@ defineExpose({
         v-loading="loading"
       >
         <el-form-item
-          :label="t('auth.datasource') + t('chart.name')"
+          :label="t('auth.datasource') + ' ' + t('chart.name')"
           prop="name"
           v-show="activeStep !== 2"
         >
@@ -996,7 +1014,7 @@ defineExpose({
               step-strictly
               class="text-left"
               :min="0"
-              :placeholder="t('common.inputText') + t('datasource.port')"
+              :placeholder="t('common.inputText') + ' ' + t('datasource.port')"
               controls-position="right"
               type="number"
             />
@@ -1018,7 +1036,7 @@ defineExpose({
             v-if="form.type === 'presto'"
           >
             <el-select
-              :placeholder="t('common.inputText') + t('datasource.auth_method')"
+              :placeholder="t('common.inputText') + ' ' + t('datasource.auth_method')"
               v-model="form.configuration.authMethod"
               class="de-select"
             >
@@ -1036,7 +1054,7 @@ defineExpose({
             v-if="form.type === 'presto'"
           >
             <el-input
-              :placeholder="t('common.inputText') + t('datasource.client_principal')"
+              :placeholder="t('common.inputText') + ' ' + t('datasource.client_principal')"
               v-model="form.configuration.username"
               autocomplete="off"
             />
@@ -1047,7 +1065,7 @@ defineExpose({
             v-if="form.type === 'presto'"
           >
             <CustomPassword
-              :placeholder="t('common.inputText') + t('datasource.keytab_Key_path')"
+              :placeholder="t('common.inputText') + ' ' + t('datasource.keytab_Key_path')"
               show-password
               type="password"
               v-model="form.configuration.password"
@@ -1069,14 +1087,14 @@ defineExpose({
           </el-form-item>
           <el-form-item :label="t('datasource.user_name')" v-if="form.type !== 'presto'">
             <el-input
-              :placeholder="t('common.inputText') + t('datasource.user_name')"
+              :placeholder="t('common.inputText') + ' ' + t('datasource.user_name')"
               v-model="form.configuration.username"
               autocomplete="off"
             />
           </el-form-item>
           <el-form-item :label="t('datasource.password')" v-if="form.type !== 'presto'">
             <CustomPassword
-              :placeholder="t('common.inputText') + t('datasource.password')"
+              :placeholder="t('common.inputText') + ' ' + t('datasource.password')"
               show-password
               type="password"
               v-model="form.configuration.password"
@@ -1124,7 +1142,7 @@ defineExpose({
             v-if="form.configuration.urlType !== 'jdbcUrl' && form.type !== 'es'"
           >
             <el-input
-              :placeholder="t('common.inputText') + t('datasource.extra_params')"
+              :placeholder="t('common.inputText') + ' ' + t('datasource.extra_params')"
               v-model="form.configuration.extraParams"
               autocomplete="off"
             />
@@ -1166,13 +1184,13 @@ defineExpose({
                 class="text-left"
                 :min="0"
                 :max="65535"
-                :placeholder="t('common.inputText') + t('datasource.port')"
+                :placeholder="t('common.inputText') + ' ' + t('datasource.port')"
                 controls-position="right"
               />
             </el-form-item>
             <el-form-item :label="t('datasource.user_name')" prop="configuration.sshUserName">
               <el-input
-                :placeholder="t('common.inputText') + t('datasource.user_name')"
+                :placeholder="t('common.inputText') + ' ' + t('datasource.user_name')"
                 v-model="form.configuration.sshUserName"
                 autocomplete="off"
                 :maxlength="255"
@@ -1190,7 +1208,7 @@ defineExpose({
               prop="configuration.sshPassword"
             >
               <CustomPassword
-                :placeholder="t('common.inputText') + t('datasource.password')"
+                :placeholder="t('common.inputText') + ' ' + t('datasource.password')"
                 show-password
                 type="password"
                 v-model="form.configuration.sshPassword"
@@ -1216,7 +1234,7 @@ defineExpose({
               v-if="form.configuration.sshType === 'sshkey'"
             >
               <CustomPassword
-                :placeholder="t('common.inputText') + t('datasource.password')"
+                :placeholder="t('common.inputText') + ' ' + t('datasource.password')"
                 show-password
                 type="password"
                 v-model="form.configuration.sshKeyPassword"
@@ -1250,7 +1268,7 @@ defineExpose({
                     v-model="form.configuration.initialPoolSize"
                     controls-position="right"
                     autocomplete="off"
-                    :placeholder="t('common.inputText') + t('datasource.initial_pool_size')"
+                    :placeholder="t('common.inputText') + ' ' + t('datasource.initial_pool_size')"
                     type="number"
                     :min="0"
                   />
@@ -1265,7 +1283,7 @@ defineExpose({
                     v-model="form.configuration.minPoolSize"
                     controls-position="right"
                     autocomplete="off"
-                    :placeholder="t('common.inputText') + t('datasource.min_pool_size')"
+                    :placeholder="t('common.inputText') + ' ' + t('datasource.min_pool_size')"
                     type="number"
                     :min="0"
                   />
@@ -1282,7 +1300,7 @@ defineExpose({
                     v-model="form.configuration.maxPoolSize"
                     controls-position="right"
                     autocomplete="off"
-                    :placeholder="t('common.inputText') + t('datasource.max_pool_size')"
+                    :placeholder="t('common.inputText') + ' ' + t('datasource.max_pool_size')"
                     type="number"
                     :min="0"
                   />
@@ -1297,7 +1315,7 @@ defineExpose({
                     v-model="form.configuration.queryTimeout"
                     controls-position="right"
                     autocomplete="off"
-                    :placeholder="t('common.inputText') + t('datasource.query_timeout')"
+                    :placeholder="t('common.inputText') + ' ' + t('datasource.query_timeout')"
                     type="number"
                     :min="0"
                   />

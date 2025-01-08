@@ -26,7 +26,7 @@ import {
 } from '@/views/chart/components/js/panel/charts/bar/common'
 import type { Datum } from '@antv/g2plot/esm/types/common'
 import { useI18n } from '@/hooks/web/useI18n'
-import { DEFAULT_LABEL } from '@/views/chart/components/editor/util/chart'
+import { DEFAULT_BASIC_STYLE, DEFAULT_LABEL } from '@/views/chart/components/editor/util/chart'
 import { Group } from '@antv/g-canvas'
 
 const { t } = useI18n()
@@ -171,6 +171,20 @@ export class HorizontalBar extends G2PlotChartView<BarOptions, Bar> {
         barStyle
       }
     }
+
+    let barWidthRatio
+    const _v = basicStyle.columnWidthRatio ?? DEFAULT_BASIC_STYLE.columnWidthRatio
+    if (_v >= 1 && _v <= 100) {
+      barWidthRatio = _v / 100.0
+    } else if (_v < 1) {
+      barWidthRatio = 1 / 100.0
+    } else if (_v > 100) {
+      barWidthRatio = 1
+    }
+    if (barWidthRatio) {
+      options.barWidthRatio = barWidthRatio
+    }
+
     return options
   }
 
@@ -253,6 +267,7 @@ export class HorizontalBar extends G2PlotChartView<BarOptions, Bar> {
 
   protected setupOptions(chart: Chart, options: BarOptions): BarOptions {
     return flow(
+      this.addConditionsStyleColorToData,
       this.configTheme,
       this.configEmptyDataStrategy,
       this.configColor,
@@ -263,7 +278,8 @@ export class HorizontalBar extends G2PlotChartView<BarOptions, Bar> {
       this.configXAxis,
       this.configYAxis,
       this.configSlider,
-      this.configAnalyseHorizontal
+      this.configAnalyseHorizontal,
+      this.configBarConditions
     )(chart, options, {}, this)
   }
 
@@ -276,6 +292,7 @@ export class HorizontalBar extends G2PlotChartView<BarOptions, Bar> {
  * 堆叠条形图
  */
 export class HorizontalStackBar extends HorizontalBar {
+  properties = BAR_EDITOR_PROPERTY.filter(ele => ele !== 'threshold')
   axisConfig = {
     ...this['axisConfig'],
     extStack: {

@@ -35,7 +35,11 @@ import {
 } from './chart-mix-common'
 import type { Datum } from '@antv/g2plot/esm/types/common'
 import { useI18n } from '@/hooks/web/useI18n'
-import { DEFAULT_LABEL, DEFAULT_LEGEND_STYLE } from '@/views/chart/components/editor/util/chart'
+import {
+  DEFAULT_BASIC_STYLE,
+  DEFAULT_LABEL,
+  DEFAULT_LEGEND_STYLE
+} from '@/views/chart/components/editor/util/chart'
 import type { Options } from '@antv/g2plot/esm'
 import { Group } from '@antv/g-canvas'
 
@@ -301,6 +305,23 @@ export class ColumnLineMix extends G2PlotChartView<DualAxesOptions, DualAxes> {
         tempOption.geometryOptions[0].columnStyle = columnStyle
         tempOption.geometryOptions[1].columnStyle = columnStyle
       }
+    }
+
+    let columnWidthRatio
+    const _v = s.columnWidthRatio ?? DEFAULT_BASIC_STYLE.columnWidthRatio
+    if (_v >= 1 && _v <= 100) {
+      columnWidthRatio = _v / 100.0
+    } else if (_v < 1) {
+      columnWidthRatio = 1 / 100.0
+    } else if (_v > 100) {
+      columnWidthRatio = 1
+    }
+    if (columnWidthRatio) {
+      tempOption.geometryOptions[0].columnWidthRatio = columnWidthRatio
+    }
+
+    if (super.name !== 'chart-mix-dual-line') {
+      tempOption.geometryOptions[0].appendPadding = getPadding(chart)
     }
 
     return tempOption

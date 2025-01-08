@@ -178,6 +178,10 @@ declare interface ChartBasicStyle {
    */
   columnBarRightAngleRadius: number
   /**
+   * 一般柱状图宽度占比，0 - 100 范围数值
+   */
+  columnWidthRatio: number
+  /**
    * 柱间距
    */
   barGap: number
@@ -346,6 +350,18 @@ declare interface ChartBasicStyle {
    * 雷达图面积颜色开关
    */
   radarAreaColor: boolean
+  /**
+   * 圆形填充图边线颜色
+   */
+  circleBorderColor: string
+  /**
+   * 圆形填充图边线宽度
+   */
+  circleBorderWidth: number
+  /**
+   * 圆形填充图间距
+   */
+  circlePadding: number
 }
 /**
  * 表头属性
@@ -355,14 +371,20 @@ declare interface ChartTableHeaderAttr {
    * 表头背景颜色
    */
   tableHeaderBgColor: string
+  tableHeaderCornerBgColor: string
+  tableHeaderColBgColor: string
   /**
    * 表头字体大小
    */
   tableTitleFontSize: number
+  tableTitleCornerFontSize: number
+  tableTitleColFontSize: number
   /**
    * 表头字体颜色
    */
   tableHeaderFontColor: string
+  tableHeaderCornerFontColor: string
+  tableHeaderColFontColor: string
   /**
    * 表头行高
    */
@@ -371,6 +393,8 @@ declare interface ChartTableHeaderAttr {
    * 表头对齐方式
    */
   tableHeaderAlign: 'left' | 'center' | 'right'
+  tableHeaderCornerAlign: 'left' | 'center' | 'right'
+  tableHeaderColAlign: 'left' | 'center' | 'right'
   /**
    * 显示序号
    */
@@ -409,10 +433,14 @@ declare interface ChartTableHeaderAttr {
    * 斜体
    */
   isItalic: boolean
+  isCornerItalic: boolean
+  isColItalic: boolean
   /**
    * 加粗
    */
   isBolder: boolean
+  isCornerBolder: boolean
+  isColBolder: boolean
 }
 /**
  * 单元格属性
@@ -530,6 +558,10 @@ declare interface TotalConfig {
    * 小计维度
    */
   subTotalsDimensions: string[]
+  /**
+   * 兼容旧版的判断
+   */
+  subTotalsDimensionsNew: boolean
   /**
    * 总计汇总设置
    */

@@ -138,6 +138,7 @@ const loadPluginCategory = data => {
               class="item-top"
               draggable="true"
               :data-id="'UserView&' + chartInfo.value"
+              :title="chartInfo.title"
             >
               <Icon
                 class-name="item-top-icon"
@@ -290,6 +291,10 @@ const loadPluginCategory = data => {
     font-size: 12px;
     text-align: center;
     margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 88px;
   }
 }
 

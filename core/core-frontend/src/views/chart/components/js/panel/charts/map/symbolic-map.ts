@@ -6,7 +6,12 @@ import {
   L7Wrapper
 } from '@/views/chart/components/js/panel/types/impl/l7'
 import { MAP_EDITOR_PROPERTY_INNER } from '@/views/chart/components/js/panel/charts/map/common'
-import { hexColorToRGBA, parseJson, svgStrToUrl } from '@/views/chart/components/js/util'
+import {
+  getColorFormAlphaColor,
+  hexColorToRGBA,
+  parseJson,
+  svgStrToUrl
+} from '@/views/chart/components/js/util'
 import { deepCopy } from '@/utils/utils'
 import { GaodeMap } from '@antv/l7-maps'
 import { Scene } from '@antv/l7-scene'
@@ -15,6 +20,7 @@ import { LayerPopup } from '@antv/l7'
 import { mapRendered, mapRendering } from '@/views/chart/components/js/panel/common/common_antv'
 import { configCarouselTooltip } from '@/views/chart/components/js/panel/charts/map/tooltip-carousel'
 import { DEFAULT_BASIC_STYLE } from '@/views/chart/components/editor/util/chart'
+import { filter } from 'lodash-es'
 const { t } = useI18n()
 
 /**
@@ -25,9 +31,11 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
     'background-overall-component',
     'border-style',
     'basic-style-selector',
+    'symbolic-style-selector',
     'title-selector',
     'label-selector',
-    'tooltip-selector'
+    'tooltip-selector',
+    'threshold'
   ]
   propertyInner: EditorPropertyInner = {
     ...MAP_EDITOR_PROPERTY_INNER,
@@ -35,13 +43,13 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
       'colors',
       'alpha',
       'mapBaseStyle',
-      'symbolicMapStyle',
       'zoom',
       'showLabel',
       'autoFit',
       'mapCenter',
       'zoomLevel'
     ],
+    'symbolic-style-selector': ['symbolicMapStyle'],
     'label-selector': ['color', 'fontSize', 'showFields', 'customContent'],
     'tooltip-selector': [
       'color',
@@ -51,17 +59,18 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
       'show',
       'backgroundColor',
       'carousel'
-    ]
+    ],
+    threshold: ['lineThreshold']
   }
   axis: AxisType[] = ['xAxis', 'xAxisExt', 'extBubble', 'filter', 'extLabel', 'extTooltip']
   axisConfig: AxisConfig = {
     xAxis: {
-      name: `经纬度 / ${t('chart.dimension')}`,
+      name: `${t('chart.symbolic_map_coordinates')} / ${t('chart.dimension')}`,
       type: 'd',
       limit: 2
     },
     xAxisExt: {
-      name: `颜色 / ${t('chart.dimension')}`,
+      name: `${t('chart.color')} / ${t('chart.dimension')}`,
       type: 'd',
       limit: 1,
       allowEmpty: true
@@ -70,8 +79,7 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
       name: `${t('chart.bubble_size')} / ${t('chart.quota')}`,
       type: 'q',
       limit: 1,
-      tooltip:
-        '该指标生效时，样式基础样式中的大小属性将失效，同时可在样式基础样式中的大小区间配置大小区间',
+      tooltip: t('chart.symbolic_map_bubble_size_tip'),
       allowEmpty: true
     }
   }
@@ -129,24 +137,26 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
           style: mapStyle,
           pitch: miscStyle.mapPitch,
           center,
-          zoom: basicStyle.autoFit === false ? basicStyle.zoomLevel : 2.5,
+          zoom: basicStyle.autoFit === false ? basicStyle.zoomLevel : undefined,
           showLabel: !(basicStyle.showLabel === false)
         })
       })
     } else {
       if (scene.getLayers()?.length) {
         await scene.removeAllLayer()
-        scene.setCenter(center)
         scene.setPitch(miscStyle.mapPitch)
-        scene.setZoom(basicStyle.autoFit === false ? basicStyle.zoomLevel : 2.5)
         scene.setMapStyle(mapStyle)
         scene.map.showLabel = !(basicStyle.showLabel === false)
+      }
+      if (basicStyle.autoFit === false) {
+        scene.setZoomAndCenter(basicStyle.zoomLevel, center)
       }
     }
     mapRendering(container)
     scene.once('loaded', () => {
       mapRendered(container)
     })
+    this.configZoomButton(chart, scene)
     if (xAxis?.length < 2) {
       return new L7Wrapper(scene, undefined)
     }
@@ -158,7 +168,6 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
       scene.addPopup(tooltipLayer)
     }
     this.buildLabel(chart, configList)
-    this.configZoomButton(chart, scene)
     symbolicLayer.on('inited', ev => {
       chart.container = container
       configCarouselTooltip(chart, symbolicLayer, symbolicLayer.sourceOption.data, scene)
@@ -228,8 +237,22 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
     // 存储已分配的颜色
     const colorAssignments = new Map()
     const sizeKey = extBubble.length > 0 ? extBubble[0].dataeaseName : ''
+
+    //条件颜色
+    const { threshold } = parseJson(chart.senior)
+    let conditions = []
+    if (threshold.enable) {
+      conditions = threshold.lineThreshold ?? []
+    }
+    const extBubbleIds = chart.extBubble.map(i => i.id)
+    conditions = filter(conditions, c => extBubbleIds.includes(c.fieldId))
+
+    const baseColor = colorsWithAlpha[0]
+    const baseColorList = []
+
     const data = chart.data?.tableRow
-      ? chart.data.tableRow.map(item => {
+      ? chart.data.tableRow.map((item, index) => {
+          item['_index'] = '_index' + index
           // 颜色标识
           const identifier = item[xAxisExt[0]?.dataeaseName]
           // 检查该标识是否已有颜色分配，如果没有则分配
@@ -239,6 +262,61 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
             // 记录分配的颜色
             colorAssignments.set(identifier, color)
           }
+
+          baseColorList[index] = color
+
+          if (conditions.length > 0) {
+            for (let i = 0; i < conditions.length; i++) {
+              const c = conditions[i]
+              const value = item[c.field.dataeaseName]
+              for (const t of c.conditions) {
+                const v = t.value
+
+                //保存一下颜色到map
+                const _color = getColorFormAlphaColor(t.color)
+
+                if (t.term === 'between') {
+                  const start = parseFloat(t.min)
+                  const end = parseFloat(t.max)
+                  if (start <= value && value <= end) {
+                    color = hexColorToRGBA(_color, alpha)
+                    baseColorList[index] = color
+                  }
+                } else if ('lt' === t.term) {
+                  if (value < v) {
+                    color = hexColorToRGBA(_color, alpha)
+                    baseColorList[index] = color
+                  }
+                } else if ('le' === t.term) {
+                  if (value <= v) {
+                    color = hexColorToRGBA(_color, alpha)
+                    baseColorList[index] = color
+                  }
+                } else if ('gt' === t.term) {
+                  if (value > v) {
+                    color = hexColorToRGBA(_color, alpha)
+                    baseColorList[index] = color
+                  }
+                } else if ('ge' === t.term) {
+                  if (value >= v) {
+                    color = hexColorToRGBA(_color, alpha)
+                    baseColorList[index] = color
+                  }
+                } else if ('eq' === t.term) {
+                  if (value === v) {
+                    color = hexColorToRGBA(_color, alpha)
+                    baseColorList[index] = color
+                  }
+                } else if ('not_eq' === t.term) {
+                  if (value !== v) {
+                    color = hexColorToRGBA(_color, alpha)
+                    baseColorList[index] = color
+                  }
+                }
+              }
+            }
+          }
+
           return {
             ...item,
             color,
@@ -265,8 +343,8 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
           pointLayer.shape('customIcon')
         } else {
           const parser = new DOMParser()
-          for (let index = 0; index < Math.min(colorsWithAlpha.length, colorIndex + 1); index++) {
-            const color = colorsWithAlpha[index]
+          for (let index = 0; index < Math.min(baseColorList.length, colorIndex + 1); index++) {
+            const color = baseColorList[index]
             const fillRegex = /(fill="[^"]*")/g
             const svgStr = basicStyle.customIcon.replace(fillRegex, '')
             const doc = parser.parseFromString(svgStr, 'image/svg+xml')
@@ -280,7 +358,7 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
           })
         }
       } else {
-        pointLayer.shape(mapSymbol).color(xAxisExt[0]?.dataeaseName, colorsWithAlpha)
+        pointLayer.shape(mapSymbol).color('_index', baseColorList)
         pointLayer.style({
           stroke: {
             field: 'color'
@@ -297,7 +375,7 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
           pointLayer.shape('customIcon')
         } else {
           const parser = new DOMParser()
-          const color = colorsWithAlpha[0]
+          const color = baseColor
           const fillRegex = /(fill="[^"]*")/g
           const svgStr = basicStyle.customIcon.replace(fillRegex, '')
           const doc = parser.parseFromString(svgStr, 'image/svg+xml')
@@ -309,9 +387,11 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
       } else {
         pointLayer
           .shape(mapSymbol)
-          .color(colorsWithAlpha[0])
+          .color('_index', baseColorList)
           .style({
-            stroke: colorsWithAlpha[0],
+            stroke: {
+              field: 'color'
+            },
             strokeWidth: mapSymbolStrokeWidth,
             opacity: mapSymbolOpacity / 10
           })

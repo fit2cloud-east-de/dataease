@@ -57,6 +57,7 @@ public class DatasourceTaskServer {
         queryWrapper.eq("ds_id", dsId);
         queryWrapper.eq("table_name", tableName);
         queryWrapper.orderByDesc("start_time");
+        queryWrapper.last("limit 1");
         List<CoreDatasourceTaskLog> logs = coreDatasourceTaskLogMapper.selectList(queryWrapper);
         if (!CollectionUtils.isEmpty(logs)) {
             return logs.get(0);
@@ -125,7 +126,7 @@ public class DatasourceTaskServer {
 
     public List<CoreDatasourceTaskDTO> taskWithTriggers(Long taskId) {
         QueryWrapper<CoreDatasourceTaskDTO> wrapper = new QueryWrapper<>();
-        wrapper.eq("core_datasource_task.id", taskId);
+        wrapper.eq("core_datasource_task.id", String.valueOf(taskId));
         return extDatasourceTaskMapper.taskWithTriggers(wrapper);
     }
 
@@ -190,6 +191,14 @@ public class DatasourceTaskServer {
         UpdateWrapper<CoreDatasourceTask> updateTaskWrapper = new UpdateWrapper<>();
         updateTaskWrapper.eq("id", coreDatasourceTask.getId());
         datasourceTaskMapper.update(record, updateTaskWrapper);
+    }
+
+    public void cleanLog() {
+        long expTime = Long.parseLong("30") * 24L * 3600L * 1000L;
+        long threshold = System.currentTimeMillis() - expTime;
+        QueryWrapper<CoreDatasourceTaskLog> queryWrapper = new QueryWrapper<>();
+        queryWrapper.lt("start_time", threshold);
+        coreDatasourceTaskLogMapper.delete(queryWrapper);
     }
 
 

@@ -17,12 +17,10 @@ import io.dataease.extensions.datasource.dto.DatasetTableDTO;
 import io.dataease.extensions.datasource.dto.DatasourceDTO;
 import io.dataease.extensions.datasource.dto.DatasourceRequest;
 import io.dataease.extensions.datasource.dto.TableField;
-import io.dataease.extensions.datasource.factory.ProviderFactory;
-import io.dataease.extensions.datasource.provider.Provider;
+import io.dataease.extensions.datasource.vo.DatasourceConfiguration;
 import io.dataease.job.schedule.ExtractDataJob;
 import io.dataease.job.schedule.ScheduleManager;
 import io.dataease.utils.BeanUtils;
-import io.dataease.utils.JsonUtil;
 import io.dataease.utils.LogUtil;
 import jakarta.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;
@@ -31,7 +29,6 @@ import org.quartz.JobKey;
 import org.quartz.TriggerKey;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -87,6 +84,11 @@ public class DatasourceSyncManage {
                 }
                 datasetTableTaskLog.setTaskStatus(TaskStatus.Error.toString());
                 datasetTableTaskLog.setInfo(datasetTableTaskLog.getInfo() + "/n Failed to sync datatable: " + datasourceRequest.getTable() + ", " + e.getMessage());
+                if (e.getMessage().contains("Duplicate entry")) {
+                    DEException.throwException("不能追加主键相同的数据, " + e.getMessage());
+                } else {
+                    DEException.throwException(e);
+                }
 
             } finally {
                 datasourceTaskServer.saveLog(datasetTableTaskLog);
@@ -239,7 +241,7 @@ public class DatasourceSyncManage {
             totalPage = dataList.size() / pageNumber;
         }
         for (int page = 1; page <= totalPage; page++) {
-            engineRequest.setQuery(engineProvider.insertSql(datasourceRequest.getTable(), extractType, dataList, page, pageNumber, tableFields));
+            engineRequest.setQuery(engineProvider.insertSql(DatasourceConfiguration.DatasourceType.API.name(), datasourceRequest.getTable(), extractType, dataList, page, pageNumber, tableFields));
             calciteProvider.exec(engineRequest);
         }
     }
@@ -259,7 +261,7 @@ public class DatasourceSyncManage {
             totalPage = dataList.size() / pageNumber;
         }
         for (int page = 1; page <= totalPage; page++) {
-            engineRequest.setQuery(engineProvider.insertSql(datasourceRequest.getTable(), extractType, dataList, page, pageNumber, tableFields));
+            engineRequest.setQuery(engineProvider.insertSql(DatasourceConfiguration.DatasourceType.Excel.name(), datasourceRequest.getTable(), extractType, dataList, page, pageNumber, tableFields));
             calciteProvider.exec(engineRequest);
         }
     }

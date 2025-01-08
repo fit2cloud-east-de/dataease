@@ -8,7 +8,6 @@ import ChartComponentG2Plot from './components/ChartComponentG2Plot.vue'
 import DeIndicator from '@/custom-component/indicator/DeIndicator.vue'
 import { useAppearanceStoreWithOut } from '@/store/modules/appearance'
 import { useAppStoreWithOut } from '@/store/modules/app'
-import router from '@/router'
 import { useEmbedded } from '@/store/modules/embedded'
 import { XpackComponent } from '@/components/plugin'
 import { PluginComponent } from '@/components/plugin'
@@ -36,7 +35,6 @@ import DrillPath from '@/views/chart/components/views/components/DrillPath.vue'
 import { ElIcon, ElInput, ElMessage } from 'element-plus-secondary'
 import { useFilter } from '@/hooks/web/useFilter'
 import { useCache } from '@/hooks/web/useCache'
-import { parseUrl } from '@/utils/ParseUrl'
 
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { cloneDeep } from 'lodash-es'
@@ -77,7 +75,8 @@ const {
   curComponent,
   canvasStyleData,
   mobileInPc,
-  inMobile
+  inMobile,
+  editMode
 } = storeToRefs(dvMainStore)
 
 const props = defineProps({
@@ -136,6 +135,10 @@ const props = defineProps({
     type: String,
     required: false,
     default: 'inherit'
+  },
+  optType: {
+    type: String,
+    required: false
   }
 })
 const dynamicAreaId = ref('')
@@ -352,6 +355,13 @@ const chartClick = param => {
     ElMessage.error(t('chart.drill_field_error'))
     return
   }
+  if (
+    view.value.type === 'circle-packing' &&
+    (param.data?.childNodeCount === 0 || param.data.name === t('commons.all'))
+  ) {
+    ElMessage.error(t('chart.last_layer'))
+    return
+  }
   if (state.drillClickDimensionList.length < props.view.drillFields.length - 1) {
     state.drillClickDimensionList.push({
       dimensionList: param.data.dimensionList,
@@ -372,6 +382,7 @@ const filter = (firstLoad?: boolean) => {
     filter,
     linkageFilters: element.value.linkageFilters,
     outerParamsFilters: element.value.outerParamsFilters,
+    webParamsFilters: element.value.webParamsFilters,
     drill: state.drillClickDimensionList,
     resultCount: resultCount.value,
     resultMode: resultMode.value
@@ -484,13 +495,17 @@ const jumpClick = param => {
           curFilter.filter.forEach(filterItem => {
             targetViewInfoList.forEach(targetViewInfo => {
               if (targetViewInfo.sourceFieldActiveId === filterItem.filterId) {
-                filterOuterParams[targetViewInfo.outerParamsName] = filterItem.value
+                filterOuterParams[targetViewInfo.outerParamsName] = {
+                  operator: filterItem.operator,
+                  value: filterItem.value
+                }
               }
             })
           })
         }
         let attachParamsInfo
         if (Object.keys(filterOuterParams).length > 0) {
+          filterOuterParams['outerParamsVersion'] = 'v2'
           attachParamsInfo =
             '&attachParams=' + encodeURIComponent(Base64.encode(JSON.stringify(filterOuterParams)))
         }
@@ -521,18 +536,10 @@ const jumpClick = param => {
           }
           const currentUrl = window.location.href
           localStorage.setItem('beforeJumpUrl', currentUrl)
-          if (isIframe.value || isDataEaseBi.value) {
-            embeddedStore.clearState()
-          }
-          if (divSelf) {
+          if (divSelf || iframeSelf) {
             embeddedStore.setDvId(jumpInfo.targetDvId)
             embeddedStore.setJumpInfoParam(encodeURIComponent(Base64.encode(JSON.stringify(param))))
             divEmbedded('Preview')
-            return
-          }
-
-          if (iframeSelf) {
-            router.push(parseUrl(url))
             return
           }
           windowsJump(url, jumpInfo.jumpType, jumpInfo.windowSize)
@@ -707,6 +714,7 @@ const changeDataset = () => {
 }
 onMounted(() => {
   if (!view.value.isPlugin) {
+    state.drillClickDimensionList = view.value?.chartExtRequest?.drill ?? []
     queryData(!showPosition.value.includes('viewDialog'))
   }
   if (!listenerEnable.value) {
@@ -788,6 +796,13 @@ onMounted(() => {
       initTitle()
       const viewInfo = val ? val : view.value
       nextTick(() => {
+        if (view.value?.plugin?.isPlugin) {
+          chartComponent?.value?.invokeMethod({
+            methodName: 'renderChart',
+            args: [viewInfo]
+          })
+          return
+        }
         chartComponent?.value?.renderChart?.(viewInfo)
       })
     }
@@ -903,7 +918,7 @@ const vClickOutside = {
 }
 
 function onTitleChange() {
-  snapshotStore.recordSnapshotCache()
+  snapshotStore.recordSnapshotCache('onTitleChange')
 }
 
 const toolTip = computed(() => {
@@ -1165,6 +1180,7 @@ const titleTooltipWidth = computed(() => {
         :disabled="!['canvas', 'canvasDataV'].includes(showPosition) || disabled"
         :active="active"
         :show-position="showPosition"
+        :edit-mode="editMode"
         :suffixId="suffixId"
       />
       <de-indicator
@@ -1216,7 +1232,11 @@ const titleTooltipWidth = computed(() => {
       :themes="canvasStyleData.dashboard.themeColor"
       :view-icon="view.type"
     ></chart-empty-info>
-    <drill-path :drill-filters="state.drillFilters" @onDrillJump="drillJump" />
+    <drill-path
+      :disabled="optType === 'enlarge'"
+      :drill-filters="state.drillFilters"
+      @onDrillJump="drillJump"
+    />
     <XpackComponent
       ref="openHandler"
       jsname="L2NvbXBvbmVudC9lbWJlZGRlZC1pZnJhbWUvT3BlbkhhbmRsZXI="

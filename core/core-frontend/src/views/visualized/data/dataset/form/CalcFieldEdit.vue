@@ -345,14 +345,14 @@ initFunction()
                     :class="[fieldForm.groupType === 'd' && 'is-active']"
                     text
                   >
-                    {{ t('chart.dimension') }}
+                    {{ t('chart.dimension_abb') }}
                   </el-button>
                   <el-button
                     @click="fieldForm.groupType = 'q'"
                     :class="[fieldForm.groupType === 'q' && 'is-active']"
                     text
                   >
-                    {{ t('chart.quota') }}
+                    {{ t('chart.quota_abb') }}
                   </el-button>
                 </div>
               </el-form-item>
@@ -592,6 +592,8 @@ initFunction()
     <el-dialog
       :before-close="formQuotaClose"
       v-model="dialogFormVisible"
+      append-to-body
+      class="create-dialog"
       :title="t('data_set.add_calculation_parameters')"
       width="500"
     >

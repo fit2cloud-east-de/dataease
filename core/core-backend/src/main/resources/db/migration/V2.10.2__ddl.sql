@@ -5,9 +5,11 @@ DELETE ccv
 FROM core_chart_view ccv
          INNER JOIN data_visualization_info dvi ON ccv.scene_id = dvi.id
 WHERE dvi.delete_flag = 1;
+
 delete
-from data_visualization_info dvi
-where dvi.delete_flag = 1;
+from data_visualization_info
+where delete_flag = 1;
+
 DELETE
 FROM area
 where pid = '156710100'

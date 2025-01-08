@@ -27,7 +27,8 @@ import { deepCopy, isMobile } from '@/utils/utils'
 import { isDashboard, trackBarStyleCheck } from '@/utils/canvasUtils'
 import { useEmitt } from '@/hooks/web/useEmitt'
 import { L7ChartView } from '@/views/chart/components/js/panel/types/impl/l7'
-
+import { useI18n } from '@/hooks/web/useI18n'
+const { t } = useI18n()
 const dvMainStore = dvMainStoreWithOut()
 const { nowPanelTrackInfo, nowPanelJumpInfo, mobileInPc, embeddedCallBack, inMobile } =
   storeToRefs(dvMainStore)
@@ -86,6 +87,7 @@ const emit = defineEmits([
 
 const g2TypeSeries1 = ['bidirectional-bar']
 const g2TypeSeries0 = ['bar-range']
+const g2TypeTree = ['circle-packing']
 
 const { view, showPosition, scale, terminal, suffixId } = toRefs(props)
 
@@ -165,6 +167,14 @@ const checkSelected = param => {
     return state.linkageActiveParam.name === param.field
   } else if (g2TypeSeries0.includes(view.value.type)) {
     return state.linkageActiveParam.category === param.category
+  } else if (g2TypeTree.includes(view.value.type)) {
+    if (
+      param.path?.startsWith(state.linkageActiveParam.name) ||
+      state.linkageActiveParam.name === t('commons.all')
+    ) {
+      return true
+    }
+    return state.linkageActiveParam.name === param.name
   } else {
     return (
       (state.linkageActiveParam.name === param.name ||
@@ -195,6 +205,11 @@ const calcData = async (view, callback) => {
             dynamicAreaId.value = extra?.adcode + ''
             scope = extra?.scope
             // 地图
+            const map = parseJson(view.customAttr)?.map
+            if (map) {
+              let areaId = map.id
+              country.value = areaId.slice(0, 3)
+            }
             if (!dynamicAreaId.value?.startsWith(country.value)) {
               if (country.value === 'cus') {
                 dynamicAreaId.value = '156' + dynamicAreaId.value
@@ -232,7 +247,7 @@ const renderChart = async (view, callback?) => {
   const chart = deepCopy({
     ...defaultsDeep(view, cloneDeep(BASE_VIEW_CONFIG)),
     data: chartData.value,
-    fontFamily: props.fontFamily
+    ...(props.fontFamily && props.fontFamily !== 'inherit' ? { fontFamily: props.fontFamily } : {})
   })
   const chartView = chartViewManager.getChartView(view.render, view.type)
   recursionTransObj(customAttrTrans, chart.customAttr, scale.value, terminal.value)
@@ -357,6 +372,11 @@ const action = param => {
     actionDefault(param)
     return
   }
+  if (view.value.type === 'map') {
+    if (!(param?.data?.data?.quotaList && param?.data?.data?.quotaList.length > 0)) {
+      return
+    }
+  }
   state.pointParam = param.data
   // 点击
   pointClickTrans()
@@ -444,7 +464,7 @@ const trackClick = trackAction => {
     }
   }
   let quotaList = state.pointParam.data.quotaList
-  if (curView.type === 'bar-range') {
+  if (['bar-range', 'circle-packing'].includes(curView.type)) {
     quotaList = state.pointParam.data.dimensionList
   } else {
     quotaList[0]['value'] = state.pointParam.data.value
@@ -471,7 +491,6 @@ const trackClick = trackAction => {
     dimensionList: state.pointParam.data.dimensionList,
     quotaList: quotaList
   }
-
   switch (trackAction) {
     case 'pointClick':
       emit('onPointClick', clickParams)

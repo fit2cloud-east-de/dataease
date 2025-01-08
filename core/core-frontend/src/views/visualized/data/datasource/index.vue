@@ -47,7 +47,8 @@ import {
   listSyncRecord,
   uploadFile,
   perDeleteDatasource,
-  getSimpleDs
+  getSimpleDs,
+  supportSetKey
 } from '@/api/datasource'
 import CreatDsGroup from './form/CreatDsGroup.vue'
 import type { Tree } from '../dataset/form/CreatDsGroup.vue'
@@ -70,7 +71,6 @@ import {
   syncApiDs,
   syncApiTable
 } from '@/api/datasource'
-import { Base64 } from 'js-base64'
 import type { SyncSetting, Node } from './form/option'
 import EditorDatasource from './form/index.vue'
 import ExcelInfo from './ExcelInfo.vue'
@@ -213,10 +213,15 @@ const selectDataset = row => {
 
 const originResourceTree = shallowRef([])
 
-const sortTypeChange = sortType => {
+const handleSortTypeChange = sortType => {
   state.datasourceTree = treeSort(originResourceTree.value, sortType)
   state.curSortType = sortType
   wsCache.set('TreeSort-datasource', state.curSortType)
+}
+
+const sortTypeChange = sortType => {
+  state.datasourceTree = treeSort(originResourceTree.value, sortType)
+  state.curSortType = sortType
 }
 const handleSizeChange = pageSize => {
   state.paginationConfig.currentPage = 1
@@ -467,13 +472,14 @@ const saveDsFolder = (params, successCb, finallyCb, cmd) => {
 
 const dsLoading = ref(false)
 const mounted = ref(false)
+const isSupportSetKey = ref(false)
 const symmetricKey = ref('')
 
 const listDs = () => {
   rawDatasourceList.value = []
   dsLoading.value = true
   let curSortType = sortList[Number(wsCache.get('TreeSort-backend')) ?? 1].value
-  curSortType = wsCache.get('TreeSort-dataset') ?? curSortType
+  curSortType = wsCache.get('TreeSort-datasource') ?? curSortType
   const request = { busiFlag: 'datasource' } as BusiTreeRequest
   interactiveStore
     .setInteractive(request)
@@ -505,6 +511,15 @@ const listDs = () => {
     })
 }
 
+const setSupportSetKey = () => {
+  supportSetKey()
+    .then(response => {
+      isSupportSetKey.value = response.data
+    })
+    .catch(error => {
+      console.warn(error?.message)
+    })
+}
 const changeDsStatus = (ds, id, extraFlag) => {
   ds.some(ele => {
     if (ele.id === id) {
@@ -534,20 +549,20 @@ const dfsDatasourceTree = (ds, id) => {
 const creatDsFolder = ref()
 const sortList = [
   {
-    name: t('data_source.by_creation_time'),
+    name: t('visualization.time_asc'),
     value: 'time_asc'
   },
   {
-    name: t('data_source.by_creation_time_de'),
+    name: t('visualization.time_desc'),
     value: 'time_desc',
     divided: true
   },
   {
-    name: t('data_source.order_by_name'),
+    name: t('visualization.name_asc'),
     value: 'name_asc'
   },
   {
-    name: t('data_source.order_by_name_de'),
+    name: t('visualization.name_desc'),
     value: 'name_desc'
   }
 ]
@@ -622,7 +637,7 @@ const handleNodeClick = data => {
   })
 }
 const createDatasource = (data?: Tree) => {
-  datasourceEditor.value.init(null, data?.id)
+  datasourceEditor.value.init(null, data?.id, null, isSupportSetKey.value)
 }
 const showRecord = ref(false)
 const dsListTree = ref()
@@ -742,7 +757,7 @@ const editDatasource = (editType?: number) => {
       isPlugin: arr && arr.length > 0,
       staticMap: arr[0]?.staticMap
     })
-    datasourceEditor.value.init(datasource)
+    datasourceEditor.value.init(datasource, null, null, isSupportSetKey.value)
   })
 }
 
@@ -813,7 +828,7 @@ const handleCopy = async data => {
         datasource.apiConfiguration[i].deTableName = ''
       }
     }
-    datasourceEditor.value.init(datasource)
+    datasourceEditor.value.init(datasource, null, null, isSupportSetKey.value)
   })
 }
 
@@ -974,7 +989,7 @@ const uploadExcel = editType => {
         return
       }
       nodeInfo.editType = editType
-      datasourceEditor.value.init(nodeInfo, nodeInfo.id, res)
+      datasourceEditor.value.init(nodeInfo, nodeInfo.id, res, isSupportSetKey.value)
     })
     .finally(() => {
       replaceLoading.value = false
@@ -1000,9 +1015,10 @@ onMounted(() => {
   wsCache.delete('ds-info-id')
   loadInit()
   listDs()
+  setSupportSetKey()
   const { opt } = router.currentRoute.value.query
   if (opt && opt === 'create') {
-    datasourceEditor.value.init(null, null)
+    datasourceEditor.value.init(null, null, null, isSupportSetKey.value)
   }
   querySymmetricKey().then(res => {
     symmetricKey.value = res.data
@@ -1093,7 +1109,7 @@ const getMenuList = (val: boolean) => {
               </el-icon>
             </template>
           </el-input>
-          <el-dropdown @command="sortTypeChange" trigger="click">
+          <el-dropdown @command="handleSortTypeChange" trigger="click">
             <el-icon class="filter-icon-span">
               <el-tooltip :offset="16" effect="dark" :content="sortTypeTip" placement="top">
                 <Icon name="dv-sort-asc" class="opt-icon"
@@ -1436,7 +1452,7 @@ const getMenuList = (val: boolean) => {
             <template v-if="slotProps.active">
               <el-row :gutter="24">
                 <el-col :span="12">
-                  <BaseInfoItem :label="t('auth.datasource') + t('common.name')">{{
+                  <BaseInfoItem :label="t('auth.datasource') + ' ' + t('common.name')">{{
                     nodeInfo.name
                   }}</BaseInfoItem>
                 </el-col>

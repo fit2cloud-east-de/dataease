@@ -146,9 +146,9 @@ if (uid.value === '1') {
           <span>{{ link.label }}</span>
         </div>
 
-        <div class="uinfo-main-item de-container de-language">
+        <div class="uinfo-main-item de-container">
           <div class="about-parent" ref="divLanguageRef" v-click-outside="openLanguage">
-            <span>语言</span>
+            <span>{{ $t('commons.language') }}</span>
             <el-icon class="el-icon-animate">
               <ArrowRight />
             </el-icon>
@@ -279,13 +279,10 @@ if (uid.value === '1') {
   padding-bottom: 0 !important;
 }
 .language-popover {
-  max-height: 112px;
+  // max-height: 112px;
   .ed-popper__arrow {
     display: none;
   }
   padding: var(--ed-popover-padding) 0 !important;
-}
-.de-language {
-  display: none !important;
 }
 </style>

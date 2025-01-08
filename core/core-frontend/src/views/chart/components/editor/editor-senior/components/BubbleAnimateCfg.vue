@@ -93,7 +93,7 @@ init()
           style="line-height: 20px"
           :class="{ dark: 'dark' === themes }"
         >
-          动效类型
+          {{ t('chart.animation_type') }}
         </label>
         <el-row style="flex: 1" :gutter="8">
           <el-col :span="13">
@@ -105,7 +105,7 @@ init()
                 v-model="state.bubbleAnimateForm.type"
                 @change="onBubbleAnimateChange()"
               >
-                <el-radio :effect="themes" label="wave"> 水波 </el-radio>
+                <el-radio :effect="themes" label="wave"> {{ t('chart.water_wave') }} </el-radio>
               </el-radio-group>
             </el-form-item>
           </el-col>
@@ -113,7 +113,9 @@ init()
       </div>
 
       <div class="bubble-animate-setting">
-        <label class="bubble-animate-label" :class="{ dark: 'dark' === themes }"> 动效速率 </label>
+        <label class="bubble-animate-label" :class="{ dark: 'dark' === themes }">
+          {{ t('chart.animation_speed') }}
+        </label>
         <el-row style="flex: 1" :gutter="8">
           <el-col :span="13">
             <el-form-item class="form-item bubble-animate-slider" :class="'form-item-' + themes">
@@ -144,7 +146,9 @@ init()
         </el-row>
       </div>
       <div class="bubble-animate-setting">
-        <label class="bubble-animate-label" :class="{ dark: 'dark' === themes }"> 水波环数 </label>
+        <label class="bubble-animate-label" :class="{ dark: 'dark' === themes }">
+          {{ t('chart.wave_rings') }}
+        </label>
         <el-row style="flex: 1" :gutter="8">
           <el-col :span="13">
             <el-form-item class="form-item bubble-animate-slider" :class="'form-item-' + themes">

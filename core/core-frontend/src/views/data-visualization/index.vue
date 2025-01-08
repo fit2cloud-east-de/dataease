@@ -100,6 +100,8 @@ let createType = null
 let isDragging = false // 标记是否在拖动
 let startX, startY, scrollLeft, scrollTop
 const state = reactive({
+  sideShow: true,
+  countTime: 0,
   datasetTree: [],
   scaleHistory: null,
   canvasId: 'canvas-main',
@@ -168,6 +170,7 @@ const contentStyle = computed(() => {
 
 // 通过实时监听的方式直接添加组件
 const handleNew = newComponentInfo => {
+  state.countTime++
   const { componentName, innerType, staticMap } = newComponentInfo
   if (componentName) {
     const { width, height, scale } = canvasStyleData.value
@@ -191,6 +194,13 @@ const handleNew = newComponentInfo => {
     dvMainStore.addComponent({ component: component, index: undefined })
     adaptCurThemeCommonStyle(component)
     snapshotStore.recordSnapshotCache('renderChart', component.id)
+    if (state.countTime > 10) {
+      state.sideShow = false
+      nextTick(() => {
+        state.countTime = 0
+        state.sideShow = true
+      })
+    }
   }
 }
 
@@ -336,12 +346,27 @@ const checkPer = async resourceId => {
   await interactiveStore.setInteractive(request)
   return check(wsCache.get('screen-weight'), resourceId, 4)
 }
+// 目标校验： 需要校验targetSourceId 是否是当前可视化资源ID
+const winMsgHandle = event => {
+  const msgInfo = event.data
+  if (msgInfo?.targetSourceId === dvInfo.value.id + '')
+    if (msgInfo.type === 'webParams') {
+      // 网络消息处理
+      winMsgWebParamsHandle(msgInfo)
+    }
+}
+
+const winMsgWebParamsHandle = msgInfo => {
+  const params = msgInfo.params
+  dvMainStore.addWebParamsFilter(params)
+}
 
 const loadFinish = ref(false)
 const newWindowFromDiv = ref(false)
 let p = null
 const XpackLoaded = () => p(true)
 onMounted(async () => {
+  dvMainStore.setCurComponent({ component: null, index: null })
   snapshotStore.initSnapShot()
   if (window.location.hash.includes('#/dvCanvas')) {
     newWindowFromDiv.value = true
@@ -349,6 +374,7 @@ onMounted(async () => {
   await new Promise(r => (p = r))
   loadFinish.value = true
   window.addEventListener('blur', releaseAttachKey)
+  window.addEventListener('message', winMsgHandle)
   if (editMode.value === 'edit') {
     window.addEventListener('storage', eventCheck)
   }
@@ -406,7 +432,7 @@ onMounted(async () => {
         dvMainStore.setCanvasViewInfo(deTemplateData['canvasViewInfo'])
         dvMainStore.setAppDataInfo(deTemplateData['appData'])
         setTimeout(() => {
-          snapshotStore.recordSnapshotCache()
+          snapshotStore.recordSnapshotCache('template')
         }, 1500)
       }
       if (dvMainStore.getAppDataInfo()) {
@@ -563,7 +589,7 @@ eventBus.on('tabSort', tabSort)
       </main>
       <!-- 右侧侧组件列表 -->
       <div style="width: auto; height: 100%" ref="leftSidebarRef">
-        <template v-if="!batchOptStatus">
+        <template v-if="!batchOptStatus && state.sideShow">
           <dv-sidebar
             v-if="otherEditorShow"
             :title="curComponent['name']"

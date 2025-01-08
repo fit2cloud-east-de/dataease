@@ -133,7 +133,9 @@ export class Gauge extends G2PlotChartView<GaugeOptions, G2Gauge> {
         max = misc.gaugeMax ? misc.gaugeMax : DEFAULT_MISC.gaugeMax
       } else {
         min = misc.gaugeMin || misc.gaugeMin === 0 ? misc.gaugeMin : DEFAULT_MISC.gaugeMin
-        max = misc.gaugeMax ? misc.gaugeMax : DEFAULT_MISC.gaugeMax
+        max = misc.gaugeMax
+          ? misc.gaugeMax
+          : chart.data?.series[chart.data?.series.length - 1]?.data[0]
       }
       startAngle = (misc.gaugeStartAngle * Math.PI) / 180
       endAngle = (misc.gaugeEndAngle * Math.PI) / 180

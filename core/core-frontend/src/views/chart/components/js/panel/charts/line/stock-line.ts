@@ -47,12 +47,12 @@ export class StockLine extends G2PlotChartView<MixOptions, Mix> {
   axis: AxisType[] = ['xAxis', 'yAxis', 'filter', 'extLabel', 'extTooltip']
   axisConfig = {
     xAxis: {
-      name: `日期 / ${t('chart.dimension')}`,
+      name: `${t('common.component.date')} / ${t('chart.dimension')}`,
       limit: 1,
       type: 'd'
     },
     yAxis: {
-      name: `开盘价-收盘价-最低价-最高价 / ${t('chart.quota')}`,
+      name: `${t('chart.k_line_yaxis_tip')} / ${t('chart.quota')}`,
       limit: 4,
       type: 'q'
     }

@@ -215,7 +215,7 @@ onMounted(() => {
         <label class="custom-form-item-label" :class="'custom-form-item-label--' + themes">
           {{ t('chart.axis_value_split_count') }}
           <el-tooltip class="item" :effect="toolTip" placement="top">
-            <template #content>期望的坐标轴刻度数量，非最终结果。</template>
+            <template #content>{{ t('chart.number_of_scales_tip') }}</template>
             <span style="vertical-align: middle">
               <el-icon style="cursor: pointer">
                 <Icon name="icon_info_outlined"><icon_info_outlined class="svg-icon" /></Icon>

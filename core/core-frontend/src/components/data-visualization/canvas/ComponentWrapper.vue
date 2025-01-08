@@ -115,6 +115,10 @@ const props = defineProps({
     type: String,
     required: false,
     default: 'inherit'
+  },
+  optType: {
+    type: String,
+    required: false
   }
 })
 const {
@@ -222,26 +226,7 @@ const componentBackgroundStyle = computed(() => {
     if (backgroundColorSelect && backgroundColor) {
       colorRGBA = backgroundColor
     }
-    if (config.value.innerType === 'VQuery') {
-      if (backgroundColorSelect) {
-        style = {
-          padding: innerPadding * deepScale.value + 'px',
-          borderRadius: borderRadius + 'px'
-        }
-      } else {
-        style = {
-          padding: 12 * deepScale.value + 'px',
-          borderRadius: '0'
-        }
-      }
-    }
-    if (config.value.innerType === 'VQuery' && backgroundColorSelect) {
-      if (backgroundType === 'outerImage' && typeof outerImage === 'string') {
-        style['background'] = `url(${imgUrlTrans(outerImage)}) no-repeat`
-      } else {
-        style['background-color'] = colorRGBA
-      }
-    } else if (backgroundImageEnable) {
+    if (backgroundImageEnable) {
       if (backgroundType === 'outerImage' && typeof outerImage === 'string') {
         style['background'] = `url(${imgUrlTrans(outerImage)}) no-repeat ${colorRGBA}`
       } else {
@@ -418,6 +403,7 @@ const showActive = computed(() => props.popActive || (dvMainStore.mobileInPc && 
           ref="component"
           class="component"
           :canvas-style-data="canvasStyleData"
+          :opt-type="optType"
           :dv-info="dvInfo"
           :dv-type="dvInfo.type"
           :canvas-view-info="canvasViewInfo"

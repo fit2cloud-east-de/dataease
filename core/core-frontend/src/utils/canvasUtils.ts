@@ -1,4 +1,4 @@
-import { cloneDeep } from 'lodash-es'
+import { cloneDeep, forEach } from 'lodash-es'
 import componentList, {
   ACTION_SELECTION,
   BASE_CAROUSEL,
@@ -38,6 +38,7 @@ const snapshotStore = snapshotStoreWithOut()
 import { useI18n } from '@/hooks/web/useI18n'
 import { useAppearanceStoreWithOut } from '@/store/modules/appearance'
 import { useCache } from '@/hooks/web/useCache'
+import { isDesktop } from '@/utils/ModelUtil'
 const { t } = useI18n()
 const appearanceStore = useAppearanceStoreWithOut()
 const { wsCache } = useCache()
@@ -150,7 +151,8 @@ export function historyItemAdaptor(
   }
 
   if (componentItem.component === 'DeTabs') {
-    componentItem.style['showTabTitle'] = componentItem.style['showTabTitle'] || true
+    componentItem.style['showTabTitle'] =
+      componentItem.style['showTabTitle'] === undefined ? true : componentItem.style['showTabTitle']
   }
 
   componentItem['expand'] = componentItem['expand'] || false
@@ -207,6 +209,9 @@ export function historyItemAdaptor(
   componentItem['category'] = componentItem['category'] || 'base'
 
   if (componentItem.component === 'DeTabs') {
+    componentItem.style.fontStyle = componentItem.style.fontStyle || 'normal'
+    componentItem.style.fontWeight = componentItem.style.fontWeight || 'normal'
+    componentItem.style.textDecoration = componentItem.style.textDecoration || 'none'
     componentItem.propValue.forEach(tabItem => {
       tabItem.componentData.forEach(tabComponent => {
         historyItemAdaptor(tabComponent, reportFilterInfo, attachInfo, canvasVersion, canvasInfo)
@@ -227,7 +232,9 @@ export function historyAdaptor(
   canvasVersion
 ) {
   const curVersion = wsCache.get('x-de-execute-version')
-  if (canvasInfo?.checkVersion === curVersion) {
+  // 含有定时报告过滤项每次都需要匹配
+  const reportFilterInfo = canvasInfo?.reportFilterInfo
+  if (canvasInfo?.checkVersion === curVersion && !reportFilterInfo) {
     return
   }
   //历史字段适配
@@ -258,7 +265,6 @@ export function historyAdaptor(
     canvasStyleResult['popupButtonAvailable'] === undefined
       ? true
       : canvasStyleResult['popupButtonAvailable'] //兼容弹框区域按钮开关
-  const reportFilterInfo = canvasInfo?.reportFilterInfo
   canvasDataResult.forEach(componentItem => {
     historyItemAdaptor(componentItem, reportFilterInfo, attachInfo, canvasVersion, canvasInfo)
   })
@@ -466,10 +472,6 @@ export function initCanvasDataMobile(dvId, busiFlag, callBack) {
         if (ele.component === 'DeTabs') {
           ele.propValue.forEach(tabItem => {
             tabItem.componentData.forEach(tabComponent => {
-              tabComponent.x = tabComponent.mx
-              tabComponent.y = tabComponent.my
-              tabComponent.sizeX = tabComponent.mSizeX
-              tabComponent.sizeY = tabComponent.mSizeY
               tabComponent.style = tabComponent.mStyle || tabComponent.style
               tabComponent.propValue = tabComponent.mPropValue || tabComponent.propValue
               tabComponent.events = tabComponent.mEvents || tabComponent.events
@@ -512,12 +514,13 @@ export function initCanvasDataMobile(dvId, busiFlag, callBack) {
 export function checkCanvasChangePre(callBack) {
   // do pre
   const isUpdate = dvInfo.value.id && dvInfo.value.optType !== 'copy'
-  if (isUpdate) {
+  // 桌面版为单人模式不需要检查
+  if (isUpdate && !isDesktop()) {
     const params = { ...dvInfo.value, watermarkInfo: null }
     const tips =
       (dvInfo.value.type === 'dashboard'
         ? t('work_branch.dashboard')
-        : t('work_branch.big_data_screen')) + '已被他人更新，是否覆盖保存？'
+        : t('work_branch.big_data_screen')) + t('visualization.save_conflict_tips')
     checkCanvasChange(params).then(rsp => {
       if (rsp && rsp.data === 'Repeat') {
         ElMessageBox.confirm(tips, {
@@ -628,6 +631,88 @@ export function setIdValueTrans(from, to, content, colList) {
 
 export function isMainCanvas(canvasId) {
   return canvasId === 'canvas-main'
+}
+// 检查是否可以加入到分组
+export function checkJoinGroup(item) {
+  if (item.component === 'DeTabs') {
+    let result = true
+    item.propValue.forEach(tabItem => {
+      tabItem.componentData.forEach(tabComponent => {
+        if (tabComponent.component === 'Group') {
+          result = false
+        }
+      })
+    })
+    return result
+  } else {
+    return true
+  }
+}
+// 检查是否可以移入tab
+export function checkJoinTab(item) {
+  if (item.component === 'Group') {
+    let result = true
+    item.propValue.forEach(groupItem => {
+      if (groupItem.component === 'DeTabs') {
+        result = false
+      }
+    })
+    return result
+  } else {
+    return true
+  }
+}
+
+// 目前仅允许group中还有一层Tab 或者 Tab中含有一层group
+export function itemCanvasPathCheck(item, checkType) {
+  if (checkType === 'canvas-main') {
+    return isMainCanvas(item.canvasId)
+  }
+  const pathMap = {}
+  componentData.value.forEach(componentItem => {
+    canvasIdMapCheck(componentItem, null, pathMap)
+  })
+
+  // 父组件是Tab且在group中
+  if (checkType === 'pTabGroup') {
+    return Boolean(
+      pathMap[item.id] &&
+        pathMap[item.id].component === 'DeTabs' &&
+        pathMap[pathMap[item.id].id] &&
+        pathMap[pathMap[item.id].id].component === 'Group'
+    )
+  }
+  // 当前组件是group且在Tab中
+  if (checkType === 'groupInTab') {
+    return Boolean(
+      item.component === 'Group' &&
+        pathMap[pathMap[item.id].id] &&
+        pathMap[pathMap[item.id].id].component === 'DeTabs'
+    )
+  }
+
+  // 当前组件是Tab且在Group中
+  if (checkType === 'tabInGroup') {
+    return Boolean(
+      item.component === 'DeTabs' && pathMap[item.id] && pathMap[item.id].component === 'Group'
+    )
+  }
+  return false
+}
+
+export function canvasIdMapCheck(item, pItem, pathMap) {
+  pathMap[item.id] = pItem
+  if (item.component === 'DeTabs') {
+    item.propValue.forEach(tabItem => {
+      tabItem.componentData.forEach(tabComponent => {
+        canvasIdMapCheck(tabComponent, item, pathMap)
+      })
+    })
+  } else if (item.component === 'Group') {
+    item.propValue.forEach(groupItem => {
+      canvasIdMapCheck(groupItem, item, pathMap)
+    })
+  }
 }
 
 export function isSameCanvas(item, canvasId) {

@@ -142,7 +142,7 @@ const doUseCache = flag => {
     snapshotStore.snapshotPublish(canvasCacheSeries)
     dataInitState.value = true
     setTimeout(() => {
-      snapshotStore.recordSnapshotCache()
+      snapshotStore.recordSnapshotCache('doUseCache')
       // 使用缓存时，初始化的保存按钮为激活状态
       snapshotStore.recordSnapshotCache('renderChart')
     }, 1500)
@@ -162,13 +162,14 @@ const initLocalCanvasData = () => {
       dvInfo.value.optType = 'copy'
       dvInfo.value.pid = sourcePid
       setTimeout(() => {
-        snapshotStore.recordSnapshotCache()
+        snapshotStore.recordSnapshotCache('initLocalCanvasData')
       }, 1500)
     }
     onInitReady({ resourceId: resourceId })
   })
 }
 onMounted(async () => {
+  dvMainStore.setCurComponent({ component: null, index: null })
   snapshotStore.initSnapShot()
   if (window.location.hash.includes('#/dashboard')) {
     newWindowFromDiv.value = true
@@ -182,6 +183,7 @@ onMounted(async () => {
     }
   })
   window.addEventListener('storage', eventCheck)
+  window.addEventListener('message', winMsgHandle)
   const resourceId = embeddedStore.resourceId || router.currentRoute.value.query.resourceId
   const pid = embeddedStore.pid || router.currentRoute.value.query.pid
   const opt = embeddedStore.opt || router.currentRoute.value.query.opt
@@ -235,7 +237,7 @@ onMounted(async () => {
         dvMainStore.setCanvasViewInfo(deTemplateData['canvasViewInfo'])
         dvMainStore.setAppDataInfo(deTemplateData['appData'])
         setTimeout(() => {
-          snapshotStore.recordSnapshotCache()
+          snapshotStore.recordSnapshotCache('template')
         }, 1500)
         if (dvMainStore.getAppDataInfo()) {
           eventBus.emit('save')
@@ -251,8 +253,24 @@ onMounted(async () => {
   }
 })
 
+// 目标校验： 需要校验targetSourceId 是否是当前可视化资源ID
+const winMsgHandle = event => {
+  const msgInfo = event.data
+  if (msgInfo?.targetSourceId === dvInfo.value.id + '')
+    if (msgInfo.type === 'webParams') {
+      // 网络消息处理
+      winMsgWebParamsHandle(msgInfo)
+    }
+}
+
+const winMsgWebParamsHandle = msgInfo => {
+  const params = msgInfo.params
+  dvMainStore.addWebParamsFilter(params)
+}
+
 onUnmounted(() => {
   window.removeEventListener('storage', eventCheck)
+  window.removeEventListener('message', winMsgHandle)
 })
 </script>
 

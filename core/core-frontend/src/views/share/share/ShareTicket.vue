@@ -2,15 +2,6 @@
   <div class="ticket">
     <div class="ticket-model">
       <div class="ticket-model-start">
-        <el-tooltip class="item" effect="dark" :content="$t('link_ticket.back')" placement="top">
-          <span class="back-tips">
-            <el-icon class="custom-el-icon back-icon" @click.stop="close">
-              <Icon class="toolbar-icon" name="icon_left_outlined"
-                ><icon_left_outlined class="svg-icon toolbar-icon"
-              /></Icon>
-            </el-icon>
-          </span>
-        </el-tooltip>
         <span class="ticket-title">{{ 'Ticket ' + t('commons.setting') }}</span>
       </div>
       <div class="ticket-model-end">
@@ -19,6 +10,11 @@
           @change="requireTicketChange"
           :label="t('link_ticket.require')"
         />
+
+        <span class="top-split" />
+        <span class="top-close" @click.stop="finish">
+          <icon name="icon_close_outlined"><icon_close_outlined class="svg-icon" /></icon>
+        </span>
       </div>
     </div>
     <div class="ticket-add">
@@ -26,12 +22,21 @@
         <template #icon>
           <icon name="icon_add_outlined"><icon_add_outlined class="svg-icon" /></icon>
         </template>
-        {{ t('commons.create') }}
+        {{ t('commons.add') }}
       </el-button>
     </div>
     <div class="ticket-table">
-      <el-table :data="state.tableData" style="width: 100%" size="small">
-        <el-table-column prop="ticket" label="Ticket" width="130">
+      <grid-table
+        ref="multipleTableRef"
+        :show-empty-img="false"
+        :table-data="state.tableData"
+        :pagination="state.paginationConfig"
+        class="popper-max-width"
+        :class="{ 'popper-max-height': state.tableData?.length >= 10 }"
+        @current-change="pageChange"
+        @size-change="sizeChange"
+      >
+        <el-table-column prop="ticket" label="Ticket">
           <template v-slot="scope">
             <div class="ticket-row">
               <span :title="scope.row.ticket">{{ scope.row.ticket }}</span>
@@ -60,7 +65,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="exp" :label="$t('visualization.over_time')" width="100">
+        <el-table-column prop="exp" :label="$t('visualization.over_time')" width="117">
           <template v-slot:header>
             <div class="ticket-exp-head">
               <span>{{ t('visualization.over_time') }}</span>
@@ -77,45 +82,33 @@
             </div>
           </template>
           <template v-slot="scope">
-            <el-input
-              v-if="scope.row.isEdit"
-              :ref="el => setExpRef(el, scope.$index)"
-              v-model="scope.row.exp"
-              type="number"
-              :placeholder="$t('commons.input_content')"
-              min="0"
-              max="1440"
-              size="small"
-              @input="v => handleInput(v, scope.$index)"
-              @change="val => validateExp(val, scope.$index)"
-            />
-            <span v-else>
+            <span>
               {{ scope.row.exp }}
             </span>
           </template>
         </el-table-column>
-        <el-table-column prop="args" :label="$t('dataset.param')">
+        <el-table-column prop="args" :label="$t('dataset.param')" width="117">
           <template v-slot="scope">
-            <el-input
-              v-if="scope.row.isEdit"
-              :ref="el => setArgRef(el, scope.$index)"
-              v-model="scope.row.args"
-              type="text"
-              :placeholder="$t('commons.input_content')"
-              maxlength="200"
-              size="small"
-              @change="val => validateArgs(val, scope.$index)"
-            />
-            <span v-else>
-              {{ scope.row.args || '-' }}
-            </span>
+            <el-tooltip class="box-item" effect="light" :content="scope.row.args" placement="top">
+              <span style="color: #3370ff">
+                {{ getArgCount(scope.row) }}
+              </span>
+            </el-tooltip>
           </template>
         </el-table-column>
         <el-table-column :label="$t('commons.operating')" width="80">
           <template v-slot="scope">
             <div class="ticket-row">
+              <el-tooltip class="item" effect="dark" :content="$t('commons.edit')" placement="top">
+                <el-button text @click.stop="editRow(scope.row)">
+                  <template #icon>
+                    <Icon name="icon_edit_outlined"><icon_edit_outlined class="svg-icon" /></Icon>
+                  </template>
+                </el-button>
+              </el-tooltip>
+
               <el-tooltip class="item" effect="dark" :content="t('commons.delete')" placement="top">
-                <el-button text @click.stop="deleteTicket(scope.row, scope.$index)">
+                <el-button text @click.stop="deleteTicket(scope.row)">
                   <template #icon>
                     <Icon name="icon_delete-trash_outlined"
                       ><icon_deleteTrash_outlined class="svg-icon"
@@ -123,43 +116,23 @@
                   </template>
                 </el-button>
               </el-tooltip>
-              <el-tooltip
-                class="item"
-                effect="dark"
-                :content="scope.row.isEdit ? $t('commons.save') : $t('commons.edit')"
-                placement="top"
-              >
-                <el-button v-if="!scope.row.isEdit" text @click.stop="editRow(scope.row)">
-                  <template #icon>
-                    <Icon name="icon_edit_outlined"><icon_edit_outlined class="svg-icon" /></Icon>
-                  </template>
-                </el-button>
-                <el-button v-else text @click.stop="saveRow(scope.row, scope.$index)">
-                  <template #icon>
-                    <Icon name="edit-done"><editDone class="svg-icon" /></Icon>
-                  </template>
-                </el-button>
-              </el-tooltip>
             </div>
           </template>
         </el-table-column>
-      </el-table>
-    </div>
-
-    <div class="ticket-btn">
-      <el-button type="primary" @click.stop="finish"> {{ $t('components.complete') }} </el-button>
+      </grid-table>
     </div>
   </div>
+  <ticket-edit ref="ticketEditor" :uuid="props.uuid" @saved="loadTicketData" />
 </template>
 
 <script lang="ts" setup>
-import icon_left_outlined from '@/assets/svg/icon_left_outlined.svg'
+import icon_close_outlined from '@/assets/svg/icon_close_outlined.svg'
 import deCopy from '@/assets/svg/de-copy.svg'
 import icon_refresh_outlined from '@/assets/svg/icon_refresh_outlined.svg'
 import dvInfo from '@/assets/svg/dv-info.svg'
 import icon_deleteTrash_outlined from '@/assets/svg/icon_delete-trash_outlined.svg'
 import icon_edit_outlined from '@/assets/svg/icon_edit_outlined.svg'
-import editDone from '@/assets/svg/edit-done.svg'
+
 import icon_add_outlined from '@/assets/svg/icon_add_outlined.svg'
 import { ref, reactive, onMounted, toRefs } from 'vue'
 import { propTypes } from '@/utils/propTypes'
@@ -169,7 +142,8 @@ import { ElMessage, ElMessageBox } from 'element-plus-secondary'
 import useClipboard from 'vue-clipboard3'
 import { useEmbedded } from '@/store/modules/embedded'
 import { SHARE_BASE } from './option'
-
+import GridTable from '@/components/grid-table/src/GridTable.vue'
+import TicketEdit from './TicketEdit.vue'
 const embeddedStore = useEmbedded()
 const { toClipboard } = useClipboard()
 const { t } = useI18n()
@@ -178,30 +152,21 @@ const props = defineProps({
   resourceId: propTypes.string.def(null),
   ticketRequire: propTypes.bool
 })
-
+const ticketEditor = ref()
 const { ticketRequire } = toRefs(props)
-const expRefs = ref({})
-const argRefs = ref({})
-
+const ticketLimit = ref(0)
 const state = reactive({
-  tableData: []
+  tableData: [],
+  paginationConfig: {
+    currentPage: 1,
+    pageSize: 10,
+    total: 0
+  }
 })
 const emits = defineEmits(['close', 'requireChange'])
 
 const close = () => {
   emits('close')
-}
-
-const setExpRef = (el, index) => {
-  if (el) {
-    expRefs.value[index] = el
-  }
-}
-
-const setArgRef = (el, index) => {
-  if (el) {
-    argRefs.value[index] = el
-  }
 }
 
 const requireTicketChange = val => {
@@ -214,9 +179,9 @@ const requireTicketChange = val => {
     emits('requireChange', val)
   })
 }
-const createLimit = (count?: number) => {
-  const realCount = count ? count : state.tableData.length || 0
-  if (realCount > 4) {
+const createLimit = () => {
+  const realCount = state.paginationConfig.total
+  if (ticketLimit.value && realCount >= ticketLimit.value) {
     ElMessageBox.confirm(t('chart.tips'), {
       confirmButtonType: 'primary',
       type: 'warning',
@@ -227,26 +192,28 @@ const createLimit = (count?: number) => {
       showCancelButton: false,
       tip: t('work_branch.max_ticket_count')
     })
-    return false
+    return true
   }
-  return true
+  return false
+}
+const getArgCount = row => {
+  const args = row.args
+  if (!args) {
+    return 0
+  }
+  try {
+    const obj = JSON.parse(args)
+    return Object.keys(obj).length
+  } catch (error) {
+    console.error(error)
+    return 0
+  }
 }
 const addRow = () => {
-  if (!createLimit()) {
+  if (createLimit()) {
     return
   }
-  const row = {
-    ticket: '',
-    exp: 30,
-    args: '',
-    uuid: props.uuid
-  }
-  const url = '/ticket/saveTicket'
-  request.post({ url, data: row }).then(res => {
-    row.ticket = res.data
-    row['isEdit'] = false
-    state.tableData.splice(0, 0, row)
-  })
+  ticketEditor.value.edit(null, formatLinkAddr())
 }
 const formatLinkAddr = () => {
   return formatLinkBase() + props.uuid
@@ -282,104 +249,60 @@ const refreshTicket = row => {
     row.ticket = res.data
   })
 }
-const handleInput = (val, index) => {
-  if (val === null || val === '') {
-    return
-  }
-  state.tableData[index]['exp'] = val.replace(/[^\d]/g, '')
-}
-const validateExp = (val, index) => {
-  const cref = expRefs.value[index]
-  const e = cref.input
-  if (val === null || val === '' || typeof val === 'undefined') {
-    state.tableData[index]['exp'] = 0
-    return true
-  }
-  if (val > 1440 || val < 0) {
-    e.style.color = 'red'
-    e.parentNode.setAttribute('style', 'box-shadow: 0 0 0 1px red inset;')
-    return false
-  } else {
-    e.style.color = null
-    e.parentNode.removeAttribute('style')
-    return true
-  }
-}
 
-const validateArgs = (val, index) => {
-  const cref = argRefs.value[index]
-  const e = cref.input
-  if (val === null || val === '' || typeof val === 'undefined') {
-    e.style.color = null
-    e.parentNode.removeAttribute('style')
-    const child = e.parentNode.querySelector('.error-msg')
-    if (child) {
-      e.parentNode.removeChild(child)
-    }
-    return true
-  }
-  try {
-    JSON.parse(val)
-    e.style.color = null
-    e.parentNode.removeAttribute('style')
-    const child = e.parentNode.querySelector('.error-msg')
-    if (child) {
-      e.parentNode.removeChild(child)
-    }
-    return true
-  } catch (error) {
-    e.style.color = 'red'
-    e.parentNode.setAttribute('style', 'box-shadow: 0 0 0 1px red inset;')
-    const child = e.parentNode.querySelector('.error-msg')
-    if (!child) {
-      const errorDom = document.createElement('div')
-      errorDom.className = 'error-msg'
-      errorDom.innerText = '格式错误'
-      e.parentNode.appendChild(errorDom)
-    }
-    return false
-  }
-}
-
-const deleteTicket = (row, index) => {
+const deleteTicket = row => {
   const param = { ticket: row.ticket }
   const url = '/ticket/delTicket'
   request.post({ url, data: param }).then(() => {
-    state.tableData.splice(index, 1)
+    loadTicketData()
   })
 }
 
-const saveRow = (row, index) => {
-  const url = '/ticket/saveTicket'
-  validateExp(row.exp, index) &&
-    validateArgs(row.args, index) &&
-    request.post({ url, data: row }).then(() => {
-      row.isEdit = false
-    })
-}
 const editRow = row => {
-  row.isEdit = true
+  ticketEditor.value.edit(row, formatLinkAddr())
 }
 
 const finish = () => {
   close()
 }
-
 const loadTicketData = () => {
   const resourceId = props.resourceId
-  const url = `/ticket/query/${resourceId}`
+  const url = `/ticket/pager/${resourceId}/${state.paginationConfig.currentPage}/${state.paginationConfig.pageSize}`
+  request.post({ url }).then(res => {
+    state.tableData = res.data?.records || []
+    state.paginationConfig.total = res.data.total
+  })
+}
+const pageChange = index => {
+  if (typeof index !== 'number') {
+    return
+  }
+  state.paginationConfig.currentPage = index
+  loadTicketData()
+}
+const sizeChange = size => {
+  state.paginationConfig.pageSize = size
+  state.paginationConfig.currentPage = 1
+  loadTicketData()
+}
+
+const getLimit = () => {
+  const url = '/ticket/limit'
   request.get({ url }).then(res => {
-    state.tableData = res.data || []
+    const limit = res.data
+    ticketLimit.value = limit
   })
 }
 onMounted(() => {
+  getLimit()
   loadTicketData()
 })
 </script>
 
 <style lang="less" scoped>
 .ticket {
-  min-height: 280px;
+  height: auto;
+  max-height: 560px;
   .ticket-model {
     display: flex;
     height: 22px;
@@ -415,9 +338,34 @@ onMounted(() => {
     }
     .ticket-model-end {
       display: flex;
+      align-items: center;
       label {
         height: 22px;
         margin-right: 8px;
+      }
+      .top-split {
+        height: 18px;
+        width: 1px;
+        display: inline-block;
+        background-color: #bbbfc4;
+        margin: 0 20px;
+      }
+      .top-close {
+        height: 22px;
+        line-height: 22px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #646a73;
+        &:hover {
+          cursor: pointer;
+          background-color: #1f23291a;
+          border-radius: 4px;
+        }
+        svg {
+          width: 20px;
+          height: 20px;
+        }
       }
     }
   }
@@ -437,15 +385,6 @@ onMounted(() => {
     overflow-y: overlay;
     position: relative;
     height: calc(100% - 124px);
-    :deep(.error-msg) {
-      color: red;
-      position: fixed;
-      z-index: 9;
-      font-size: 10px;
-      height: 10px;
-      margin-bottom: 12px;
-      margin-right: -80px;
-    }
     :deep(.ticket-exp-head) {
       display: flex;
       line-height: 22px;
@@ -466,7 +405,7 @@ onMounted(() => {
       align-items: center;
       height: 22px;
       span {
-        width: 66px;
+        width: 126px;
         margin-right: 8px;
         overflow: hidden;
         white-space: nowrap;
@@ -485,6 +424,7 @@ onMounted(() => {
 
     :deep(.ed-table__header) {
       background-color: #f5f6f7;
+      border-bottom: 1px solid #d5d7d8;
       thead {
         tr {
           th {
@@ -511,14 +451,17 @@ onMounted(() => {
         }
       }
     }
-    :deep(.ed-input__inner) {
-      height: 18px;
-      line-height: 18px;
+    .popper-max-height {
+      :deep(.ed-table--fit) {
+        height: 438px !important;
+      }
     }
   }
-  .ticket-btn {
-    margin: 16px 0;
-    float: right;
+  :deep(.pagination-cont) {
+    margin-top: 16px !important;
+  }
+  :deep(.is-last) {
+    display: none;
   }
 }
 </style>

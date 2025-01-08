@@ -233,7 +233,11 @@
                  LEFT JOIN core_store ON dvResource.id = core_store.resource_id
             AND core_store.uid = #{uid}
                  INNER JOIN core_opt_recent ON dvResource.resource_id = core_opt_recent.resource_id
-            AND core_opt_recent.uid = #{uid} ${ew.customSqlSegment}
+            AND core_opt_recent.uid = #{uid}
+             <if test="keyword">
+                AND LOWER(dvResource.name) LIKE LOWER(CONCAT('%', #{keyword}, '%'))
+             </if>
+             ${ew.customSqlSegment}
     </select>
 
     <insert id="copyLinkJump">
@@ -409,8 +413,8 @@
                core_chart_view.table_id,
                core_chart_view.`type`,
                core_chart_view.render,
-               core_chart_view.scene_id as 'visualization_id', core_dataset_table_field.id AS 'field_id', core_dataset_table_field.origin_name,
-               core_dataset_table_field.`name` AS 'field_name', core_dataset_table_field.type AS 'field_type', core_dataset_table_field.de_type
+               core_chart_view.scene_id as `visualization_id`, core_dataset_table_field.id AS `field_id`, core_dataset_table_field.origin_name,
+               core_dataset_table_field.`name` AS `field_name`, core_dataset_table_field.type AS `field_type`, core_dataset_table_field.de_type
         FROM core_chart_view
                  LEFT JOIN core_dataset_table_field
                            ON core_chart_view.table_id = core_dataset_table_field.dataset_group_id
@@ -446,4 +450,8 @@
               #{id}
             </foreach>
     </delete>
+
+        <select id="queryInnerUserInfo" resultType="io.dataease.api.permissions.user.vo.UserFormVO">
+            select id,account,name from per_user where id =  #{id}
+        </select>
 </mapper>

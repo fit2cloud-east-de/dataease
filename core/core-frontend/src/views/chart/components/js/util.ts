@@ -999,6 +999,19 @@ export function isAlphaColor(color: string): boolean {
   return false
 }
 
+export function getColorFormAlphaColor(color: string): string {
+  if (isAlphaColor(color)) {
+    if (color.startsWith('#')) {
+      return color.slice(0, 7)
+    }
+    if (color.startsWith('rgb') || color.startsWith('RGB')) {
+      const list = color.split(',')
+      return list[0] + ',' + list[1] + ',' + list[2] + ')'
+    }
+  }
+  return color
+}
+
 export function isTransparent(color: string): boolean {
   if (!color?.trim()) {
     return true
@@ -1156,12 +1169,17 @@ export const measureText = (chart, text, font, type) => {
  * @param alpha
  */
 export const hexToRgba = (hex, alpha = 1) => {
+  if (!hex.startsWith('#')) {
+    return hex
+  }
   // 去掉 # 号
   hex = hex.replace('#', '')
   // 转换为 RGB 分量
   const r = parseInt(hex.slice(0, 2), 16)
   const g = parseInt(hex.slice(2, 4), 16)
   const b = parseInt(hex.slice(4, 6), 16)
+  const hexAlpha = hex.slice(6, 8)
+  const a = hexAlpha ? parseInt(hex.slice(6, 8), 16) / 255 : alpha
   // 返回 RGBA 格式
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+  return `rgba(${r}, ${g}, ${b}, ${a})`
 }

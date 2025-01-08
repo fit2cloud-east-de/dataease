@@ -5,7 +5,9 @@ import io.dataease.api.dataset.dto.*;
 import io.dataease.api.dataset.union.DatasetGroupInfoDTO;
 import io.dataease.api.dataset.union.DatasetTableInfoDTO;
 import io.dataease.api.permissions.auth.dto.BusiPerCheckDTO;
+import io.dataease.api.permissions.dataset.api.RowPermissionsApi;
 import io.dataease.api.permissions.dataset.dto.DataSetRowPermissionsTreeDTO;
+import io.dataease.api.permissions.user.vo.UserFormVO;
 import io.dataease.auth.bo.TokenUserBO;
 import io.dataease.chart.utils.ChartDataBuild;
 import io.dataease.commons.utils.SqlparserUtils;
@@ -80,11 +82,16 @@ public class DatasetDataManage {
     private PluginManageApi pluginManage;
     @Resource
     private CorePermissionManage corePermissionManage;
-
+    @Autowired(required = false)
+    private RowPermissionsApi rowPermissionsApi;
     @Resource
     private DataSourceManage dataSourceManage;
 
     private static Logger logger = LoggerFactory.getLogger(DatasetDataManage.class);
+
+    private RowPermissionsApi getRowPermissionsApi() {
+        return rowPermissionsApi;
+    }
 
     public static final List<String> notFullDs = List.of("mysql", "mariadb", "Excel", "API");
 
@@ -113,12 +120,17 @@ public class DatasetDataManage {
                 // add table schema
                 sql = TableUtils.tableName2Sql(datasourceSchemaDTO, tableInfoDTO.getTable()) + " LIMIT 0 OFFSET 0";
                 // replace schema alias, trans dialect
-                sql = Utils.replaceSchemaAlias(sql, datasourceRequest.getDsList());
+                Map map = JsonUtil.parseObject(datasourceSchemaDTO.getConfiguration(), Map.class);
+                if (ObjectUtils.isNotEmpty(map.get("schema"))) {
+                    sql = sql.replaceAll(SqlPlaceholderConstants.KEYWORD_PREFIX_REGEX + datasourceSchemaDTO.getSchemaAlias() + SqlPlaceholderConstants.KEYWORD_SUFFIX_REGEX, map.get("schema").toString());
+                }else {
+                    sql = sql.replaceAll(SqlPlaceholderConstants.KEYWORD_PREFIX_REGEX + datasourceSchemaDTO.getSchemaAlias() + SqlPlaceholderConstants.KEYWORD_SUFFIX_REGEX + "\\.", "");
+                }
                 sql = provider.transSqlDialect(sql, datasourceRequest.getDsList());
             } else {
                 // parser sql params and replace default value
                 String s = new String(Base64.getDecoder().decode(tableInfoDTO.getSql()));
-                String originSql = SqlparserUtils.handleVariableDefaultValue(s, datasetTableDTO.getSqlVariableDetails(), false, false, null, false, datasourceRequest.getDsList(), pluginManage);
+                String originSql = new SqlparserUtils().handleVariableDefaultValue(s, datasetTableDTO.getSqlVariableDetails(), false, false, null, false, datasourceRequest.getDsList(), pluginManage, getUserEntity());
                 originSql = provider.replaceComment(originSql);
                 // add sql table schema
 
@@ -384,6 +396,13 @@ public class DatasetDataManage {
         return map;
     }
 
+    private UserFormVO getUserEntity() {
+        if (getRowPermissionsApi() == null) {
+            return null;
+        }
+        return getRowPermissionsApi().getUserById(AuthUtils.getUser().getUserId());
+    }
+
     public Map<String, Object> previewSql(PreviewSqlDTO dto) throws DEException {
         CoreDatasource coreDatasource = dataSourceManage.getCoreDatasource(dto.getDatasourceId());
         DatasourceSchemaDTO datasourceSchemaDTO = new DatasourceSchemaDTO();
@@ -409,7 +428,7 @@ public class DatasetDataManage {
         // parser sql params and replace default value
 
         String s = new String(Base64.getDecoder().decode(dto.getSql()));
-        String originSql = SqlparserUtils.handleVariableDefaultValue(datasetSQLManage.subPrefixSuffixChar(s), dto.getSqlVariableDetails(), true, true, null, false, dsMap, pluginManage);
+        String originSql = new SqlparserUtils().handleVariableDefaultValue(datasetSQLManage.subPrefixSuffixChar(s), dto.getSqlVariableDetails(), true, true, null, false, dsMap, pluginManage, getUserEntity());
         originSql = provider.replaceComment(originSql);
 
         // sql 作为临时表，外层加上limit

@@ -85,12 +85,6 @@ const init = () => {
     cloneDeep(DEFAULT_INDICATOR_NAME_STYLE)
   )
 
-  if (state.basicStyleForm.alpha !== undefined) {
-    const color = hexColorToRGBA(state.basicStyleForm.colors[2], state.basicStyleForm.alpha)
-
-    customText.color = color
-  }
-
   state.indicatorNameForm = cloneDeep(customText)
 
   //第一次颜色可能赋值失败，单独赋值一次
@@ -106,9 +100,7 @@ onMounted(() => {
 watch(
   () => props.chart?.customAttr?.indicatorName,
   () => {
-    if (!batchOptStatus.value) {
-      init()
-    }
+    init()
   },
   { deep: true }
 )
@@ -162,7 +154,7 @@ defineExpose({ getFormData })
           />
         </el-form-item>
         <el-form-item class="form-item" :class="'form-item-' + themes" style="padding: 0 4px">
-          <el-tooltip content="字号" :effect="toolTip" placement="top">
+          <el-tooltip :content="t('chart.font_size')" :effect="toolTip" placement="top">
             <el-select
               style="width: 56px"
               :effect="themes"

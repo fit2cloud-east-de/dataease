@@ -53,6 +53,7 @@ import BasicEdit from './BasicEdit.vue'
 import request from '@/config/axios'
 import { SettingRecord } from '@/views/system/common/SettingTemplate'
 import { reactive } from 'vue'
+import { isDesktop } from '@/utils/ModelUtil'
 import { cloneDeep } from 'lodash-es'
 import { useI18n } from '@/hooks/web/useI18n'
 const { t } = useI18n()
@@ -61,6 +62,7 @@ const infoTemplate = ref()
 const loginTemplate = ref()
 const thirdTemplate = ref()
 const showDefaultLogin = ref(false)
+const desktop = isDesktop()
 const pvpOptions = [
   { value: '0', label: t('commons.date.permanent') },
   { value: '1', label: t('commons.date.one_year') },
@@ -87,7 +89,7 @@ const tooltips = [
   },
   {
     key: 'setting_basic.shareDisable',
-    val: '开启后仪表板以及大屏分享无效'
+    val: t('setting_basic.share_disable_tips')
   }
 ]
 const loginSettings = [
@@ -147,7 +149,11 @@ const selectedRName = ref<string[]>([])
 const selectedPvp = ref('0')
 
 const baseInfoSettings = computed(() =>
-  state.templateList.filter(item => !loginSettings.concat(thirdSettings).includes(item.pkey))
+  state.templateList.filter(
+    item =>
+      !loginSettings.concat(thirdSettings).includes(item.pkey) &&
+      (!desktop || item.pkey !== 'setting_basic.defaultOpen')
+  )
 )
 
 const thirdInfoSettings = computed(() =>

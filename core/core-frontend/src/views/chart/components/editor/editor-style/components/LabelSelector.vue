@@ -12,7 +12,6 @@ import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { storeToRefs } from 'pinia'
 import Icon from '../../../../../../components/icon-custom/src/Icon.vue'
 import { iconFieldMap } from '@/components/icon-group/field-list'
-import { parseJson } from '../../../js/util'
 
 const { t } = useI18n()
 
@@ -129,8 +128,8 @@ const initSeriesLabel = () => {
     }${
       props.chart.type.includes('chart-mix')
         ? next.axisType === 'yAxis'
-          ? '(左轴)'
-          : '(右轴)'
+          ? `(${t('chart.left_axis')})`
+          : `(${t('chart.right_axis')})`
         : ''
     }` as string
     const optionShowName: string = `${next.chartShowName ?? next.name}${
@@ -138,8 +137,8 @@ const initSeriesLabel = () => {
     }${
       props.chart.type.includes('chart-mix')
         ? next.axisType === 'yAxis'
-          ? '(左轴)'
-          : '(右轴)'
+          ? `(${t('chart.left_axis')})`
+          : `(${t('chart.right_axis')})`
         : ''
     }` as string
     let tmp = {
@@ -417,7 +416,7 @@ watch(
   { deep: true }
 )
 
-watch(chartType, (value, oldValue) => {
+watch(chartType, () => {
   initPosition()
 })
 
@@ -444,6 +443,9 @@ const defaultPlaceholder = computed(() => {
 watch(
   () => allFields.value,
   () => {
+    if (!showProperty('showFields')) {
+      return
+    }
     let result = []
     state.labelForm.showFields?.forEach(field => {
       if (allFields.value?.map(i => i.value).includes(field)) {
@@ -485,7 +487,9 @@ const isProgressBar = computed(() => {
     :model="state.labelForm"
     label-position="top"
   >
-    <el-row v-show="showEmpty" style="margin-bottom: 12px"> 无其他可设置的属性</el-row>
+    <el-row v-show="showEmpty" style="margin-bottom: 12px">
+      {{ t('chart.no_other_configurable_properties') }}</el-row
+    >
     <div>
       <el-form-item v-if="noFullDisplay" class="form-item" :class="'form-item-' + themes">
         <el-checkbox
@@ -548,7 +552,7 @@ const isProgressBar = computed(() => {
           v-if="showProperty('fontSize')"
         >
           <template #label>&nbsp;</template>
-          <el-tooltip content="字号" :effect="toolTip" placement="top">
+          <el-tooltip :content="t('chart.font_size')" :effect="toolTip" placement="top">
             <el-select
               size="small"
               style="width: 108px"
@@ -597,7 +601,7 @@ const isProgressBar = computed(() => {
             </span>
             <el-tooltip class="item" :effect="toolTip" placement="bottom">
               <template #content>
-                <div>可以${fieldName}的形式读取字段值（不支持换行）</div>
+                <div>{{ t('chart.custom_label_content_tip') }}</div>
               </template>
               <el-icon class="hint-icon" :class="{ 'hint-icon--dark': themes === 'dark' }">
                 <Icon name="icon_info_outlined"><icon_info_outlined class="svg-icon" /></Icon>
@@ -812,7 +816,7 @@ const isProgressBar = computed(() => {
             v-if="showProperty('totalFontSize')"
           >
             <template #label>&nbsp;</template>
-            <el-tooltip content="字号" :effect="toolTip" placement="top">
+            <el-tooltip :content="t('chart.font_size')" :effect="toolTip" placement="top">
               <el-select
                 size="small"
                 style="width: 108px"
@@ -1156,7 +1160,7 @@ const isProgressBar = computed(() => {
             v-model="curSeriesFormatter.show"
             label="quota"
           >
-            {{ t('chart.label') + t('chart.show') }}
+            {{ t('chart.show_label') }}
           </el-checkbox>
         </el-form-item>
 
@@ -1198,7 +1202,7 @@ const isProgressBar = computed(() => {
             </el-form-item>
             <el-form-item class="form-item" :class="'form-item-' + themes">
               <template #label>&nbsp;</template>
-              <el-tooltip content="字号" :effect="toolTip" placement="top">
+              <el-tooltip :content="t('chart.font_size')" :effect="toolTip" placement="top">
                 <el-select
                   size="small"
                   :disabled="!curSeriesFormatter.show"
@@ -1336,7 +1340,7 @@ const isProgressBar = computed(() => {
             v-model="curSeriesFormatter.showExtremum"
             label="quota"
           >
-            {{ t('chart.show') }}最值
+            {{ t('chart.show_extremum') }}
           </el-checkbox>
         </el-form-item>
       </template>
@@ -1350,7 +1354,7 @@ const isProgressBar = computed(() => {
           v-model="state.labelForm.childrenShow"
           label="quota"
         >
-          {{ t('chart.label') + t('chart.show') }}
+          {{ t('chart.show_label') }}
         </el-checkbox>
       </el-form-item>
       <div style="padding-left: 22px">
@@ -1377,7 +1381,7 @@ const isProgressBar = computed(() => {
             v-if="showProperty('fontSize')"
           >
             <template #label>&nbsp;</template>
-            <el-tooltip content="字号" :effect="toolTip" placement="top">
+            <el-tooltip :content="t('chart.font_size')" :effect="toolTip" placement="top">
               <el-select
                 :disabled="!state.labelForm.childrenShow"
                 size="small"
@@ -1543,12 +1547,13 @@ const isProgressBar = computed(() => {
         v-model="state.labelForm.showExtremum"
         label="quota"
       >
-        {{ t('chart.show') }}最值
+        {{ t('chart.show_extremum') }}
       </el-checkbox>
     </el-form-item>
     <el-form-item class="form-item" :class="'form-item-' + themes" v-show="showProperty('showGap')">
       <el-checkbox
         :effect="themes"
+        size="small"
         @change="changeLabelAttr('showGap')"
         v-model="state.labelForm.showGap"
       >
@@ -1566,13 +1571,17 @@ const isProgressBar = computed(() => {
         @change="changeLabelAttr('conversionTag')"
         v-model="state.labelForm.conversionTag.show"
       >
-        转化率
+        {{ t('chart.conversion_rate') }}
       </el-checkbox>
     </el-form-item>
     <div style="padding-left: 22px" v-if="showProperty('conversionTag')">
       <el-row :gutter="8">
         <el-col :span="12">
-          <el-form-item label="保留小数" class="form-item" :class="'form-item-' + themes">
+          <el-form-item
+            :label="t('chart.label_reserve_decimal_count')"
+            class="form-item"
+            :class="'form-item-' + themes"
+          >
             <el-select
               size="small"
               style="width: 108px"
@@ -1591,7 +1600,11 @@ const isProgressBar = computed(() => {
           </el-form-item>
         </el-col>
         <el-col :span="12">
-          <el-form-item label="转化率名称" class="form-item" :class="'form-item-' + themes">
+          <el-form-item
+            :label="t('chart.conversion_rate') + t('chart.name')"
+            class="form-item"
+            :class="'form-item-' + themes"
+          >
             <el-input
               :effect="themes"
               v-model="state.labelForm.conversionTag.text"
@@ -1640,7 +1653,7 @@ const isProgressBar = computed(() => {
             v-if="showProperty('fontSize')"
           >
             <template #label>&nbsp;</template>
-            <el-tooltip content="字号" :effect="toolTip" placement="top">
+            <el-tooltip :content="t('chart.font_size')" :effect="toolTip" placement="top">
               <el-select
                 :disabled="!state.labelForm.childrenShow"
                 size="small"
@@ -1789,7 +1802,7 @@ const isProgressBar = computed(() => {
             v-if="showProperty('fontSize')"
           >
             <template #label>&nbsp;</template>
-            <el-tooltip content="字号" :effect="toolTip" placement="top">
+            <el-tooltip :content="t('chart.font_size')" :effect="toolTip" placement="top">
               <el-select
                 :disabled="!state.labelForm.proportionSeriesFormatter.show"
                 size="small"

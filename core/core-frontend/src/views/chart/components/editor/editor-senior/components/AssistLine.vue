@@ -149,14 +149,16 @@ onMounted(() => {
 <template>
   <div @keydown.stop @keyup.stop class="assist-line-container">
     <div class="inner-container">
-      <span class="label" :class="'label-' + props.themes">辅助线设置</span>
+      <span class="label" :class="'label-' + props.themes">{{
+        t('chart.assist_line_settings')
+      }}</span>
       <span class="right-btns">
         <span
           class="set-text-info"
           :class="{ 'set-text-info-dark': themes === 'dark' }"
           v-if="state.assistLineCfg.assistLine.length > 0"
         >
-          已设置
+          {{ t('visualization.already_setting') }}
         </span>
         <button
           :class="'label-' + props.themes"
@@ -180,7 +182,7 @@ onMounted(() => {
       <el-col :span="8" class="line-style">
         <span :title="item.name">{{ item.name }}</span>
       </el-col>
-      <el-col :span="6">
+      <el-col :span="6" class="line-style">
         <span v-if="item.field === '0'" :title="t('chart.field_fixed')">{{
           t('chart.field_fixed')
         }}</span>
@@ -198,7 +200,7 @@ onMounted(() => {
           </span>
         </template>
         <template v-else>
-          <span style="color: red">无效字段</span>
+          <span style="color: red">{{ t('chart.invalid_field') }}</span>
         </template>
       </el-col>
     </el-row>
@@ -337,7 +339,6 @@ span {
 .line-style {
   width: 100%;
   font-weight: 400;
-  padding: 4px 8px;
   display: flex;
   flex-direction: row;
   align-items: center;

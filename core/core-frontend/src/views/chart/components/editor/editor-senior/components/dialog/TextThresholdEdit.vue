@@ -129,7 +129,7 @@ init()
             </el-select>
           </el-form-item>
         </el-col>
-        <el-col :span="9" style="text-align: center">
+        <el-col :span="8" style="text-align: center">
           <el-form-item class="form-item" v-if="item.term !== 'between'">
             <el-input-number
               controls-position="right"

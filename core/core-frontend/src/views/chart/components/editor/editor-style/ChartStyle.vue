@@ -14,6 +14,7 @@ import { storeToRefs } from 'pinia'
 import CollapseSwitchItem from '@/components/collapse-switch-item/src/CollapseSwitchItem.vue'
 import { ElCollapse, ElCollapseItem } from 'element-plus-secondary'
 import BasicStyleSelector from '@/views/chart/components/editor/editor-style/components/BasicStyleSelector.vue'
+import SymbolicStyleSelector from '@/views/chart/components/editor/editor-style/components/SymbolicStyleSelector.vue'
 import DualBasicStyleSelector from '@/views/chart/components/editor/editor-style/components/DualBasicStyleSelector.vue'
 import ComponentPosition from '@/components/visualization/common/ComponentPosition.vue'
 import BackgroundOverallCommon from '@/components/visualization/component-background/BackgroundOverallCommon.vue'
@@ -47,10 +48,6 @@ const props = defineProps({
     required: false
   },
   commonBorderPop: {
-    type: Object,
-    required: false
-  },
-  eventInfo: {
     type: Object,
     required: false
   },
@@ -138,14 +135,6 @@ const positionComponentShow = computed(() => {
   return !batchOptStatus.value && dvInfo.value.type !== 'dashboard'
 })
 
-const eventsShow = computed(() => {
-  return (
-    !batchOptStatus.value &&
-    ['indicator', 'rich-text'].includes(chart.value.type) &&
-    props.eventInfo
-  )
-})
-
 const showProperties = (property: EditorProperty) => properties.value?.includes(property)
 
 const onMiscChange = (val, prop) => {
@@ -204,12 +193,12 @@ const onBasicStyleChange = (val, prop) => {
 }
 
 const onBackgroundChange = (val, prop) => {
-  snapshotStore.recordSnapshotCache()
+  snapshotStore.recordSnapshotCache('onBackgroundChange')
   state.initReady && emit('onBackgroundChange', val, prop)
 }
 
 const onActiveChange = val => {
-  snapshotStore.recordSnapshotCache()
+  snapshotStore.recordSnapshotCache('onActiveChange')
   state.initReady &&
     emit('onStyleAttrChange', {
       custom: 'style',
@@ -363,19 +352,26 @@ watch(
               @onStyleAttrChange="onStyleAttrChange"
             ></common-border-setting>
           </collapse-switch-item>
+
           <el-collapse-item
             :effect="themes"
-            name="events"
-            :title="t('visualization.event')"
-            v-if="eventsShow"
+            name="symbolicStyle"
+            :title="t('chart.symbolic')"
+            v-if="showProperties('symbolic-style-selector')"
           >
-            <common-event :themes="themes" :events-info="eventInfo"></common-event>
+            <SymbolicStyleSelector
+              :property-inner="propertyInnerAll['symbolic-style-selector']"
+              :themes="themes"
+              :chart="chart"
+              @onBasicStyleChange="onBasicStyleChange"
+              @onMiscChange="onMiscChange"
+            />
           </el-collapse-item>
           <el-collapse-item
             :effect="themes"
             v-if="showProperties('indicator-value-selector')"
             name="indicator-value"
-            title="指标值"
+            :title="t('chart.indicator_value')"
           >
             <indicator-value-selector
               ref="indicatorValueRef"
@@ -539,7 +535,7 @@ watch(
           <el-collapse-item
             :effect="themes"
             name="flowMapLineSelector"
-            title="线条"
+            :title="t('chart.line')"
             v-if="showProperties('flow-map-line-selector')"
           >
             <flow-map-line-selector

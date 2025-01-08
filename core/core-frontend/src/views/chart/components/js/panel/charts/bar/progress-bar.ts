@@ -4,6 +4,7 @@ import {
   configAxisLabelLengthLimit,
   configPlotTooltipEvent,
   getTooltipContainer,
+  getTooltipItemConditionColor,
   setGradientColor,
   TOOLTIP_TPL
 } from '../../common/common_antv'
@@ -16,6 +17,7 @@ import {
 import { cloneDeep, defaultTo } from 'lodash-es'
 import { valueFormatter } from '@/views/chart/components/js/formatter'
 import { Options } from '@antv/g2plot/esm'
+import { DEFAULT_BASIC_STYLE } from '@/views/chart/components/editor/util/chart'
 
 const { t } = useI18n()
 
@@ -47,14 +49,15 @@ export class ProgressBar extends G2PlotChartView<BarOptions, G2Progress> {
     'title-selector',
     'function-cfg',
     'jump-set',
-    'linkage'
+    'linkage',
+    'threshold'
   ]
   propertyInner = {
     ...BAR_EDITOR_PROPERTY_INNER,
     'legend-selector': null,
     'background-overall-component': ['all'],
     'border-style': ['all'],
-    'basic-style-selector': ['colors', 'alpha', 'gradient', 'radiusColumnBar'],
+    'basic-style-selector': ['colors', 'alpha', 'gradient', 'radiusColumnBar', 'columnWidthRatio'],
     'label-selector': ['hPosition', 'color', 'fontSize', 'showQuota', 'showProportion'],
     'tooltip-selector': ['fontSize', 'color', 'backgroundColor', 'tooltipFormatter', 'show'],
     'y-axis-selector': [
@@ -66,7 +69,8 @@ export class ProgressBar extends G2PlotChartView<BarOptions, G2Progress> {
       'position',
       'showLengthLimit'
     ],
-    'function-cfg': ['emptyDataStrategy']
+    'function-cfg': ['emptyDataStrategy'],
+    threshold: ['lineThreshold']
   }
   axis: AxisType[] = [...BAR_AXIS_TYPE, 'yAxisExt']
   protected baseOptions: BarOptions = {
@@ -105,7 +109,7 @@ export class ProgressBar extends G2PlotChartView<BarOptions, G2Progress> {
       // 目标与当前都为负 负向小于0为0
       if (target < 0 && current < 0) {
         const completionRate = (2 - current / target) * 100
-        return Math.max(completionRate, 0)
+        return Number(Math.max(completionRate, 0).toFixed(2))
       }
       return 0
     }
@@ -194,6 +198,20 @@ export class ProgressBar extends G2PlotChartView<BarOptions, G2Progress> {
         barStyle
       }
     }
+
+    let barWidthRatio
+    const _v = basicStyle.columnWidthRatio ?? DEFAULT_BASIC_STYLE.columnWidthRatio
+    if (_v >= 1 && _v <= 100) {
+      barWidthRatio = _v / 100.0
+    } else if (_v < 1) {
+      barWidthRatio = 1 / 100.0
+    } else if (_v > 100) {
+      barWidthRatio = 1
+    }
+    if (barWidthRatio) {
+      options.barWidthRatio = barWidthRatio
+    }
+
     return options
   }
   protected configTooltip(chart: Chart, options: BarOptions): BarOptions {
@@ -353,13 +371,15 @@ export class ProgressBar extends G2PlotChartView<BarOptions, G2Progress> {
 
   protected setupOptions(chart: Chart, options: BarOptions): BarOptions {
     return flow(
+      this.addConditionsStyleColorToData,
       this.configTheme,
       this.configBasicStyle,
       this.configLabel,
       this.configTooltip,
       this.configLegend,
       this.configYAxis,
-      this.configEmptyDataStrategy
+      this.configEmptyDataStrategy,
+      this.configBarConditions
     )(chart, options)
   }
 

@@ -4,6 +4,8 @@ import { ElTable, ElPagination } from 'element-plus-secondary'
 import EmptyBackground from '@/components/empty-background/src/EmptyBackground.vue'
 import TableBody from './TableBody.vue'
 import { propTypes } from '@/utils/propTypes'
+import { useI18n } from '@/hooks/web/useI18n'
+const { t } = useI18n()
 const props = defineProps({
   columns: propTypes.arrayOf(propTypes.string),
   isSearch: propTypes.bool.def(false),
@@ -15,7 +17,9 @@ const props = defineProps({
   tableData: propTypes.array,
   emptyDesc: propTypes.string,
   emptyImg: propTypes.string,
-  border: propTypes.bool.def(false)
+  border: propTypes.bool.def(false),
+  showEmptyImg: propTypes.bool.def(true),
+  dataLoading: propTypes.bool.def(false)
 })
 
 const attrs = useAttrs()
@@ -128,17 +132,20 @@ defineExpose({
       :border="border"
       v-bind="state.tableAttrs"
       :data="tableData"
-      :style="{ width: '100%' }"
+      :style="{ width: '100%', height: '100%' }"
       v-on="state.tableEvent"
+      v-loading="props.dataLoading"
     >
       <table-body :columns="columns">
         <slot />
       </table-body>
       <template #empty>
         <empty-background
-          :description="props.emptyDesc ? props.emptyDesc : '暂无数据'"
+          v-if="props.showEmptyImg"
+          :description="props.emptyDesc ? props.emptyDesc : t('data_set.no_data')"
           :img-type="imgType || 'noneWhite'"
         />
+        <div v-else :style="{ width: '100%' }" />
       </template>
     </el-table>
     <div v-if="showPagination && !!tableData.length" class="pagination-cont">

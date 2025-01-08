@@ -201,7 +201,7 @@ export class Funnel extends G2PlotChartView<FunnelOptions, G2Funnel> {
       conversionTag: {
         show: false,
         precision: 2,
-        text: '转化率'
+        text: t('chart.conversion_rate')
       }
     }
     const { legend } = customStyle

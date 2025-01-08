@@ -7,6 +7,8 @@ import icon_down_outlined1 from '@/assets/svg/icon_down_outlined-1.svg'
 import icon_right_outlined from '@/assets/svg/icon_right_outlined.svg'
 import icon_done_outlined from '@/assets/svg/icon_done_outlined.svg'
 import icon_edit_outlined from '@/assets/svg/icon_edit_outlined.svg'
+import icon_visible_outlined from '@/assets/svg/icon_visible_outlined.svg'
+import icon_invisible_outlined from '@/assets/svg/icon_invisible_outlined.svg'
 import { useI18n } from '@/hooks/web/useI18n'
 import { computed, onMounted, ref, toRefs, watch } from 'vue'
 import { getItemType } from '@/views/chart/components/editor/drag-item/utils'
@@ -59,7 +61,8 @@ const emit = defineEmits([
   'onDimensionItemChange',
   'onNameEdit',
   'valueFormatter',
-  'onToggleHide'
+  'onToggleHide',
+  'editSortPriority'
 ])
 
 const { item } = toRefs(props)
@@ -100,6 +103,9 @@ const clickItem = param => {
       break
     case 'toggleHide':
       toggleHide()
+      break
+    case 'sortPriority':
+      emit('editSortPriority')
       break
     default:
       break
@@ -255,17 +261,31 @@ onMounted(() => {
             ></Icon>
           </el-icon>
         </span>
-        <el-tooltip
-          :effect="toolTip"
-          placement="top"
-          :content="item.chartShowName ? item.chartShowName : item.name"
-        >
+        <el-tooltip :effect="toolTip" placement="top">
+          <template #content>
+            <table>
+              <tbody>
+                <tr>
+                  <td>{{ t('dataset.field_origin_name') }}</td>
+                  <td>:</td>
+                  <td>{{ item.name }}</td>
+                </tr>
+                <tr>
+                  <td>{{ t('chart.show_name') }}</td>
+                  <td>:</td>
+                  <td>{{ item.chartShowName ? item.chartShowName : item.name }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </template>
           <span class="item-span-style">
             <span class="item-name">{{ item.chartShowName ? item.chartShowName : item.name }}</span>
           </span>
         </el-tooltip>
         <el-icon style="margin-left: 8px">
-          <Icon><Hide v-show="showHideIcon" class="svg-icon inner-class" /></Icon>
+          <Icon
+            ><icon_invisible_outlined v-show="showHideIcon" class="svg-icon inner-class"
+          /></Icon>
         </el-icon>
         <el-tooltip :effect="toolTip" placement="top">
           <template #content>
@@ -373,7 +393,14 @@ onMounted(() => {
               </template>
             </el-dropdown>
           </el-dropdown-item>
-
+          <!-- <el-dropdown-item
+            v-if="showSort()"
+            :command="beforeClickItem('sortPriority')"
+            class="menu-item-padding"
+          >
+            <el-icon />
+            <span>{{ t('chart.sort_priority') }}</span>
+          </el-dropdown-item> -->
           <el-dropdown-item
             @click.prevent
             v-if="item.deType === 1"
@@ -460,9 +487,9 @@ onMounted(() => {
                     >
                       {{ t('chart.y_W') }}
                       <el-icon class="sub-menu-content--icon">
-                        <Icon name="icon_done_outlined" v-if="'y_W' === item.dateStyle"
-                          ><icon_done_outlined class="svg-icon"
-                        /></Icon>
+                        <Icon name="icon_done_outlined" v-if="'y_W' === item.dateStyle">
+                          <icon_done_outlined class="svg-icon" />
+                        </Icon>
                       </el-icon>
                     </span>
                   </el-dropdown-item>
@@ -473,15 +500,17 @@ onMounted(() => {
                     >
                       {{ t('chart.y_M_d') }}
                       <el-icon class="sub-menu-content--icon">
-                        <Icon name="icon_done_outlined" v-if="'y_M_d' === item.dateStyle"
-                          ><icon_done_outlined class="svg-icon"
-                        /></Icon>
+                        <Icon name="icon_done_outlined" v-if="'y_M_d' === item.dateStyle">
+                          <icon_done_outlined class="svg-icon" />
+                        </Icon>
                       </el-icon>
                     </span>
                   </el-dropdown-item>
                   <el-dropdown-item
                     class="menu-item-padding"
-                    v-if="!chart.type.includes('bar-range')"
+                    v-if="
+                      !(chart.type.includes('bar-range') && ['quota', 'quotaExt'].includes(type))
+                    "
                     :command="beforeDateStyle('H_m_s')"
                     divided
                   >
@@ -500,7 +529,9 @@ onMounted(() => {
                   <el-dropdown-item
                     class="menu-item-padding"
                     :command="beforeDateStyle('y_M_d_H_m')"
-                    :divided="chart.type.includes('bar-range')"
+                    :divided="
+                      chart.type.includes('bar-range') && ['quota', 'quotaExt'].includes(type)
+                    "
                   >
                     <span
                       class="sub-menu-content"
@@ -614,8 +645,10 @@ onMounted(() => {
             :command="beforeClickItem('toggleHide')"
           >
             <el-icon>
-              <icon v-if="item.hide === true" name="view"><View class="svg-icon" /></icon>
-              <icon v-else name="hide"><Hide class="svg-icon" /></icon>
+              <icon
+                ><icon_visible_outlined v-if="item.hide === true" class="svg-icon" />
+                <icon_invisible_outlined v-else class="svg-icon"
+              /></icon>
             </el-icon>
             <span>{{ item.hide === true ? t('chart.show') : t('chart.hide') }}</span>
           </el-dropdown-item>

@@ -41,7 +41,7 @@ const yAxisTypes = [
 const state = reactive({
   lineArr: [],
   lineObj: {
-    name: '辅助线',
+    name: t('chart.assist_line'),
     field: '0', // 固定值
     fieldId: '',
     summary: 'avg',
@@ -272,7 +272,7 @@ onMounted(() => {
           </el-select>
         </el-col>
         <el-col :span="useQuotaExt ? 2 : 3">
-          <el-tooltip effect="dark" content="字号" placement="top">
+          <el-tooltip effect="dark" :content="t('chart.font_size')" placement="top">
             <el-select
               v-model="item.fontSize"
               class="select-item"

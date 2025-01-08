@@ -15,7 +15,6 @@ import {
 import { useEmitt } from '@/hooks/web/useEmitt'
 import chartViewManager from '@/views/chart/components/js/panel'
 import {
-  COMMON_COMPONENT_BACKGROUND_BASE,
   COMMON_COMPONENT_BACKGROUND_DARK,
   COMMON_COMPONENT_BACKGROUND_LIGHT,
   defaultStyleValue,
@@ -1016,10 +1015,34 @@ export const dvMainStore = defineStore('dataVisualization', {
         useEmitt().emitter.emit('query-data-' + viewId)
       })
     },
+    addWebParamsFilter(params, curComponentData = this.componentData) {
+      if (params) {
+        for (let index = 0; index < curComponentData.length; index++) {
+          const element = curComponentData[index]
+          if (['UserView'].includes(element.component)) {
+            this.trackWebFilterCursor(element, params)
+            this.componentData[index] = element
+          } else if (element.component === 'Group') {
+            element.propValue.forEach((groupItem, index) => {
+              this.trackWebFilterCursor(groupItem, params)
+              element.propValue[index] = groupItem
+            })
+          } else if (element.component === 'DeTabs') {
+            element.propValue.forEach(tabItem => {
+              tabItem.componentData.forEach((tabComponent, index) => {
+                this.trackWebFilterCursor(tabComponent, params)
+                tabItem.componentData[index] = tabComponent
+              })
+            })
+          }
+        }
+      }
+    },
     // 添加外部参数的过滤条件
     addOuterParamsFilter(paramsPre, curComponentData = this.componentData, source = 'inner') {
       // params 结构 {key1:value1,key2:value2}
       const params = {}
+      const paramsVersion = (paramsPre && paramsPre['outerParamsVersion']) || 'v1'
       if (this.nowPanelOuterParamsBaseInfo) {
         let errorCount = 0
         let errorMes = ''
@@ -1057,7 +1080,14 @@ export const dvMainStore = defineStore('dataVisualization', {
         for (let index = 0; index < curComponentData.length; index++) {
           const element = curComponentData[index]
           if (['UserView', 'VQuery'].includes(element.component)) {
-            this.trackOuterFilterCursor(element, params, preActiveComponentIds, trackInfo, source)
+            this.trackOuterFilterCursor(
+              element,
+              params,
+              preActiveComponentIds,
+              trackInfo,
+              source,
+              paramsVersion
+            )
             this.componentData[index] = element
           } else if (element.component === 'Group') {
             element.propValue.forEach((groupItem, index) => {
@@ -1066,7 +1096,8 @@ export const dvMainStore = defineStore('dataVisualization', {
                 params,
                 preActiveComponentIds,
                 trackInfo,
-                source
+                source,
+                paramsVersion
               )
               element.propValue[index] = groupItem
             })
@@ -1078,7 +1109,8 @@ export const dvMainStore = defineStore('dataVisualization', {
                   params,
                   preActiveComponentIds,
                   trackInfo,
-                  source
+                  source,
+                  paramsVersion
                 )
                 tabItem.componentData[index] = tabComponent
               })
@@ -1087,7 +1119,20 @@ export const dvMainStore = defineStore('dataVisualization', {
         }
       }
     },
-    trackOuterFilterCursor(element, params, preActiveComponentIds, trackInfo, source) {
+    trackWebFilterCursor(element, params) {
+      if (params[element.id]) {
+        element['webParamsFilters'] = params[element.id]
+        useEmitt().emitter.emit('query-data-' + element.id)
+      }
+    },
+    trackOuterFilterCursor(
+      element,
+      params,
+      preActiveComponentIds,
+      trackInfo,
+      source,
+      outerParamsVersion = 'v1'
+    ) {
       // 弹窗区域禁用时 在弹窗区域的组件不生效
       if (
         !['UserView', 'VQuery'].includes(element.component) ||
@@ -1099,9 +1144,17 @@ export const dvMainStore = defineStore('dataVisualization', {
       // 外部参数 可能会包含多个参数
       Object.keys(params).forEach(function (sourceInfo) {
         // 获取外部参数的值 sourceInfo 是外部参数名称 支持数组传入
-        let paramValue = params[sourceInfo]
-        let paramValueStr = params[sourceInfo]
-        const parmaValueSource = params[sourceInfo]
+        let operatorV2, paramValue, paramValueStr, parmaValueSource
+        if (outerParamsVersion === 'v2') {
+          operatorV2 = params[sourceInfo].operator
+          paramValue = params[sourceInfo].value
+          paramValueStr = params[sourceInfo].value
+          parmaValueSource = params[sourceInfo].value
+        } else {
+          paramValue = params[sourceInfo]
+          paramValueStr = params[sourceInfo]
+          parmaValueSource = params[sourceInfo]
+        }
         let operator = 'in'
         if (paramValue && !Array.isArray(paramValue)) {
           paramValue = [paramValue]
@@ -1129,7 +1182,7 @@ export const dvMainStore = defineStore('dataVisualization', {
               const targetFieldId = targetInfoArray[1] // 目标图表列ID
               const condition = {
                 fieldId: targetFieldId,
-                operator: operator,
+                operator: operatorV2 || operator,
                 value: paramValue,
                 viewIds: [targetViewId]
               }
@@ -1446,7 +1499,8 @@ export const dvMainStore = defineStore('dataVisualization', {
         selfWatermarkStatus: true,
         watermarkInfo: watermarkInfo,
         mobileLayout: false,
-        contentId: '0'
+        contentId: '0',
+        weight: 9
       }
       const canvasStyleDataNew =
         dvType === 'dashboard'

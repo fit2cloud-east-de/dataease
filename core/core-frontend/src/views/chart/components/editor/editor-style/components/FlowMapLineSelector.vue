@@ -116,7 +116,7 @@ onMounted(() => {
     <el-row style="flex: 1">
       <el-col>
         <el-form-item
-          :label="t('chart.line') + t('chart.map_line_type')"
+          :label="t('chart.line') + ' ' + t('chart.map_line_type')"
           class="form-item"
           :class="'form-item-' + themes"
         >
@@ -163,7 +163,7 @@ onMounted(() => {
             :predefine="predefineColors"
             @change="changeStyle('mapLineGradient')"
           >
-            {{ t('chart.line') + t('chart.map_line_linear') }}
+            {{ t('chart.line') + ' ' + t('chart.map_line_linear') }}
           </el-checkbox>
         </el-form-item>
       </el-col>
@@ -268,7 +268,7 @@ onMounted(() => {
             :predefine="predefineColors"
             @change="changeStyle('mapLineAnimate')"
           >
-            {{ t('chart.line') + t('chart.map_line_animate') }}
+            {{ t('chart.line') + ' ' + t('chart.map_line_animate') }}
           </el-checkbox>
         </el-form-item>
       </el-col>

@@ -81,6 +81,7 @@ const outerParamsSetRef = ref(null)
 const { wsCache } = useCache('localStorage')
 const userStore = useUserStoreWithOut()
 const isIframe = computed(() => appStore.getIsIframe)
+const desktop = wsCache.get('app.desktop')
 
 const props = defineProps({
   createType: {
@@ -139,7 +140,10 @@ const previewOuter = () => {
     return
   }
   canvasSave(() => {
-    const url = '#/preview?dvId=' + dvInfo.value.id + '&ignoreParams=true'
+    let url = '#/preview?dvId=' + dvInfo.value.id + '&ignoreParams=true'
+    if (embeddedStore.baseUrl) {
+      url = `${embeddedStore.baseUrl}${url}`.replaceAll('\/\/#', '\/#')
+    }
     const newWindow = window.open(url, '_blank')
     initOpenHandler(newWindow)
   })
@@ -456,7 +460,7 @@ const saveLinkageSetting = () => {
 }
 
 const onDvNameChange = () => {
-  snapshotStore.recordSnapshotCache()
+  snapshotStore.recordSnapshotCache('onDvNameChange')
 }
 const appStore = useAppStoreWithOut()
 const isEmbedded = computed(() => appStore.getIsDataEaseBi || appStore.getIsIframe)
@@ -619,18 +623,20 @@ const initOpenHandler = newWindow => {
             />
           </el-tooltip>
           <div class="divider"></div>
-          <el-tooltip
-            :offset="14"
-            effect="dark"
-            :content="t('components.to_mobile_layout')"
-            placement="bottom"
-          >
-            <component-button
-              :tips="t('components.to_mobile_layout')"
-              @custom-click="openMobileSetting"
-              :icon-name="icon_phone_outlined"
-            />
-          </el-tooltip>
+          <template v-if="!desktop">
+            <el-tooltip
+              :offset="14"
+              effect="dark"
+              :content="t('components.to_mobile_layout')"
+              placement="bottom"
+            >
+              <component-button
+                :tips="t('components.to_mobile_layout')"
+                @custom-click="openMobileSetting"
+                :icon-name="icon_phone_outlined"
+              />
+            </el-tooltip>
+          </template>
         </template>
 
         <el-dropdown v-if="editMode === 'edit'" trigger="hover">
@@ -647,7 +653,7 @@ const initOpenHandler = newWindow => {
               </el-dropdown-item>
               <el-dropdown-item @click="previewOuter()">
                 <el-icon style="margin-right: 8px; font-size: 16px">
-                  <Icon name="dv-preview-outer"><dvPreviewOuter class="svg-icon" /></Icon>
+                  <Icon><dvPreviewOuter class="svg-icon" /></Icon>
                 </el-icon>
                 {{ t('work_branch.new_page_preview') }}
               </el-dropdown-item>

@@ -198,6 +198,11 @@ export class Quadrant extends G2PlotChartView<ScatterOptions, G2Scatter> {
     })
     const baseOptions: ScatterOptions = {
       colorField: 'field',
+      meta: {
+        field: {
+          type: 'cat'
+        }
+      },
       quadrant: {
         ...defaultBaselineQuadrant
       },

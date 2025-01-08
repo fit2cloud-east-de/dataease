@@ -16,6 +16,7 @@ import { rsaEncryp } from '@/utils/encryption'
 import VanForm from 'vant/es/form'
 import VanField from 'vant/es/field'
 import VanButton from 'vant/es/button'
+import { XpackComponent } from '@/components/plugin'
 import 'vant/es/button/style'
 import 'vant/es/toast/style'
 import 'vant/es/field/style'
@@ -31,6 +32,12 @@ const appearanceStore = useAppearanceStoreWithOut()
 const username = ref('')
 const password = ref('')
 const duringLogin = ref(false)
+
+const xpackLoadFail = ref(false)
+const xpackInvalidPwd = ref()
+const mfaRef = ref()
+const showMfa = ref(false)
+const mfaData = ref({ enabled: false, ready: false, uid: '', origin: 0 })
 
 const checkUsername = value => {
   if (!value) {
@@ -75,6 +82,30 @@ loadAppearance()
 const handleBlur = () => {
   inputFocus.value = ''
 }
+
+const invalidPwdCb = cbParam => {
+  const val = cbParam['status']
+  duringLogin.value = !!val
+  if (val) {
+    const mfa = cbParam['mfa']
+    if (mfa?.enabled) {
+      for (const key in mfa) {
+        mfaData.value[key] = mfa[key]
+      }
+      showMfa.value = true
+      duringLogin.value = false
+      return
+    }
+    router.push({ path: '/index' })
+  }
+}
+
+const closeMfa = () => {
+  showMfa.value = false
+}
+const mfaSuccess = () => {
+  router.push({ path: '/index' })
+}
 const onSubmit = async () => {
   if (!checkUsername(username.value) || !validatePwd(password.value)) {
     showToast({
@@ -93,7 +124,24 @@ const onSubmit = async () => {
   duringLogin.value = true
   loginApi(param)
     .then(res => {
-      const { token, exp } = res.data
+      const { token, exp, mfa } = res.data
+      if (!xpackLoadFail.value && xpackInvalidPwd.value?.invokeMethod) {
+        const param = {
+          methodName: 'init',
+          args: res.data
+        }
+        xpackInvalidPwd?.value.invokeMethod(param)
+        return
+      }
+      showMfa.value = false
+      if (mfa?.enabled) {
+        for (const key in mfa) {
+          mfaData.value[key] = mfa[key]
+        }
+        showMfa.value = true
+        duringLogin.value = false
+        return
+      }
       userStore.setToken(token)
       userStore.setExp(exp)
       userStore.setTime(Date.now())
@@ -170,6 +218,20 @@ const usernameEndValidate = ({ status, message }) => {
       </van-form>
     </div>
   </div>
+  <XpackComponent
+    ref="xpackInvalidPwd"
+    jsname="L2NvbXBvbmVudC9sb2dpbi9JbnZhbGlkUHdk"
+    @load-fail="() => (xpackLoadFail = true)"
+    @call-back="invalidPwdCb"
+  />
+  <XpackComponent
+    ref="mfaRef"
+    v-if="showMfa"
+    :mfa-data="mfaData"
+    jsname="L2NvbXBvbmVudC9sb2dpbi9NZmFTdGVw"
+    @close="closeMfa"
+    @success="mfaSuccess"
+  />
 </template>
 
 <style lang="less">

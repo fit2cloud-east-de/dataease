@@ -16,6 +16,8 @@ public class ChartExtRequest {
 
     private List<ChartExtFilterDTO> outerParamsFilters;
 
+    private List<ChartExtFilterDTO> webParamsFilters;
+
     private List<ChartDrillRequest> drill;
 
     private String queryFrom;

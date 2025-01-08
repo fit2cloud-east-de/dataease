@@ -233,6 +233,12 @@ public class ChartDataManage {
             filters.addAll(chartExtRequest.getOuterParamsFilters());
         }
 
+        // web参数条件
+        if (ObjectUtils.isNotEmpty(chartExtRequest.getWebParamsFilters())) {
+            filters.addAll(chartExtRequest.getWebParamsFilters());
+        }
+
+
         //联动过滤条件和外部参数过滤条件全部加上
         if (ObjectUtils.isNotEmpty(filters)) {
             for (ChartExtFilterDTO request : filters) {

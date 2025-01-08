@@ -2,6 +2,7 @@ declare type EditorProperty =
   | 'background-overall-component'
   | 'border-style'
   | 'basic-style-selector'
+  | 'symbolic-style-selector'
   | 'dual-basic-style-selector'
   | 'label-selector'
   | 'tooltip-selector'

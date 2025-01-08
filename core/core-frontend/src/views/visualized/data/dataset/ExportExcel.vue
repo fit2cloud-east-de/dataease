@@ -10,7 +10,6 @@ import { RefreshLeft } from '@element-plus/icons-vue'
 import {
   exportTasks,
   exportRetry,
-  downloadFile,
   exportDelete,
   exportDeleteAll,
   exportDeletePost
@@ -28,7 +27,6 @@ const drawerLoading = ref(false)
 const drawer = ref(false)
 const msgDialogVisible = ref(false)
 const msg = ref('')
-const exportDatasetLoading = ref(false)
 const activeName = ref('ALL')
 const multipleSelection = ref([])
 const description = ref(t('data_set.no_tasks_yet'))
@@ -62,6 +60,7 @@ const handleClose = () => {
 const { wsCache } = useCache()
 const openType = wsCache.get('open-backend') === '1' ? '_self' : '_blank'
 const xpack = wsCache.get('xpack-model-distributed')
+const desktop = wsCache.get('app.desktop')
 
 onUnmounted(() => {
   clearInterval(timer)
@@ -243,12 +242,12 @@ const callbackExportSuc = () => {
 const downLoadAll = () => {
   if (multipleSelection.value.length === 0) {
     tableData.value.forEach(item => {
-      window.open(PATH_URL + '/exportCenter/download/' + item.id, openType)
+      window.open(PATH_URL + '/exportCenter/download/' + item.id)
     })
     return
   }
   multipleSelection.value.map(ele => {
-    window.open(PATH_URL + '/exportCenter/download/' + ele.id, openType)
+    window.open(PATH_URL + '/exportCenter/download/' + ele.id)
   })
 }
 const showMsg = item => {
@@ -440,7 +439,7 @@ defineExpose({
           </template>
         </el-table-column>
         <el-table-column
-          v-show="xpack"
+          v-if="!desktop"
           prop="orgName"
           :label="t('data_set.organization')"
           width="200"

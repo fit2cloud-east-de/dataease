@@ -84,6 +84,7 @@ const groupActiveChange = category => {
             class="item-top"
             draggable="true"
             :data-id="groupInfo.category + '&' + chartInfo.value"
+            :title="chartInfo.title"
           >
             <Icon
               v-if="['outer_svg', 'graphical'].includes(chartInfo.type)"
@@ -179,6 +180,10 @@ const groupActiveChange = category => {
     color: #a6a6a6;
     font-size: 12px;
     text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 88px;
   }
 }
 

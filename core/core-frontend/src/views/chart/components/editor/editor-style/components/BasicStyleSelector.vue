@@ -13,7 +13,7 @@ import { SERIES_NUMBER_FIELD } from '@antv/s2'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { storeToRefs } from 'pinia'
 import { isNumber } from 'mathjs'
-import { ElMessage, UploadProps } from 'element-plus-secondary'
+import { ElFormItem, ElInputNumber, ElMessage, UploadProps } from 'element-plus-secondary'
 import { svgStrToUrl } from '../../../js/util'
 
 const dvMainStore = dvMainStoreWithOut()
@@ -63,6 +63,22 @@ const onAlphaChange = v => {
     state.basicStyleForm.alpha = oldForm.alpha
   }
   changeBasicStyle('alpha')
+}
+
+const onColumnWidthRatioChange = v => {
+  const _v = parseInt(v)
+  if (_v >= 1 && _v <= 100) {
+    state.basicStyleForm.columnWidthRatio = _v
+  } else if (_v < 1) {
+    state.basicStyleForm.columnWidthRatio = 1
+  } else if (_v > 100) {
+    state.basicStyleForm.columnWidthRatio = 100
+  } else {
+    const basicStyle = cloneDeep(props.chart.customAttr.basicStyle)
+    const oldForm = defaultsDeep(basicStyle, cloneDeep(DEFAULT_BASIC_STYLE)) as ChartBasicStyle
+    state.basicStyleForm.columnWidthRatio = oldForm.columnWidthRatio
+  }
+  changeBasicStyle('columnWidthRatio')
 }
 
 const changeMisc = prop => {
@@ -237,89 +253,6 @@ const heatMapTypeOptions = [
   { name: t('chart.heatmap3D'), value: 'heatmap3D' }
 ]
 
-const mapSymbolOptions = [
-  { name: t('chart.line_symbol_circle'), value: 'circle' },
-  { name: t('chart.line_symbol_rect'), value: 'square' },
-  { name: t('chart.line_symbol_triangle'), value: 'triangle' },
-  { name: t('chart.map_symbol_pentagon'), value: 'pentagon' },
-  { name: t('chart.map_symbol_hexagon'), value: 'hexagon' },
-  { name: t('chart.map_symbol_octagon'), value: 'octogon' },
-  { name: t('chart.line_symbol_diamond'), value: 'rhombus' },
-  { name: t('commons.custom'), value: 'custom' }
-]
-const iconUpload = ref()
-const acceptedFileType = ['image/svg+xml', 'image/jpeg', 'image/png']
-const onIconChange: UploadProps['onChange'] = async uploadFile => {
-  const rawFile = uploadFile.raw
-  let validIcon = true
-  if (!acceptedFileType.includes(rawFile.type)) {
-    ElMessage.error('请选择正确的图标文件！')
-    validIcon = false
-  }
-  if (rawFile.size / 1024 / 1024 > 1) {
-    ElMessage.error('文件大小不能超过 1MB!')
-    validIcon = false
-  }
-  if (!validIcon) {
-    iconUpload.value?.clearFiles()
-    state.fileList.splice(0)
-    const customIcon = state.basicStyleForm.customIcon
-    if (customIcon) {
-      let file = ''
-      // 图片
-      if (customIcon.startsWith('data')) {
-        file = customIcon
-      } else {
-        // svg
-        file = svgStrToUrl(customIcon)
-      }
-      file && (state.fileList[0] = { url: file })
-    }
-  } else {
-    if (rawFile.type === 'image/svg+xml') {
-      state.basicStyleForm.customIcon = await rawFile.text()
-      changeBasicStyle('customIcon')
-    } else {
-      const fileReader = new FileReader()
-      fileReader.onloadend = () => {
-        state.basicStyleForm.customIcon = fileReader.result as string
-        changeBasicStyle('customIcon')
-      }
-      fileReader.readAsDataURL(rawFile)
-    }
-  }
-}
-
-const changeMapSymbol = () => {
-  const { mapSymbol, customIcon } = state.basicStyleForm
-  if (mapSymbol === 'custom' && customIcon) {
-    let file
-    if (customIcon.startsWith('data')) {
-      file = customIcon
-    } else {
-      file = svgStrToUrl(state.basicStyleForm.customIcon)
-    }
-    file && (state.fileList[0] = { url: file })
-  }
-  changeBasicStyle('mapSymbol')
-}
-
-const customSymbolicMapSizeRange = computed(() => {
-  let { extBubble } = JSON.parse(JSON.stringify(props.chart))
-  return ['symbolic-map'].includes(props.chart.type) && extBubble?.length > 0
-})
-const mapCustomRangeValidate = prop => {
-  const { mapSymbolSizeMax = '0', mapSymbolSizeMin = '1' } = state.basicStyleForm
-  let max = parseInt(mapSymbolSizeMax)
-  let min = parseInt(mapSymbolSizeMin)
-  state.basicStyleForm.mapSymbolSizeMin = Math.max(min, 0)
-  state.basicStyleForm.mapSymbolSizeMax = Math.max(max, 1)
-  if (max < min) {
-    ElMessage.warning('第二个区间值必须大于第一个区间值')
-    return
-  }
-  changeBasicStyle(prop)
-}
 /**
  * 表格是否合并单元格
  */
@@ -502,7 +435,7 @@ onMounted(() => {
       </el-row>
       <div class="alpha-setting">
         <label class="alpha-label" :class="{ dark: 'dark' === themes }">
-          {{ t('chart.chart_map') + t('chart.map_pitch') }}
+          {{ t('chart.chart_map') + ' ' + t('chart.map_pitch') }}
         </label>
         <el-row style="flex: 1" :gutter="8">
           <el-col>
@@ -555,154 +488,7 @@ onMounted(() => {
         </el-col>
       </el-row>
     </div>
-    <div class="map-flow-style" v-if="showProperty('symbolicMapStyle')">
-      <el-row style="flex: 1">
-        <el-col>
-          <el-form-item class="form-item" :class="'form-item-' + themes">
-            <template #label>
-              <span class="data-area-label">
-                <span style="margin-right: 4px">符号形状</span>
-                <el-tooltip class="item" effect="dark" placement="bottom">
-                  <template v-if="state.basicStyleForm.mapSymbol === 'custom'" #content>
-                    <div>支持 1MB 以内的 SVG, JPG, JPEG, PNG 文件</div>
-                  </template>
-                  <el-icon class="hint-icon" :class="{ 'hint-icon--dark': themes === 'dark' }">
-                    <Icon name="icon_info_outlined"><icon_info_outlined class="svg-icon" /></Icon>
-                  </el-icon>
-                </el-tooltip>
-              </span>
-            </template>
-            <el-select
-              :effect="themes"
-              v-model="state.basicStyleForm.mapSymbol"
-              @change="changeMapSymbol()"
-            >
-              <el-option
-                v-for="item in mapSymbolOptions"
-                :key="item.name"
-                :label="item.name"
-                :value="item.value"
-              />
-            </el-select>
-          </el-form-item>
-        </el-col>
-      </el-row>
-      <el-row style="flex: 1" v-if="state.basicStyleForm.mapSymbol === 'custom'">
-        <el-col>
-          <el-form-item class="form-item uploader" :class="'form-item-' + themes">
-            <div class="avatar-uploader-container" :class="`img-area_${themes}`">
-              <el-upload
-                action="#"
-                accept=".svg,.png,.jpeg,.jpg"
-                class="avatar-uploader"
-                list-type="picture-card"
-                ref="iconUpload"
-                :effect="themes"
-                :auto-upload="false"
-                :file-list="state.fileList"
-                :on-change="onIconChange"
-                :limit="1"
-              >
-                <el-icon><Plus /></el-icon>
-              </el-upload>
-            </div>
-          </el-form-item>
-        </el-col>
-      </el-row>
-      <div class="alpha-setting">
-        <label class="alpha-label" :class="{ dark: 'dark' === themes }">
-          {{ t('chart.size') }}
-        </label>
-        <el-row style="flex: 1">
-          <el-col>
-            <el-form-item class="form-item alpha-slider" :class="'form-item-' + themes">
-              <el-slider
-                :effect="themes"
-                :min="1"
-                :max="40"
-                v-model="state.basicStyleForm.mapSymbolSize"
-                @change="changeBasicStyle('mapSymbolSize')"
-                :disabled="customSymbolicMapSizeRange"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-      </div>
-      <div class="alpha-setting">
-        <label class="alpha-label" :class="{ dark: 'dark' === themes }">
-          {{ t('chart.size') }}区间
-        </label>
-        <el-row style="flex: 1">
-          <el-col :span="11">
-            <el-form-item class="form-item alpha-slider" :class="'form-item-' + themes">
-              <el-input
-                type="number"
-                :effect="themes"
-                v-model="state.basicStyleForm.mapSymbolSizeMin"
-                class="basic-input-number"
-                :controls="false"
-                @blur="mapCustomRangeValidate('mapSymbolSizeMin')"
-                :disabled="!customSymbolicMapSizeRange"
-              >
-              </el-input>
-            </el-form-item>
-          </el-col>
-          <el-col :span="1.2">
-            <span>-</span>
-          </el-col>
-          <el-col :span="11">
-            <el-form-item class="form-item alpha-slider" :class="'form-item-' + themes">
-              <el-input
-                type="number"
-                :effect="themes"
-                v-model="state.basicStyleForm.mapSymbolSizeMax"
-                class="basic-input-number"
-                :controls="false"
-                @blur="mapCustomRangeValidate('mapSymbolSizeMax')"
-                :disabled="!customSymbolicMapSizeRange"
-              >
-              </el-input>
-            </el-form-item>
-          </el-col>
-        </el-row>
-      </div>
-      <div v-if="state.basicStyleForm.mapSymbol !== 'custom'" class="alpha-setting">
-        <label class="alpha-label" :class="{ dark: 'dark' === themes }">
-          {{ t('chart.not_alpha') }}
-        </label>
-        <el-row style="flex: 1">
-          <el-col>
-            <el-form-item class="form-item alpha-slider" :class="'form-item-' + themes">
-              <el-slider
-                :effect="themes"
-                :min="1"
-                :max="10"
-                v-model="state.basicStyleForm.mapSymbolOpacity"
-                @change="changeBasicStyle('mapSymbolOpacity')"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-      </div>
-      <div v-if="state.basicStyleForm.mapSymbol !== 'custom'" class="alpha-setting">
-        <label class="alpha-label" :class="{ dark: 'dark' === themes }">
-          {{ t('visualization.borderWidth') }}
-        </label>
-        <el-row style="flex: 1">
-          <el-col>
-            <el-form-item class="form-item alpha-slider" :class="'form-item-' + themes">
-              <el-slider
-                :effect="themes"
-                :min="1"
-                :max="5"
-                v-model="state.basicStyleForm.mapSymbolStrokeWidth"
-                @change="changeBasicStyle('mapSymbolStrokeWidth')"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-      </div>
-    </div>
+
     <!--flow map end-->
     <!--map start-->
     <el-row :gutter="8">
@@ -781,6 +567,7 @@ onMounted(() => {
               :effect="themes"
               :min="1"
               :max="18"
+              :step="0.1"
               v-model="state.basicStyleForm.zoomLevel"
               @change="changeBasicStyle('zoomLevel')"
             />
@@ -794,7 +581,7 @@ onMounted(() => {
           <el-form-item
             class="form-item"
             :class="'form-item-' + themes"
-            :label="t('chart.central_point') + t('chart.longitude')"
+            :label="t('chart.central_point') + ' ' + t('chart.longitude')"
           >
             <el-input-number
               controls-position="right"
@@ -810,7 +597,7 @@ onMounted(() => {
           <el-form-item
             class="form-item"
             :class="'form-item-' + themes"
-            :label="t('chart.central_point') + t('chart.latitude')"
+            :label="t('chart.central_point') + ' ' + t('chart.latitude')"
           >
             <el-input-number
               controls-position="right"
@@ -1207,6 +994,40 @@ onMounted(() => {
         @change="changeBasicStyle('barGap')"
       />
     </el-form-item>
+    <div class="alpha-setting" v-if="showProperty('columnWidthRatio')">
+      <label class="alpha-label" :class="{ dark: 'dark' === themes }">
+        {{ t('chart.column_width_ratio') }}
+      </label>
+      <el-row style="flex: 1" :gutter="8">
+        <el-col :span="13">
+          <el-form-item class="form-item alpha-slider" :class="'form-item-' + themes">
+            <el-slider
+              :effect="themes"
+              :min="1"
+              :max="100"
+              v-model="state.basicStyleForm.columnWidthRatio"
+              @change="changeBasicStyle('columnWidthRatio')"
+            />
+          </el-form-item>
+        </el-col>
+        <el-col :span="11" style="padding-top: 2px">
+          <el-form-item class="form-item" :class="'form-item-' + themes">
+            <el-input
+              type="number"
+              :effect="themes"
+              v-model="state.basicStyleForm.columnWidthRatio"
+              :min="1"
+              :max="100"
+              class="basic-input-number"
+              :controls="false"
+              @change="onColumnWidthRatioChange"
+            >
+              <template #suffix> % </template>
+            </el-input>
+          </el-form-item>
+        </el-col>
+      </el-row>
+    </div>
     <!--bar end-->
     <!--line area start-->
     <el-row :gutter="8">
@@ -1569,6 +1390,69 @@ onMounted(() => {
       </el-row>
     </div>
     <!-- pie/rose end -->
+    <!-- circle-packing start -->
+    <div v-if="showProperty('circleBorderStyle')">
+      <div class="alpha-setting">
+        <el-row style="display: flex; width: 100%">
+          <el-col :span="10">
+            <el-form-item
+              :label="t('chart.circle_packing_border_color')"
+              class="form-item"
+              :class="'form-item-' + themes"
+            >
+              <el-color-picker
+                v-model="state.basicStyleForm.circleBorderColor"
+                class="color-picker-style"
+                :triggerWidth="65"
+                is-custom
+                show-alpha
+                :predefine="state.predefineColors"
+                @change="changeBasicStyle('circleBorderColor')"
+              >
+              </el-color-picker>
+            </el-form-item>
+          </el-col>
+          <el-col :span="14">
+            <el-form-item
+              :label="t('chart.circle_packing_border_width')"
+              class="form-item"
+              :class="'form-item-' + themes"
+            >
+              <el-input-number
+                :min="0"
+                :max="50"
+                :effect="themes"
+                controls-position="right"
+                v-model="state.basicStyleForm.circleBorderWidth"
+                class="color-picker-style"
+                @change="changeBasicStyle('circleBorderWidth')"
+              >
+              </el-input-number>
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </div>
+      <el-row>
+        <el-form-item
+          style="width: 150px"
+          :label="t('chart.circle_packing_padding')"
+          class="form-item"
+          :class="'form-item-' + themes"
+        >
+          <el-input-number
+            :min="0"
+            :max="10"
+            :effect="themes"
+            controls-position="right"
+            v-model="state.basicStyleForm.circlePadding"
+            class="color-picker-style"
+            @change="changeBasicStyle('circlePadding')"
+          >
+          </el-input-number>
+        </el-form-item>
+      </el-row>
+    </div>
+    <!-- circle-packing end -->
   </div>
 </template>
 <style scoped lang="less">

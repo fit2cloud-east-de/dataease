@@ -8,6 +8,7 @@ public class CacheConstant {
         public static final String USER_ROLES_CACHE = "de_v2_user_roles";
         public static final String USER_BUSI_PERS_CACHE = "de_v2_user_busi_pers";
         public static final String USER_BUSI_PERS_INTERACTIVE_CACHE = "de_v2_user_busi_pers_interactive";
+        public static final String USER_COMMUNITY_LANGUAGE = "de_v2_user_community_language";
     }
 
     public static class RoleCacheConstant {
@@ -28,6 +29,7 @@ public class CacheConstant {
         public static final String CUSTOM_GEO_CACHE = "de_v2_custom_geo";
         public static final String RSA_CACHE = "de_v2_rsa";
         public static final String PER_MENU_ID_CACHE = "de_v2_per_menu_id";
+        public static final String GLOBAL_MFA_CACHE = "de_v2_global_mfa";
     }
 
     public static class LicenseCacheConstant {

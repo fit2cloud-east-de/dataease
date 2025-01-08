@@ -108,7 +108,7 @@ const editComponentName = () => {
 }
 
 const onComponentNameChange = () => {
-  snapshotStore.recordSnapshotCache()
+  snapshotStore.recordSnapshotCache('onComponentNameChange')
 }
 </script>
 
@@ -234,6 +234,11 @@ const onComponentNameChange = () => {
     font-weight: 500;
     text-align: center;
     padding: 5px;
+    margin-top: 5px;
+    span {
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+    }
   }
   .main-content {
     height: calc(100% - 45px);

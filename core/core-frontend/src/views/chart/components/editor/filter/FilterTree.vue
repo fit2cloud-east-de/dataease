@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { ElMessage } from 'element-plus-secondary'
 import { inject, computed, ref, nextTick, provide } from 'vue'
-import RowAuth from '@/views/chart/components/editor/filter/auth-tree/RowAuth.vue'
+import RowAuth from '@/views/chart/components/editor/filter/auth-tree-chart/RowAuth.vue'
 import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapshot'
 
 const emits = defineEmits(['filter-data'])
@@ -40,7 +40,7 @@ const changeFilter = val => {
   }
   dfsTreeDelete(items)
   emits('filter-data', { logic, items })
-  snapshotStore.recordSnapshotCache()
+  snapshotStore.recordSnapshotCache('changeFilter')
   dialogVisible.value = false
 }
 

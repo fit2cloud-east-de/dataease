@@ -12,14 +12,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.dataease.api.ds.vo.ExcelFileData;
 import io.dataease.api.ds.vo.ExcelSheetData;
+import io.dataease.commons.utils.EncryptUtils;
 import io.dataease.datasource.dao.auto.entity.CoreDatasource;
 import io.dataease.exception.DEException;
 import io.dataease.extensions.datasource.dto.DatasetTableDTO;
 import io.dataease.extensions.datasource.dto.DatasourceDTO;
 import io.dataease.extensions.datasource.dto.DatasourceRequest;
 import io.dataease.extensions.datasource.dto.TableField;
-import io.dataease.utils.AuthUtils;
-import io.dataease.utils.JsonUtil;
+import io.dataease.utils.*;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.util.CollectionUtils;
@@ -35,8 +35,16 @@ import java.util.stream.Collectors;
 
 public class ExcelUtils {
     public static final String UFEFF = "\uFEFF";
-    private static String path = "/opt/dataease2.0/data/excel/";
+    private static String path = getExcelPath();
     private static ObjectMapper objectMapper = new ObjectMapper();
+
+    public static String getExcelPath() {
+        if (ModelUtils.isDesktop()) {
+            return ConfigUtils.getConfig("dataease.path.excel", "/opt/dataease2.0/data/excel/");
+        } else {
+            return "/opt/dataease2.0/data/excel/";
+        }
+    }
 
     private static TypeReference<List<TableField>> TableFieldListTypeReference = new TypeReference<List<TableField>>() {
     };
@@ -77,27 +85,43 @@ public class ExcelUtils {
 
     public static Map<String, String> getTableNamesMap(String configration) throws DEException {
         Map<String, String> result = new HashMap<>();
+        JsonNode rootNode = null;
+        // 兼容历史未加密信息
         try {
-            JsonNode rootNode = objectMapper.readTree(configration);
+            rootNode = objectMapper.readTree((String) EncryptUtils.aesDecrypt(configration));
+        } catch (Exception e) {
+            try {
+                rootNode = objectMapper.readTree(configration);
+            } catch (Exception ex) {
+                DEException.throwException(ex);
+            }
+        }
+        if(rootNode != null) {
             for (int i = 0; i < rootNode.size(); i++) {
                 result.put(rootNode.get(i).get("tableName").asText(), rootNode.get(i).get("deTableName").asText());
             }
-        } catch (Exception e) {
-            DEException.throwException(e);
         }
-
         return result;
     }
 
     public static String getFileName(CoreDatasource datasource) throws DEException {
+        JsonNode rootNode = null;
         try {
-            JsonNode rootNode = objectMapper.readTree(datasource.getConfiguration());
+            rootNode = objectMapper.readTree((String) EncryptUtils.aesDecrypt(datasource.getConfiguration()));
+        } catch (Exception e) {
+            try {
+                rootNode = objectMapper.readTree(datasource.getConfiguration());
+            } catch (Exception ex) {
+                DEException.throwException(ex);
+            }
+        }
+        if (rootNode != null) {
             for (int i = 0; i < rootNode.size(); i++) {
                 return rootNode.get(i).get("fileName").asText();
             }
-        } catch (Exception e) {
-            DEException.throwException(e);
         }
+
+
         return "";
     }
 
@@ -195,9 +219,6 @@ public class ExcelUtils {
         String filePath = saveFile(file, excelId);
 
         for (ExcelSheetData excelSheetData : returnSheetDataList) {
-            if (excelSheetData.getExcelLabel().length() > 40) {
-                DEException.throwException(excelSheetData.getExcelLabel() + "长度不能大于40！");
-            }
             excelSheetData.setLastUpdateTime(System.currentTimeMillis());
             excelSheetData.setTableName(excelSheetData.getExcelLabel());
             excelSheetData.setDeTableName("excel_" + excelSheetData.getExcelLabel() + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 10));
@@ -209,9 +230,6 @@ public class ExcelUtils {
              * dataease字段类型：0-文本，1-时间，2-整型数值，3-浮点数值，4-布尔，5-地理位置，6-二进制
              */
             for (TableField field : excelSheetData.getFields()) {
-                if (field.getOriginName().length() > 40) {
-                    DEException.throwException(excelSheetData.getExcelLabel() + "的字段" + field.getOriginName() + "长度不能大于40！");
-                }
                 //TEXT LONG DATETIME DOUBLE
                 if (field.getFieldType().equalsIgnoreCase("TEXT")) {
                     field.setDeType(0);
@@ -335,6 +353,9 @@ public class ExcelUtils {
             Double d = Double.valueOf(value);
             double eps = 1e-10;
             if (d - Math.floor(d) < eps) {
+                if (value.contains(".")) {
+                    return "DOUBLE";
+                }
                 return "LONG";
             } else {
                 return "DOUBLE";

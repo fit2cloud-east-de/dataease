@@ -160,7 +160,7 @@ onMounted(() => {
         style="padding-left: 4px"
       >
         <template #label>&nbsp;</template>
-        <el-tooltip content="字号" :effect="toolTip" placement="top">
+        <el-tooltip :content="t('chart.font_size')" :effect="toolTip" placement="top">
           <el-select
             style="width: 108px"
             :effect="props.themes"
@@ -242,7 +242,7 @@ onMounted(() => {
         <label class="custom-form-item-label" :class="'custom-form-item-label--' + themes">
           {{ t('chart.axis_value_split_count') }}
           <el-tooltip class="item" :effect="toolTip" placement="top">
-            <template #content>期望的坐标轴刻度数量，非最终结果。</template>
+            <template #content>{{ t('chart.number_of_scales_tip') }}</template>
             <span style="vertical-align: middle">
               <el-icon style="cursor: pointer">
                 <Icon name="icon_info_outlined"><icon_info_outlined class="svg-icon" /></Icon>
@@ -377,7 +377,7 @@ onMounted(() => {
           </el-form-item>
           <el-form-item class="form-item" :class="'form-item-' + themes" style="padding-left: 4px">
             <template #label>&nbsp;</template>
-            <el-tooltip content="字号" :effect="toolTip" placement="top">
+            <el-tooltip :content="t('chart.font_size')" :effect="toolTip" placement="top">
               <el-select
                 :disabled="!state.axisForm.axisLabel.show"
                 style="width: 108px"

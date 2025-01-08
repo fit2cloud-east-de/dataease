@@ -75,7 +75,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="filter">
+  <div class="draw-filter_tree">
     <span>{{ title }}</span>
     <div class="filter-item">
       <el-tree-select
@@ -97,10 +97,8 @@ defineExpose({
   </div>
 </template>
 <style lang="less" scope>
-.filter {
-  display: flex;
-  align-items: center;
-  min-height: 46px;
+.draw-filter_tree {
+  margin-bottom: 16px;
 
   > :nth-child(1) {
     color: var(--deTextSecondary, #1f2329);
@@ -108,13 +106,12 @@ defineExpose({
     font-style: normal;
     font-weight: 400;
     font-size: 14px;
-    line-height: 24px;
+    line-height: 22px;
     white-space: nowrap;
-    width: 116px;
   }
 
   .filter-item {
-    flex: 1;
+    margin-top: 8px;
   }
 }
 </style>

@@ -21,7 +21,7 @@
           v-model="dvInfo.selfWatermarkStatus"
           @change="onBackgroundChange"
         >
-          {{ t('visualization.watermark') }}}
+          {{ t('visualization.watermark') }}
         </el-checkbox>
       </el-form-item>
       <el-form-item class="form-item no-margin-bottom" :class="'form-item-' + themes">
@@ -210,7 +210,7 @@ const upload = file => {
 }
 
 const onBackgroundChange = () => {
-  snapshotStore.recordSnapshotCache()
+  snapshotStore.recordSnapshotCache('onBackgroundChange')
 }
 
 const bgForm = ref()

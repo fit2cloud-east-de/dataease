@@ -12,6 +12,7 @@ export const getRange = (outerTimeValue, timeGranularity) => {
       return getMonthEnd(selectValue)
     case 'date':
     case 'y_M_d':
+    case 'M_d':
       return getDayEnd(selectValue)
     case 'hour':
     case 'y_M_d_H':

@@ -35,6 +35,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
+import org.apache.poi.xssf.usermodel.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -50,6 +51,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -183,9 +186,10 @@ public class ChartDataServer implements ChartDataApi {
         StringBuilder sb = new StringBuilder(value);
 
         if (formatter.getThousandSeparator()) {
-            String[] parts = value.split("\\.");
-            parts[0] = addThousandSeparators(parts[0]);
-            sb = new StringBuilder(String.join(".", parts));
+            Pattern thousandsPattern = Pattern.compile("(\\d)(?=(\\d{3})+$)");
+            String[] numArr = value.split("\\.");
+            numArr[0] = addThousandSeparator(numArr[0], thousandsPattern);
+            sb = new StringBuilder(String.join(".", numArr));
         }
         if (formatter.getType().equals("percent")) {
             sb.append('%');
@@ -214,20 +218,15 @@ public class ChartDataServer implements ChartDataApi {
         return sb.toString();
     }
 
-    private static String addThousandSeparators(String number) {
-        StringBuilder sb = new StringBuilder();
-        int len = number.length();
-        int count = 0;
-        for (int i = len - 1; i >= 0; i--) {
-            sb.append(number.charAt(i));
-            count++;
-            if (count == 3 && i != 0) {
-                sb.append(',');
-                count = 0;
-            }
-        }
 
-        return sb.reverse().toString();
+    private static String addThousandSeparator(String numStr, Pattern pattern) {
+        Matcher matcher = pattern.matcher(numStr);
+        StringBuffer sb = new StringBuffer();
+        while (matcher.find()) {
+            matcher.appendReplacement(sb, matcher.group(1) + ",");
+        }
+        matcher.appendTail(sb);
+        return sb.toString();
     }
 
 
@@ -299,6 +298,7 @@ public class ChartDataServer implements ChartDataApi {
                         }
                     }
                 }
+                exportCenterManage.addWatermarkTools(wb);
                 response.setContentType("application/vnd.ms-excel");
                 //文件名称
                 response.setHeader("Content-disposition", "attachment;filename=" + URLEncoder.encode(request.getViewName(), StandardCharsets.UTF_8) + ".xlsx");
@@ -319,9 +319,12 @@ public class ChartDataServer implements ChartDataApi {
     public void innerExportDataSetDetails(ChartExcelRequest request, HttpServletResponse response) throws Exception {
         this.innerExportDetails(request, response);
     }
-
-
     public static void setExcelData(Sheet detailsSheet, CellStyle cellStyle, Object[] header, List<Object[]> details, ViewDetailField[] detailFields, Integer[] excelTypes) {
+        setExcelData(detailsSheet, cellStyle, header, details, detailFields, excelTypes,null);
+    }
+
+
+    public static void setExcelData(Sheet detailsSheet, CellStyle cellStyle, Object[] header, List<Object[]> details, ViewDetailField[] detailFields, Integer[] excelTypes,Comment comment) {
         boolean mergeHead = false;
         if (ArrayUtils.isNotEmpty(detailFields)) {
             cellStyle.setBorderTop(BorderStyle.THIN);
@@ -407,11 +410,7 @@ public class ChartDataServer implements ChartDataApi {
                             detailsSheet.setColumnWidth(j, 255 * 20);
                         } else if (cellValObj != null) {
                             try {
-                                if ((excelTypes[j].equals(DeTypeConstants.DE_INT) || excelTypes[j].equals(DeTypeConstants.DE_FLOAT)) && StringUtils.isNotEmpty(cellValObj.toString())) {
-                                    cell.setCellValue(Double.valueOf(cellValObj.toString()));
-                                } else if (cellValObj != null) {
-                                    cell.setCellValue(cellValObj.toString());
-                                }
+                                cell.setCellValue(cellValObj.toString());
                             } catch (Exception e) {
                                 LogUtil.warn("export excel data transform error");
                             }

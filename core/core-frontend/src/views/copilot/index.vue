@@ -3,12 +3,15 @@ import activeBtn_copilot from '@/assets/svg/active-btn_copilot.svg'
 import btn_copilot from '@/assets/svg/btn_copilot.svg'
 import copilot from '@/assets/svg/copilot.svg'
 import icon_loading_outlined from '@/assets/svg/icon_loading_outlined.svg'
+import treeSort from '@/utils/treeSortUtils'
 import icon_right_outlined from '@/assets/svg/icon_right_outlined.svg'
 import icon_left_outlined from '@/assets/svg/icon_left_outlined.svg'
+import { useCache } from '@/hooks/web/useCache'
+import { useEmbedded } from '@/store/modules/embedded'
 import dvFolder from '@/assets/svg/dv-folder.svg'
 import icon_dataset from '@/assets/svg/icon_dataset.svg'
 import icon_expandRight_filled from '@/assets/svg/icon_expand-right_filled.svg'
-import { ref, shallowRef, computed, watch, nextTick } from 'vue'
+import { ref, shallowRef, computed, watch, nextTick, unref } from 'vue'
 import { ElMessageBox } from 'element-plus-secondary'
 import {
   getDatasetTree,
@@ -24,6 +27,9 @@ import { type Tree } from '@/views/visualized/data/dataset/form/CreatDsGroup.vue
 import { cloneDeep } from 'lodash-es'
 import { iconFieldMap } from '@/components/icon-group/field-list'
 import { useI18n } from '@/hooks/web/useI18n'
+
+const embeddedStore = useEmbedded()
+const { wsCache } = useCache()
 const { t } = useI18n()
 const quota = shallowRef([])
 const dimensions = shallowRef([])
@@ -54,7 +60,7 @@ const dfs = arr => {
     return ele.leaf
   })
 }
-
+const originResourceTree = ref([])
 const computedTree = computed(() => {
   if (datasetTree.value[0]?.id === '0') {
     return dfs(datasetTree.value[0].children)
@@ -65,9 +71,14 @@ const computedTree = computed(() => {
 const isActive = computed(() => {
   return questionInput.value.trim().length && !!datasetId.value
 })
+const sortList = ['time_asc', 'time_desc', 'name_asc', 'name_desc']
 const initDataset = async () => {
   await getDatasetTree({}).then(res => {
     datasetTree.value = (res as unknown as Tree[]) || []
+    let curSortType = sortList[Number(wsCache.get('TreeSort-backend')) ?? 1]
+    curSortType = wsCache.get('TreeSort-dataset') ?? curSortType
+    originResourceTree.value = cloneDeep(unref(datasetTree))
+    datasetTree.value = treeSort(originResourceTree.value, curSortType)
   })
   getListCopilot().then(res => {
     const allList = (res as unknown as { history: object }[]) || []
@@ -91,6 +102,12 @@ let oldId = ''
 let currentId = ''
 let oldName = ''
 
+const copilotDialogueComputed = computed(() => {
+  if (embeddedStore.baseUrl) {
+    return { height: `100%` }
+  }
+  return { height: `calc(100vh - ${height + 152}px)` }
+})
 const dfsName = arr => {
   return arr.filter(ele => {
     if (ele.id === oldId) {
@@ -215,7 +232,7 @@ const queryAnswer = (event?: KeyboardEvent) => {
     </div>
     <div class="copilot-service">
       <div class="dialogue">
-        <div class="copilot-dialogue" :style="{ height: `calc(100vh - ${height + 152}px)` }">
+        <div class="copilot-dialogue" :style="copilotDialogueComputed">
           <DialogueChart key="isWelcome" isWelcome></DialogueChart>
           <DialogueChart :copilotInfo="ele" v-for="ele in historyArr" :key="ele.id"></DialogueChart>
           <DialogueChart v-if="copilotChatLoading" key="isAnswer" isAnswer></DialogueChart>
@@ -252,7 +269,6 @@ const queryAnswer = (event?: KeyboardEvent) => {
             </el-icon>
           </p>
         </el-tooltip>
-
         <el-tooltip effect="dark" :content="t('relation.expand')" placement="left">
           <p v-show="showLeft" class="left-outlined" @click="handleShowLeft(false)">
             <el-icon>
@@ -260,92 +276,95 @@ const queryAnswer = (event?: KeyboardEvent) => {
             </el-icon>
           </p>
         </el-tooltip>
-        <div class="title-dataset_select">{{ t('copilot.choose_dataset') }}</div>
-        <div style="margin: 0 16px" class="tree-select">
-          <el-tree-select
-            v-model="datasetId"
-            :data="computedTree"
-            :placeholder="t('copilot.pls_choose_dataset')"
-            @change="handleDatasetChange"
-            :props="dsSelectProps"
-            style="width: 100%"
-            ref="treeSelectRef"
-            placement="bottom"
-            :render-after-expand="false"
-            filterable
-            popper-class="dataset-tree"
-          >
-            <template #default="{ node, data }">
-              <div class="content">
-                <el-icon size="18px" v-if="!data.leaf">
-                  <Icon name="dv-folder"><dvFolder class="svg-icon" /></Icon>
-                </el-icon>
-                <el-icon size="18px" v-if="data.leaf">
-                  <Icon name="icon_dataset"><icon_dataset class="svg-icon" /></Icon>
-                </el-icon>
-                <span class="label ellipsis" style="margin-left: 8px" :title="node.label">{{
-                  node.label
-                }}</span>
-              </div>
-            </template>
-          </el-tree-select>
-        </div>
-        <div class="preview-field">
-          <div :class="['field-d', { open: expandedD }]">
-            <div :class="['title', { expanded: expandedD }]" @click="expandedD = !expandedD">
-              <ElIcon class="expand">
-                <Icon name="icon_expand-right_filled"
-                  ><icon_expandRight_filled class="svg-icon"
-                /></Icon>
-              </ElIcon>
-              &nbsp;{{ $t('chart.dimension') }}
-            </div>
-            <el-tree v-if="expandedD" :data="dimensions" :props="defaultProps">
-              <template #default="{ data }">
-                <span class="custom-tree-node father">
-                  <el-icon>
-                    <Icon
-                      ><component
-                        class="svg-icon"
-                        :class="`field-icon-${
-                          fieldType[[2, 3].includes(data.deExtractType) ? 2 : 0]
-                        }`"
-                        :is="iconFieldMap[fieldType[data.deExtractType]]"
-                      ></component
-                    ></Icon>
+
+        <div style="width: 100%; height: calc(100% - 16px)" v-show="!showLeft">
+          <div class="title-dataset_select">{{ t('copilot.choose_dataset') }}</div>
+          <div style="margin: 0 16px" class="tree-select">
+            <el-tree-select
+              v-model="datasetId"
+              :data="computedTree"
+              :placeholder="t('copilot.pls_choose_dataset')"
+              @change="handleDatasetChange"
+              :props="dsSelectProps"
+              style="width: 100%"
+              ref="treeSelectRef"
+              placement="bottom"
+              :render-after-expand="false"
+              filterable
+              popper-class="dataset-tree"
+            >
+              <template #default="{ node, data }">
+                <div class="content">
+                  <el-icon size="18px" v-if="!data.leaf">
+                    <Icon name="dv-folder"><dvFolder class="svg-icon" /></Icon>
                   </el-icon>
-                  <span :title="data.name" class="label-tooltip">{{ data.name }}</span>
-                </span>
+                  <el-icon size="18px" v-if="data.leaf">
+                    <Icon name="icon_dataset"><icon_dataset class="svg-icon" /></Icon>
+                  </el-icon>
+                  <span class="label ellipsis" style="margin-left: 8px" :title="node.label">{{
+                    node.label
+                  }}</span>
+                </div>
               </template>
-            </el-tree>
+            </el-tree-select>
           </div>
-          <div :class="['field-q', { open: expandedQ }]">
-            <div :class="['title', { expanded: expandedQ }]" @click="expandedQ = !expandedQ">
-              <ElIcon class="expand">
-                <Icon name="icon_expand-right_filled"
-                  ><icon_expandRight_filled class="svg-icon"
-                /></Icon>
-              </ElIcon>
-              &nbsp;{{ $t('chart.quota') }}
+          <div class="preview-field">
+            <div :class="['field-d', { open: expandedD }]">
+              <div :class="['title', { expanded: expandedD }]" @click="expandedD = !expandedD">
+                <ElIcon class="expand">
+                  <Icon name="icon_expand-right_filled"
+                    ><icon_expandRight_filled class="svg-icon"
+                  /></Icon>
+                </ElIcon>
+                &nbsp;{{ $t('chart.dimension') }}
+              </div>
+              <el-tree v-if="expandedD" :data="dimensions" :props="defaultProps">
+                <template #default="{ data }">
+                  <span class="custom-tree-node father">
+                    <el-icon>
+                      <Icon
+                        ><component
+                          class="svg-icon"
+                          :class="`field-icon-${
+                            fieldType[[2, 3].includes(data.deExtractType) ? 2 : 0]
+                          }`"
+                          :is="iconFieldMap[fieldType[data.deExtractType]]"
+                        ></component
+                      ></Icon>
+                    </el-icon>
+                    <span :title="data.name" class="label-tooltip">{{ data.name }}</span>
+                  </span>
+                </template>
+              </el-tree>
             </div>
-            <el-tree v-if="expandedQ" :data="quota" :props="defaultProps">
-              <template #default="{ data }">
-                <span class="custom-tree-node father">
-                  <el-icon>
-                    <Icon
-                      ><component
-                        class="svg-icon"
-                        :class="`field-icon-${
-                          fieldType[[2, 3].includes(data.deExtractType) ? 2 : 0]
-                        }`"
-                        :is="iconFieldMap[fieldType[data.deExtractType]]"
-                      ></component
-                    ></Icon>
-                  </el-icon>
-                  <span :title="data.name" class="label-tooltip">{{ data.name }}</span>
-                </span>
-              </template>
-            </el-tree>
+            <div :class="['field-q', { open: expandedQ }]">
+              <div :class="['title', { expanded: expandedQ }]" @click="expandedQ = !expandedQ">
+                <ElIcon class="expand">
+                  <Icon name="icon_expand-right_filled"
+                    ><icon_expandRight_filled class="svg-icon"
+                  /></Icon>
+                </ElIcon>
+                &nbsp;{{ $t('chart.quota') }}
+              </div>
+              <el-tree v-if="expandedQ" :data="quota" :props="defaultProps">
+                <template #default="{ data }">
+                  <span class="custom-tree-node father">
+                    <el-icon>
+                      <Icon
+                        ><component
+                          class="svg-icon"
+                          :class="`field-icon-${
+                            fieldType[[2, 3].includes(data.deExtractType) ? 2 : 0]
+                          }`"
+                          :is="iconFieldMap[fieldType[data.deExtractType]]"
+                        ></component
+                      ></Icon>
+                    </el-icon>
+                    <span :title="data.name" class="label-tooltip">{{ data.name }}</span>
+                  </span>
+                </template>
+              </el-tree>
+            </div>
           </div>
         </div>
       </div>
@@ -357,6 +376,7 @@ const queryAnswer = (event?: KeyboardEvent) => {
 .copilot {
   width: 100%;
   height: 100%;
+  max-height: calc(100vh - 56px);
 
   .copilot-analysis {
     background-color: #fff;
@@ -375,12 +395,15 @@ const queryAnswer = (event?: KeyboardEvent) => {
     .dialogue {
       flex: 1;
       position: relative;
+      max-height: 100%;
+
       .copilot-dialogue {
         padding: 0 160px;
         padding-top: 24px;
         position: relative;
         overflow-y: auto;
-        padding-bottom: 25px;
+        padding-bottom: 60px;
+        max-height: calc(100% - 75px);
       }
       .question-input {
         min-height: 47px;
@@ -394,6 +417,7 @@ const queryAnswer = (event?: KeyboardEvent) => {
         bottom: 25px;
         border-radius: 8px;
         left: 180px;
+        z-index: 100;
         box-sizing: border-box;
         background: #fff;
         box-shadow: 0px 6px 24px 0px #1f232914;
@@ -461,7 +485,7 @@ const queryAnswer = (event?: KeyboardEvent) => {
 
     .dataset-select {
       width: 280px;
-      height: calc(100vh - 115px);
+      height: 100%;
       background: #fff;
       border-left: 1px solid #1f232926;
       position: relative;
@@ -519,11 +543,12 @@ const queryAnswer = (event?: KeyboardEvent) => {
 
       .title-dataset_select {
         width: 100%;
-        margin: 16px 16px 12px 16px;
+        margin: 16px 16px 12px 0;
         font-family: var(--de-custom_font, 'PingFang');
         font-size: 14px;
         font-weight: 500;
         line-height: 22px;
+        padding-left: 16px;
       }
       .preview-field {
         padding: 0 8px;

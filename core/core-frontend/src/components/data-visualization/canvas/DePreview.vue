@@ -20,12 +20,14 @@ import DatasetParamsComponent from '@/components/visualization/DatasetParamsComp
 import DeFullscreen from '@/components/visualization/common/DeFullscreen.vue'
 import EmptyBackground from '../../empty-background/src/EmptyBackground.vue'
 import LinkOptBar from '@/components/data-visualization/canvas/LinkOptBar.vue'
+import { isDesktop } from '@/utils/ModelUtil'
 const dvMainStore = dvMainStoreWithOut()
 const { pcMatrixCount, curComponent, mobileInPc, canvasState, inMobile } = storeToRefs(dvMainStore)
 const openHandler = ref(null)
 const customDatasetParamsRef = ref(null)
 const emits = defineEmits(['onResetLayout'])
 const fullScreeRef = ref(null)
+const isDesktopFlag = isDesktop()
 const props = defineProps({
   canvasStyleData: {
     type: Object,
@@ -318,18 +320,26 @@ const initWatermark = (waterDomId = 'preview-canvas-main') => {
 // 目标校验： 需要校验targetSourceId 是否是当前可视化资源ID
 const winMsgHandle = event => {
   const msgInfo = event.data
-  // 校验targetSourceId
-  if (
-    msgInfo &&
-    msgInfo.type === 'attachParams' &&
-    msgInfo.targetSourceId === dvInfo.value.id + '' &&
-    isMainCanvas(canvasId.value)
-  ) {
-    const attachParams = msgInfo.params
-    state.initState = false
-    dvMainStore.addOuterParamsFilter(attachParams, baseComponentData.value, 'outer')
-    state.initState = true
-  }
+  console.info('Received Message: ' + JSON.stringify(msgInfo))
+  if (msgInfo?.targetSourceId === dvInfo.value.id + '' && isMainCanvas(canvasId.value))
+    if (msgInfo.type === 'attachParams') {
+      winMsgOuterParamsHandle(msgInfo)
+    } else if (msgInfo.type === 'webParams') {
+      // 网络消息处理
+      winMsgWebParamsHandle(msgInfo)
+    }
+}
+
+const winMsgWebParamsHandle = msgInfo => {
+  const params = msgInfo.params
+  dvMainStore.addWebParamsFilter(params, baseComponentData.value)
+}
+
+const winMsgOuterParamsHandle = msgInfo => {
+  const attachParams = msgInfo.params
+  state.initState = false
+  dvMainStore.addOuterParamsFilter(attachParams, baseComponentData.value, 'outer')
+  state.initState = true
 }
 
 onMounted(() => {
@@ -403,6 +413,7 @@ const filterBtnShow = computed(
     popAreaAvailable.value &&
     popComponentData.value &&
     popComponentData.value.length > 0 &&
+    !inMobile.value &&
     canvasStyleData.value.popupButtonAvailable
 )
 const datasetParamsInit = item => {
@@ -417,7 +428,8 @@ const linkOptBarShow = computed(() => {
     canvasStyleData.value.suspensionButtonAvailable &&
       !inMobile.value &&
       !mobileInPc.value &&
-      showPopBar.value
+      showPopBar.value &&
+      !isDesktopFlag
   )
 })
 

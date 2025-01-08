@@ -20,6 +20,7 @@ import {
   onBeforeMount,
   provide,
   unref,
+  onBeforeUnmount,
   onMounted
 } from 'vue'
 import Icon from '@/components/icon-custom/src/Icon.vue'
@@ -50,6 +51,7 @@ import { useRouter, useRoute } from 'vue-router'
 import CompareEdit from '@/views/chart/components/editor/drag-item/components/CompareEdit.vue'
 import ValueFormatterEdit from '@/views/chart/components/editor/drag-item/components/ValueFormatterEdit.vue'
 import CustomSortEdit from '@/views/chart/components/editor/drag-item/components/CustomSortEdit.vue'
+import SortPriorityEdit from '@/views/chart/components/editor/drag-item/components/SortPriorityEdit.vue'
 import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapshot'
 import CalcFieldEdit from '@/views/visualized/data/dataset/form/CalcFieldEdit.vue'
 import { getFieldName, guid } from '@/views/visualized/data/dataset/form/util'
@@ -126,7 +128,7 @@ const calcEdit = ref()
 const route = useRoute()
 
 const onComponentNameChange = () => {
-  snapshotStore.recordSnapshotCache()
+  snapshotStore.recordSnapshotCache('onComponentNameChange')
 }
 
 const closeEditComponentName = () => {
@@ -183,6 +185,10 @@ onBeforeMount(() => {
   cacheId = route.query.id as unknown as string
 })
 
+onBeforeUnmount(() => {
+  cacheId = ''
+})
+
 onMounted(() => {
   useEmitt({
     name: 'clear-remove',
@@ -191,7 +197,7 @@ onMounted(() => {
 })
 
 const appStore = useAppStoreWithOut()
-const isDataEaseBi = computed(() => appStore.getIsDataEaseBi)
+const isDataEaseBi = computed(() => appStore.getIsDataEaseBi || appStore.getIsIframe)
 const itemFormRules = reactive<FormRules>({
   chartShowName: [
     { required: true, message: t('commons.input_content'), trigger: 'change' },
@@ -224,6 +230,8 @@ const state = reactive({
   showValueFormatter: false,
   valueFormatterItem: {},
   showCustomSort: false,
+  showSortPriority: false,
+  sortPriority: [],
   customSortList: [],
   customSortField: {},
   currEditField: {},
@@ -658,6 +666,25 @@ const disableUpdate = computed(() => {
   return flag
 })
 
+const dragCheckMapType = list => {
+  if (list && list.length > 0) {
+    let valid = true
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].deType !== 5) {
+        list.splice(i, 1)
+        valid = false
+      }
+    }
+    if (!valid) {
+      ElMessage({
+        message: t('chart.error_d_not_coordinates'),
+        type: 'warning'
+      })
+    }
+    return valid
+  }
+}
+
 const addAxis = (e, axis: AxisType) => {
   recordSnapshotInfo('calcData')
   const axisSpec = chartViewInstance.value?.axisConfig[axis]
@@ -673,6 +700,9 @@ const addAxis = (e, axis: AxisType) => {
     if (list && list.length > 0) {
       let valid = true
       for (let i = 0; i < list.length; i++) {
+        if (list[i].groupType === 'd' && list[i].deType === 1) {
+          list[i].sort = 'asc'
+        }
         if (!(list[i].groupType === 'q' || (list[i].groupType === 'd' && list[i].deType === 1))) {
           list.splice(i, 1)
           valid = false
@@ -686,6 +716,11 @@ const addAxis = (e, axis: AxisType) => {
       }
       typeValid = valid
     }
+  } else if (
+    ((view.value.type === 'symbolic-map' || view.value.type === 'heat-map') && axis === 'xAxis') ||
+    (view.value.type === 'flow-map' && (axis === 'xAxis' || axis === 'xAxisExt'))
+  ) {
+    typeValid = dragCheckMapType(view.value[axis])
   } else if (type) {
     typeValid = dragCheckType(view.value[axis], type)
   }
@@ -1165,7 +1200,7 @@ const onThresholdChange = val => {
     }
     return false
   })
-  if (type) {
+  if (type || view.value.type === 'rich-text') {
     calcData(view.value)
   } else {
     renderChart(view.value)
@@ -1512,6 +1547,19 @@ const onToggleHide = item => {
   }
   renderChart(view.value)
 }
+const editSortPriority = () => {
+  state.showSortPriority = true
+}
+const closeSortPriority = () => {
+  state.showSortPriority = false
+}
+const saveSortPriority = () => {
+  view.value.sortPriority = state.sortPriority as ChartViewField[]
+  closeSortPriority()
+}
+const onPriorityChange = val => {
+  state.sortPriority = val
+}
 const valueFormatter = item => {
   recordSnapshotInfo('render')
   state.valueFormatterItem = JSON.parse(JSON.stringify(item))
@@ -1632,7 +1680,7 @@ const setFieldDefaultValue = field => {
 const el = ref<HTMLElement | null>(null)
 const elDrag = ref<HTMLElement | null>(null)
 const { y, isDragging } = useDraggable(el, {
-  initialValue: { x: 0, y: 0 },
+  initialValue: { x: 0, y: 400 },
   draggingElement: elDrag
 })
 const previewHeight = ref(0)
@@ -1976,17 +2024,19 @@ const deleteChartFieldItem = id => {
               </div>
             </el-row>
 
-            <el-row style="height: calc(100vh - 110px); overflow-y: auto">
-              <div v-if="view.type === 'VQuery' && curComponent" class="query-style-tab">
-                <div style="padding-top: 1px">
-                  <VQueryChartStyle
-                    :element="curComponent"
-                    :common-background-pop="curComponent?.commonBackground"
-                    :chart="view"
-                    :themes="themes"
-                  />
+            <el-row style="height: calc(100vh - 110px)">
+              <el-scrollbar v-if="view.type === 'VQuery' && curComponent">
+                <div class="query-style-tab">
+                  <div style="padding-top: 1px">
+                    <VQueryChartStyle
+                      :element="curComponent"
+                      :common-background-pop="curComponent?.commonBackground"
+                      :chart="view"
+                      :themes="themes"
+                    />
+                  </div>
                 </div>
-              </div>
+              </el-scrollbar>
               <el-tabs
                 v-else
                 v-model="tabActive"
@@ -2150,6 +2200,7 @@ const deleteChartFieldItem = id => {
                                   @onCustomSort="onCustomSort"
                                   @valueFormatter="valueFormatter"
                                   @onToggleHide="onToggleHide"
+                                  @editSortPriority="editSortPriority"
                                 />
                               </template>
                             </draggable>
@@ -2212,6 +2263,7 @@ const deleteChartFieldItem = id => {
                                   @onDimensionItemRemove="dimensionItemRemove"
                                   @onNameEdit="showRename"
                                   @onCustomSort="onExtCustomSort"
+                                  @editSortPriority="editSortPriority"
                                 />
                               </template>
                             </draggable>
@@ -2276,6 +2328,7 @@ const deleteChartFieldItem = id => {
                                   @onNameEdit="showRename"
                                   @onCustomSort="onCustomFlowMapStartNameSort"
                                   @valueFormatter="valueFormatter"
+                                  @editSortPriority="editSortPriority"
                                 />
                               </template>
                             </draggable>
@@ -2340,6 +2393,7 @@ const deleteChartFieldItem = id => {
                                   @onNameEdit="showRename"
                                   @onCustomSort="onCustomFlowMapEndNameSort"
                                   @valueFormatter="valueFormatter"
+                                  @editSortPriority="editSortPriority"
                                 />
                               </template>
                             </draggable>
@@ -2402,6 +2456,7 @@ const deleteChartFieldItem = id => {
                                   @onDimensionItemRemove="dimensionItemRemove"
                                   @onNameEdit="showRename"
                                   @onCustomSort="onStackCustomSort"
+                                  @editSortPriority="editSortPriority"
                                 />
                               </template>
                             </draggable>
@@ -2466,6 +2521,7 @@ const deleteChartFieldItem = id => {
                                   @onNameEdit="showRename"
                                   @onCustomSort="onCustomExtColorSort"
                                   @valueFormatter="valueFormatter"
+                                  @editSortPriority="editSortPriority"
                                 />
                               </template>
                             </draggable>
@@ -2553,6 +2609,7 @@ const deleteChartFieldItem = id => {
                                     @editItemCompare="showQuotaEditCompare"
                                     @valueFormatter="valueFormatter"
                                     @onToggleHide="onToggleHide"
+                                    @editSortPriority="editSortPriority"
                                   />
                                 </template>
                               </draggable>
@@ -2618,6 +2675,7 @@ const deleteChartFieldItem = id => {
                                     @onDimensionItemRemove="dimensionItemRemove"
                                     @onNameEdit="showRename"
                                     @onCustomSort="onExtCustomRightSort"
+                                    @editSortPriority="editSortPriority"
                                   />
                                 </template>
                               </draggable>
@@ -2682,6 +2740,7 @@ const deleteChartFieldItem = id => {
                                     @editItemFilter="showQuotaEditFilter"
                                     @editItemCompare="showQuotaEditCompare"
                                     @valueFormatter="valueFormatter"
+                                    @editSortPriority="editSortPriority"
                                   />
                                 </template>
                               </draggable>
@@ -2747,6 +2806,7 @@ const deleteChartFieldItem = id => {
                                     @onDimensionItemRemove="dimensionItemRemove"
                                     @onNameEdit="showRename"
                                     @onCustomSort="onExtCustomSort"
+                                    @editSortPriority="editSortPriority"
                                   />
                                   <quota-item
                                     v-else-if="element.groupType === 'q'"
@@ -2763,6 +2823,7 @@ const deleteChartFieldItem = id => {
                                     @editItemFilter="showQuotaEditFilter"
                                     @editItemCompare="showQuotaEditCompare"
                                     @valueFormatter="valueFormatter"
+                                    @editSortPriority="editSortPriority"
                                   />
                                 </template>
                               </draggable>
@@ -2826,6 +2887,7 @@ const deleteChartFieldItem = id => {
                                     @onDimensionItemRemove="dimensionItemRemove"
                                     @onNameEdit="showRename"
                                     @onCustomSort="onExtCustomSort"
+                                    @editSortPriority="editSortPriority"
                                   />
                                   <quota-item
                                     v-else-if="element.groupType === 'q'"
@@ -2842,6 +2904,7 @@ const deleteChartFieldItem = id => {
                                     @editItemFilter="showQuotaEditFilter"
                                     @editItemCompare="showQuotaEditCompare"
                                     @valueFormatter="valueFormatter"
+                                    @editSortPriority="editSortPriority"
                                   />
                                 </template>
                               </draggable>
@@ -2927,6 +2990,7 @@ const deleteChartFieldItem = id => {
                                   @editItemFilter="showQuotaEditFilter"
                                   @editItemCompare="showQuotaEditCompare"
                                   @valueFormatter="valueFormatter"
+                                  @editSortPriority="editSortPriority"
                                 />
                               </template>
                             </draggable>
@@ -3000,6 +3064,7 @@ const deleteChartFieldItem = id => {
                                   @onDimensionItemRemove="drillItemRemove"
                                   @onNameEdit="showRename"
                                   @onCustomSort="onDrillCustomSort"
+                                  @editSortPriority="editSortPriority"
                                 />
                               </template>
                             </draggable>
@@ -3030,12 +3095,14 @@ const deleteChartFieldItem = id => {
                               </el-icon>
                             </el-tooltip>
                           </div>
+
                           <div
                             class="tree-btn"
+                            v-if="isFilterActive || themes === 'dark'"
                             :class="{ 'tree-btn--dark': themes === 'dark', active: isFilterActive }"
                             @click="openTreeFilter"
                           >
-                            <el-icon>
+                            <el-icon style="margin-right: 2px; font-size: 12px">
                               <Icon class="svg-background" name="icon-filter"
                                 ><iconFilter class="svg-icon svg-background"
                               /></Icon>
@@ -3043,6 +3110,17 @@ const deleteChartFieldItem = id => {
 
                             <span>{{ $t('chart.filter') }}</span>
                           </div>
+                          <el-button
+                            v-else
+                            class="tree-btn_secondary"
+                            secondary
+                            @click="openTreeFilter"
+                          >
+                            <template #icon>
+                              <Icon><iconFilter class="svg-icon svg-background" /></Icon>
+                            </template>
+                            <span>{{ $t('chart.filter') }}</span>
+                          </el-button>
                         </el-row>
 
                         <el-row v-if="showAggregate" class="refresh-area">
@@ -3259,6 +3337,7 @@ const deleteChartFieldItem = id => {
                           :themes="themes"
                           :properties="chartViewInstance.properties"
                           :property-inner-all="chartViewInstance.propertyInner"
+                          :event-info="curComponent?.events"
                           @onFunctionCfgChange="onFunctionCfgChange"
                           @onAssistLineChange="onAssistLineChange"
                           @onScrollCfgChange="onScrollCfgChange"
@@ -3282,7 +3361,7 @@ const deleteChartFieldItem = id => {
           }"
         >
           <el-icon
-            :title="'数据集'"
+            :title="$t('visualization.dataset')"
             class="custom-icon"
             size="20px"
             @click="collapseChange('datasetAreaCollapse')"
@@ -3335,7 +3414,11 @@ const deleteChartFieldItem = id => {
                 <div class="dataset-search-label" :class="{ dark: themes === 'dark' }">
                   <span>{{ t('chart.field') }}</span>
                   <span>
-                    <el-tooltip :effect="toolTip" content="刷新" placement="top">
+                    <el-tooltip
+                      :effect="toolTip"
+                      :content="$t('visualization.refresh')"
+                      placement="top"
+                    >
                       <el-icon
                         class="field-search-icon-btn"
                         :class="{ dark: themes === 'dark' }"
@@ -3365,7 +3448,7 @@ const deleteChartFieldItem = id => {
                   :effect="themes"
                   class="dataset-search-input"
                   :class="{ dark: themes === 'dark' }"
-                  :placeholder="t('chart.search') + t('chart.field')"
+                  :placeholder="t('chart.search') + ' ' + t('chart.field')"
                   clearable
                 >
                   <template #prefix>
@@ -3863,6 +3946,28 @@ const deleteChartFieldItem = id => {
         <div class="dialog-footer">
           <el-button @click="closeCustomSort">{{ t('chart.cancel') }} </el-button>
           <el-button type="primary" @click="saveCustomSort">{{ t('chart.confirm') }} </el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="state.showSortPriority"
+      :close-on-click-modal="false"
+      width="372px"
+      class="dialog-css custom_sort_dialog"
+      destroy-on-close
+    >
+      <template #header>
+        <span style="font-size: 15px; font-weight: bold; color: black">
+          {{ t('chart.sort_priority') }}
+        </span>
+        <span>({{ t('chart.sort_priority_tip') }})</span>
+      </template>
+      <sort-priority-edit :chart="view" @on-priority-change="onPriorityChange" />
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="closeSortPriority">{{ t('chart.cancel') }} </el-button>
+          <el-button type="primary" @click="saveSortPriority">{{ t('chart.confirm') }} </el-button>
         </div>
       </template>
     </el-dialog>
@@ -4549,7 +4654,7 @@ span {
       width: 100%;
       margin-top: 8px;
       background: #fff;
-      height: 32px;
+      height: 28px;
       border-radius: 4px;
       border: 1px solid #dcdfe6;
       display: flex;
@@ -4566,6 +4671,18 @@ span {
       &.active {
         color: #3370ff;
         border-color: #3370ff;
+      }
+    }
+
+    :deep(.tree-btn_secondary) {
+      width: 100%;
+      margin-top: 8px;
+      line-height: 28px;
+      height: 28px;
+      font-size: 12px;
+
+      & > [class*='ed-icon'] + span {
+        margin-left: 2px !important;
       }
     }
 
@@ -4767,7 +4884,11 @@ span {
   width: 35px;
   text-align: center;
   padding: 5px;
-  margin-top: 30px;
+  margin-top: 35px;
+  span {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
 }
 
 .custom-icon {
@@ -4967,6 +5088,10 @@ span {
 .field-setting {
   position: absolute;
   right: 8px;
+  color: #646a73;
+  &.remove-icon--dark {
+    color: #a6a6a6;
+  }
 }
 .father .child {
   visibility: hidden;

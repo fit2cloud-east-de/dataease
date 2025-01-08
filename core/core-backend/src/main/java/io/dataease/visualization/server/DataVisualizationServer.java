@@ -35,12 +35,14 @@ import io.dataease.datasource.provider.ExcelUtils;
 import io.dataease.exception.DEException;
 import io.dataease.extensions.datasource.vo.DatasourceConfiguration;
 import io.dataease.extensions.view.dto.ChartViewDTO;
+import io.dataease.i18n.Translator;
 import io.dataease.license.config.XpackInteract;
 import io.dataease.license.manage.CoreLicManage;
 import io.dataease.log.DeLog;
 import io.dataease.model.BusiNodeRequest;
 import io.dataease.model.BusiNodeVO;
 import io.dataease.operation.manage.CoreOptRecentManage;
+import io.dataease.system.manage.CoreUserManage;
 import io.dataease.template.dao.auto.entity.VisualizationTemplate;
 import io.dataease.template.dao.auto.entity.VisualizationTemplateExtendData;
 import io.dataease.template.dao.auto.mapper.VisualizationTemplateExtendDataMapper;
@@ -137,6 +139,9 @@ public class DataVisualizationServer implements DataVisualizationApi {
     @Resource
     private CoreLicManage coreLicManage;
 
+    @Resource
+    private CoreUserManage coreUserManage;
+
     @Override
     public DataVisualizationVO findCopyResource(Long dvId, String busiFlag) {
         DataVisualizationVO result = Objects.requireNonNull(CommonBeanFactory.proxy(this.getClass())).findById(new DataVisualizationBaseRequest(dvId, busiFlag));
@@ -155,6 +160,11 @@ public class DataVisualizationServer implements DataVisualizationApi {
         Long dvId = request.getId();
         String busiFlag = request.getBusiFlag();
         DataVisualizationVO result = extDataVisualizationMapper.findDvInfo(dvId, busiFlag);
+        // get creator
+        String userName = coreUserManage.getUserName(Long.valueOf(result.getCreateBy()));
+        if (StringUtils.isNotBlank(userName)) {
+            result.setCreatorName(userName);
+        }
         if (result != null) {
             //获取图表信息
             List<ChartViewDTO> chartViewDTOS = chartViewManege.listBySceneId(dvId);
@@ -506,10 +516,54 @@ public class DataVisualizationServer implements DataVisualizationApi {
         coreVisualizationManage.delete(dvId);
     }
 
+    private void resourceTreeTypeAdaptor(List<BusiNodeVO> tree,String type){
+        if(!CollectionUtils.isEmpty(tree)){
+            tree.forEach(busiNodeVO -> {
+                busiNodeVO.setType(type);
+                resourceTreeTypeAdaptor(busiNodeVO.getChildren(),type);
+            });
+        }
+    }
 
     @Override
     public List<BusiNodeVO> tree(BusiNodeRequest request) {
-        return coreVisualizationManage.tree(request);
+        String busiFlag = request.getBusiFlag();
+        if (busiFlag.equals("dashboard-dataV")) {
+            BusiNodeRequest requestDv = new BusiNodeRequest();
+            BeanUtils.copyBean(requestDv, request);
+            requestDv.setBusiFlag("dashboard");
+            List<BusiNodeVO> dashboardResult = coreVisualizationManage.tree(requestDv);
+            requestDv.setBusiFlag("dataV");
+            List<BusiNodeVO> dataVResult = coreVisualizationManage.tree(requestDv);
+            List<BusiNodeVO> result = new ArrayList<>();
+            if (!CollectionUtils.isEmpty(dashboardResult)) {
+                resourceTreeTypeAdaptor(dashboardResult,"dashboard");
+                BusiNodeVO dashboardResultParent = new BusiNodeVO();
+                dashboardResultParent.setName(Translator.get("i18n_menu.panel"));
+                dashboardResultParent.setId(-101L);
+                if (dashboardResult.get(0).getId() == 0) {
+                    dashboardResultParent.setChildren(dashboardResult.get(0).getChildren());
+                } else {
+                    dashboardResultParent.setChildren(dashboardResult);
+                }
+                result.add(dashboardResultParent);
+            }
+            if (!CollectionUtils.isEmpty(dataVResult)) {
+                resourceTreeTypeAdaptor(dataVResult,"dataV");
+                BusiNodeVO dataVResultParent = new BusiNodeVO();
+                dataVResultParent.setName(Translator.get("i18n_menu.screen"));
+                dataVResultParent.setId(-102L);
+                if (dataVResult.get(0).getId() == 0) {
+                    dataVResultParent.setChildren(dataVResult.get(0).getChildren());
+                } else {
+                    dataVResultParent.setChildren(dataVResult);
+                }
+                result.add(dataVResultParent);
+            }
+            return result;
+        } else {
+            return coreVisualizationManage.tree(request);
+        }
     }
 
     @Override
@@ -530,9 +584,9 @@ public class DataVisualizationServer implements DataVisualizationApi {
         IPage<VisualizationResourceVO> result = coreVisualizationManage.query(1, 20, request);
         List<VisualizationResourceVO> resourceVOS = result.getRecords();
         if (!CollectionUtils.isEmpty(resourceVOS)) {
-            resourceVOS.stream().forEach(item -> {
-                item.setCreator(StringUtils.equals(item.getCreator(), "1") ? "管理员" : item.getCreator());
-                item.setLastEditor(StringUtils.equals(item.getLastEditor(), "1") ? "管理员" : item.getLastEditor());
+            resourceVOS.forEach(item -> {
+                item.setCreator(StringUtils.equals(item.getCreator(), "1") ? Translator.get("i18n_sys_admin") : item.getCreator());
+                item.setLastEditor(StringUtils.equals(item.getLastEditor(), "1") ? Translator.get("i18n_sys_admin") : item.getLastEditor());
             });
         }
         return result.getRecords();
@@ -785,6 +839,9 @@ public class DataVisualizationServer implements DataVisualizationApi {
         wrapper.eq("name", request.getName().trim());
         wrapper.eq("node_type", request.getNodeType());
         wrapper.eq("type", request.getType());
+        if (AuthUtils.getUser().getDefaultOid() != null) {
+            wrapper.eq("org_id", AuthUtils.getUser().getDefaultOid());
+        }
         if (visualizationInfoMapper.exists(wrapper)) {
             DEException.throwException("当前名称已经存在");
         }

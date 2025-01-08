@@ -189,9 +189,8 @@ public class DatasourceServer implements DatasourceApi {
             DEException.throwException(Translator.get("i18n_pid_not_eq_id"));
         }
         if (dataSourceDTO.getPid() != 0) {
-            List<Long> ids = new ArrayList<>();
-            getParents(dataSourceDTO.getPid(), ids);
-            if (ids.contains(dataSourceDTO.getId())) {
+            List<Long> pidList = dataSourceManage.getPidList(dataSourceDTO.getPid());
+            if (pidList.contains(dataSourceDTO.getId())) {
                 DEException.throwException(Translator.get("i18n_pid_not_eq_id"));
             }
         }
@@ -274,9 +273,7 @@ public class DatasourceServer implements DatasourceApi {
                     }
                 }
             }
-            commonThreadPool.addTask(() -> {
-                datasourceSyncManage.extractExcelData(coreDatasource, "all_scope");
-            });
+            datasourceSyncManage.extractExcelData(coreDatasource, "all_scope");
         } else if (dataSourceDTO.getType().equals(DatasourceConfiguration.DatasourceType.API.name())) {
             CoreDatasourceTask coreDatasourceTask = new CoreDatasourceTask();
             BeanUtils.copyBean(coreDatasourceTask, dataSourceDTO.getSyncSetting());
@@ -423,16 +420,13 @@ public class DatasourceServer implements DatasourceApi {
                         DEException.throwException("Failed to create table " + toCreateTable + ", " + e.getMessage());
                     }
                 }
-                commonThreadPool.addTask(() -> {
-                    datasourceSyncManage.extractExcelData(requestDatasource, "all_scope");
-                });
+                datasourceSyncManage.extractExcelData(requestDatasource, "all_scope");
                 dataSourceManage.checkName(dataSourceDTO);
                 ExcelUtils.mergeSheets(requestDatasource, sourceData);
                 dataSourceManage.innerEdit(requestDatasource);
             } else {
-                commonThreadPool.addTask(() -> {
-                    datasourceSyncManage.extractExcelData(requestDatasource, "add_scope");
-                });
+                datasourceSyncManage.extractExcelData(requestDatasource, "add_scope");
+                ExcelUtils.mergeSheets(requestDatasource, sourceData);
                 dataSourceManage.checkName(dataSourceDTO);
                 dataSourceManage.innerEdit(requestDatasource);
             }
@@ -490,7 +484,7 @@ public class DatasourceServer implements DatasourceApi {
     public DatasourceDTO getSimpleDs(Long datasourceId) throws DEException {
         CoreDatasource datasource = dataSourceManage.getCoreDatasource(datasourceId);
         if (datasource == null) {
-            DEException.throwException("不存在的数据源！");
+            DEException.throwException(Translator.get("i18n_datasource_not_exists"));
         }
         if (datasource.getType().equalsIgnoreCase("api")) {
             datasource.setConfiguration("[]");
@@ -517,7 +511,7 @@ public class DatasourceServer implements DatasourceApi {
     public String getName(Long datasourceId) throws DEException {
         CoreDatasource datasource = dataSourceManage.getCoreDatasource(datasourceId);
         if (datasource == null) {
-            DEException.throwException("不存在的数据源！");
+            DEException.throwException(Translator.get("i18n_datasource_not_exists"));
         }
         return datasource.getName();
     }
@@ -576,7 +570,7 @@ public class DatasourceServer implements DatasourceApi {
     }
 
     public void recursionDel(Long datasourceId) throws DEException {
-        CoreDatasource coreDatasource = dataSourceManage.getCoreDatasource(datasourceId);
+        CoreDatasource coreDatasource = dataSourceManage.getDatasource(datasourceId);
         if (ObjectUtils.isEmpty(coreDatasource)) {
             return;
         }
@@ -787,7 +781,7 @@ public class DatasourceServer implements DatasourceApi {
                 List<ExcelSheetData> excelSheetDataList = new ArrayList<>();
                 for (ExcelSheetData sheet : excelFileData.getSheets()) {
                     for (DatasetTableDTO datasetTableDTO : datasetTableDTOS) {
-                        if (excelDataTableName(datasetTableDTO.getTableName()).equals(sheet.getTableName()) || isCsv(file.getOriginalFilename())) {
+                        if (excelDataTableName(datasetTableDTO.getTableName()).equals(sheet.getTableName())){
                             List<TableField> newTableFields = sheet.getFields();
                             datasourceRequest.setTable(datasetTableDTO.getTableName());
                             List<TableField> oldTableFields = ExcelUtils.getTableFields(datasourceRequest);
@@ -797,9 +791,6 @@ public class DatasourceServer implements DatasourceApi {
                             }
                         }
                     }
-                }
-                if (CollectionUtils.isEmpty(excelSheetDataList) || excelSheetDataList.size() != datasetTableDTOS.size()) {
-                    DEException.throwException("上传文件与源文件不一致，请检查文件!");
                 }
                 excelFileData.setSheets(excelSheetDataList);
             }
@@ -811,7 +802,7 @@ public class DatasourceServer implements DatasourceApi {
                 List<DatasetTableDTO> datasetTableDTOS = ExcelUtils.getTables(datasourceRequest);
                 for (ExcelSheetData sheet : excelFileData.getSheets()) {
                     for (DatasetTableDTO datasetTableDTO : datasetTableDTOS) {
-                        if (excelDataTableName(datasetTableDTO.getTableName()).equals(sheet.getTableName()) || isCsv(file.getOriginalFilename())) {
+                        if (excelDataTableName(datasetTableDTO.getTableName()).equals(sheet.getTableName())){
                             sheet.setDeTableName(datasetTableDTO.getTableName());
                         }
                     }
@@ -884,10 +875,9 @@ public class DatasourceServer implements DatasourceApi {
     }
 
     public ApiDefinition checkApiDatasource(Map<String, String> request) throws DEException {
-
         ApiDefinition apiDefinition = JsonUtil.parseObject(new String(java.util.Base64.getDecoder().decode(request.get("data"))), ApiDefinition.class);
         List<ApiDefinition> paramsList = JsonUtil.parseList(new String(java.util.Base64.getDecoder().decode(request.get("paramsList"))), listTypeReference);
-        String response = ApiUtils.execHttpRequest(apiDefinition, apiDefinition.getApiQueryTimeout() == null || apiDefinition.getApiQueryTimeout() <= 0 ? 10 : apiDefinition.getApiQueryTimeout(), paramsList);
+        String response = ApiUtils.execHttpRequest(true, apiDefinition, apiDefinition.getApiQueryTimeout() == null || apiDefinition.getApiQueryTimeout() <= 0 ? 10 : apiDefinition.getApiQueryTimeout(), paramsList);
         if (request.keySet().contains("type") && request.get("type").equals("apiStructure")) {
             apiDefinition.setShowApiStructure(true);
         }
@@ -1074,13 +1064,6 @@ public class DatasourceServer implements DatasourceApi {
         return datasourceDTO;
     }
 
-    private void getParents(Long pid, List<Long> ids) {
-        CoreDatasource parent = dataSourceManage.getCoreDatasource(pid);// 查找父级folder
-        ids.add(parent.getId());
-        if (parent.getPid() != null && parent.getPid() != 0) {
-            getParents(parent.getPid(), ids);
-        }
-    }
 
     private void filterDs(List<BusiNodeVO> busiNodeVOS, List<Long> ids, String type, Long id) {
         for (BusiNodeVO busiNodeVO : busiNodeVOS) {
@@ -1132,7 +1115,7 @@ public class DatasourceServer implements DatasourceApi {
     private DatasourceDTO getDatasourceDTOById(Long datasourceId, boolean hidePw) throws DEException {
         CoreDatasource datasource = dataSourceManage.getCoreDatasource(datasourceId);
         if (datasource == null) {
-            DEException.throwException("不存在的数据源！");
+            DEException.throwException(Translator.get("i18n_datasource_not_exists"));
         }
         return convertCoreDatasource(datasourceId, hidePw, datasource);
     }

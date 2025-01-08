@@ -3,7 +3,10 @@ package io.dataease.api.permissions.login.api;
 
 import com.github.xiaoymin.knife4j.annotations.ApiOperationSupport;
 import com.github.xiaoymin.knife4j.annotations.ApiSupport;
+import io.dataease.api.permissions.login.dto.MfaLoginDTO;
 import io.dataease.api.permissions.login.dto.PwdLoginDTO;
+import io.dataease.api.permissions.login.vo.MfaQrVO;
+import io.dataease.api.permissions.user.dto.ModifyPwdRequest;
 import io.dataease.auth.vo.TokenVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -45,4 +48,13 @@ public interface LoginApi {
     @GetMapping("/logout")
     void logout();
 
+    @PostMapping("/mfa/qr/{id}")
+    MfaQrVO mfaQr(@PathVariable("id") Long id);
+
+    @PostMapping("/mfa/login")
+    TokenVO mfaLogin(@RequestBody MfaLoginDTO dto);
+
+    @Operation(summary = "修改无效密码", hidden = true)
+    @PostMapping("/login/modifyInvalidPwd")
+    void modifyInvalidPwd(@RequestBody ModifyPwdRequest request);
 }

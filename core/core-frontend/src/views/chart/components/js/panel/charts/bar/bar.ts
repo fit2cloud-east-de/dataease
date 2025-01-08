@@ -7,6 +7,7 @@ import {
 import {
   flow,
   hexColorToRGBA,
+  hexToRgba,
   parseJson,
   setUpGroupSeriesColor,
   setUpStackSeriesColor
@@ -27,7 +28,7 @@ import {
   TOOLTIP_TPL
 } from '@/views/chart/components/js/panel/common/common_antv'
 import { useI18n } from '@/hooks/web/useI18n'
-import { DEFAULT_LABEL } from '@/views/chart/components/editor/util/chart'
+import { DEFAULT_BASIC_STYLE, DEFAULT_LABEL } from '@/views/chart/components/editor/util/chart'
 import { clearExtremum, extremumEvt } from '@/views/chart/components/js/extremumUitl'
 import { Group } from '@antv/g-canvas'
 
@@ -187,6 +188,19 @@ export class Bar extends G2PlotChartView<ColumnOptions, Column> {
         columnStyle
       }
     }
+    let columnWidthRatio
+    const _v = basicStyle.columnWidthRatio ?? DEFAULT_BASIC_STYLE.columnWidthRatio
+    if (_v >= 1 && _v <= 100) {
+      columnWidthRatio = _v / 100.0
+    } else if (_v < 1) {
+      columnWidthRatio = 1 / 100.0
+    } else if (_v > 100) {
+      columnWidthRatio = 1
+    }
+    if (columnWidthRatio) {
+      options.columnWidthRatio = columnWidthRatio
+    }
+
     return options
   }
 
@@ -220,6 +234,7 @@ export class Bar extends G2PlotChartView<ColumnOptions, Column> {
 
   protected setupOptions(chart: Chart, options: ColumnOptions): ColumnOptions {
     return flow(
+      this.addConditionsStyleColorToData,
       this.configTheme,
       this.configEmptyDataStrategy,
       this.configColor,
@@ -230,7 +245,8 @@ export class Bar extends G2PlotChartView<ColumnOptions, Column> {
       this.configXAxis,
       this.configYAxis,
       this.configSlider,
-      this.configAnalyse
+      this.configAnalyse,
+      this.configBarConditions
     )(chart, options, {}, this)
   }
 
@@ -248,6 +264,7 @@ export class Bar extends G2PlotChartView<ColumnOptions, Column> {
  * 堆叠柱状图
  */
 export class StackBar extends Bar {
+  properties = BAR_EDITOR_PROPERTY.filter(ele => ele !== 'threshold')
   propertyInner = {
     ...this['propertyInner'],
     'label-selector': [
@@ -407,6 +424,7 @@ export class StackBar extends Bar {
  * 分组柱状图
  */
 export class GroupBar extends StackBar {
+  properties = BAR_EDITOR_PROPERTY
   propertyInner = {
     ...this['propertyInner'],
     'label-selector': [...BAR_EDITOR_PROPERTY_INNER['label-selector'], 'vPosition', 'showExtremum']
@@ -454,6 +472,7 @@ export class GroupBar extends StackBar {
 
   protected setupOptions(chart: Chart, options: ColumnOptions): ColumnOptions {
     return flow(
+      this.addConditionsStyleColorToData,
       this.configTheme,
       this.configEmptyDataStrategy,
       this.configColor,
@@ -464,7 +483,8 @@ export class GroupBar extends StackBar {
       this.configXAxis,
       this.configYAxis,
       this.configSlider,
-      this.configAnalyse
+      this.configAnalyse,
+      this.configBarConditions
     )(chart, options, {}, this)
   }
 

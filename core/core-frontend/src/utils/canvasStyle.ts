@@ -116,8 +116,20 @@ export function colorRgb(color, opacity) {
 }
 
 export const customAttrTrans = {
-  basicStyle: ['barWidth', 'lineWidth', 'lineSymbolSize', 'tableColumnWidth'],
-  tableHeader: ['tableTitleFontSize', 'tableTitleHeight'],
+  basicStyle: [
+    'barWidth',
+    'lineWidth',
+    'lineSymbolSize',
+    'leftLineWidth',
+    'leftLineSymbolSize',
+    'tableColumnWidth'
+  ],
+  tableHeader: [
+    'tableTitleFontSize',
+    'tableTitleColFontSize',
+    'tableTitleCornerFontSize',
+    'tableTitleHeight'
+  ],
   tableCell: ['tableItemFontSize', 'tableItemHeight'],
   misc: [
     'nameFontSize',
@@ -270,9 +282,11 @@ export const THEME_STYLE_TRANS_SLAVE1 = {
 }
 
 export const THEME_ATTR_TRANS_MAIN = {
-  label: ['color'],
-  tooltip: ['color'],
-  indicatorName: ['color']
+  label: {
+    color: 'color',
+    proportionSeriesFormatter: ['color']
+  },
+  tooltip: ['color']
 }
 
 export const THEME_ATTR_TRANS_MAIN_SYMBOL = {

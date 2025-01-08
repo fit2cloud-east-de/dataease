@@ -63,7 +63,7 @@
                       </span>
                     </div>
                   </span>
-                  <span>
+                  <span :title="data.sourceFieldName">
                     <span class="tree-select-field">
                       <el-icon style="margin-right: 4px">
                         <Icon
@@ -94,7 +94,7 @@
                     v-model="state.linkJumpInfo.linkType"
                   >
                     <el-radio label="outer">{{ t('visualization.link_outer') }}</el-radio>
-                    <el-radio label="inner">{{ resourceType }}</el-radio>
+                    <el-radio label="inner">{{ t('visualization.dashboard_dataV') }}</el-radio>
                   </el-radio-group>
                   <el-radio-group class="larger-radio" v-if="!state.linkJumpInfo" disabled>
                     <el-radio label="outer">{{ t('visualization.link_outer') }}</el-radio>
@@ -143,7 +143,13 @@
                       <div class="m-row">
                         <div style="flex: 1">
                           <el-form-item>
-                            <template #label> {{ curSource }} </template>
+                            <template #label>
+                              {{
+                                dvInfo.type === 'dashboard'
+                                  ? t('visualization.cur_dashboard')
+                                  : t('visualization.cur_screen')
+                              }}
+                            </template>
                             <el-select style="width: 100%" v-model="dvInfo.name" disabled>
                               <el-option
                                 :key="dvInfo.name"
@@ -181,8 +187,12 @@
                                     v-if="data.leaf"
                                   >
                                     <Icon name="dv-dashboard-spine"
-                                      ><dvDashboardSpine class="svg-icon"
-                                    /></Icon>
+                                      ><dvDashboardSpine
+                                        v-if="data.type === 'dashboard'"
+                                        class="svg-icon"
+                                      />
+                                      <dvScreenSpine v-else class="svg-icon"> </dvScreenSpine>
+                                    </Icon>
                                   </el-icon>
                                   <el-icon size="18px" style="display: inline-block" v-else>
                                     <Icon name="dv-folder"><dvFolder class="svg-icon" /></Icon>
@@ -219,7 +229,13 @@
                             </el-col>
                             <el-col :span="8"></el-col>
                           </el-row>
-                          <div class="main-scrollbar-container">
+                          <div
+                            class="main-scrollbar-container"
+                            :class="{
+                              'main-scrollbar-container-min':
+                                state.linkJumpInfo?.jumpType === 'newPop'
+                            }"
+                          >
                             <el-scrollbar height="fit-content" max-height="178px">
                               <div
                                 style="display: flex; margin-bottom: 6px"
@@ -368,7 +384,7 @@
                             >
                           </template>
                           <template v-else-if="state.linkJumpCurFilterFieldArray.length === 0">
-                            <span>当前图表无绑定的查询条件</span>
+                            <span>{{ t('visualization.jump_no_banding_tips') }}</span>
                           </template>
                           <template v-else-if="state.currentOutParams.length > 0">
                             <el-row style="margin-bottom: 8px" :gutter="8">
@@ -378,7 +394,13 @@
                                 {{ t('visualization.link_outer_params') }}
                               </el-col>
                             </el-row>
-                            <div class="main-scrollbar-container">
+                            <div
+                              class="main-scrollbar-container"
+                              :class="{
+                                'main-scrollbar-container-min':
+                                  state.linkJumpInfo?.jumpType === 'newPop'
+                              }"
+                            >
                               <el-scrollbar height="fit-content" max-height="178px">
                                 <div
                                   style="display: flex; margin-bottom: 6px"
@@ -600,6 +622,7 @@ import dvDashboardSpine from '@/assets/svg/dv-dashboard-spine.svg'
 import dvFolder from '@/assets/svg/dv-folder.svg'
 import icon_deleteTrash_outlined from '@/assets/svg/icon_delete-trash_outlined.svg'
 import icon_info_outlined from '@/assets/svg/icon_info_outlined.svg'
+import dvScreenSpine from '@/assets/svg/dv-screen-spine.svg'
 import {
   queryVisualizationJumpInfo,
   queryWithViewId,
@@ -610,7 +633,7 @@ import { reactive, ref, nextTick, computed, watch } from 'vue'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { fieldType } from '@/utils/attr'
 import { storeToRefs } from 'pinia'
-import { queryTreeApi } from '@/api/visualization/dataVisualization'
+import { findDvType, queryTreeApi } from '@/api/visualization/dataVisualization'
 import { ElMessage, ElScrollbar } from 'element-plus-secondary'
 import { useI18n } from '@/hooks/web/useI18n'
 import { getDatasetDetails, listFieldByDatasetGroup } from '@/api/dataset'
@@ -640,15 +663,9 @@ const resourceType = computed(() =>
   dvInfo.value.type === 'dashboard' ? t('work_branch.dashboard') : t('work_branch.big_data_screen')
 )
 
-const selectSourceTips =
-  dvInfo.type === 'dashboard'
-    ? t('visualization.select_target_dashboard_tips')
-    : t('visualization.select_target_screen_tips')
+const selectSourceTips = t('visualization.select_target_resource')
 
-const targetSource =
-  dvInfo.value.type === 'dashboard'
-    ? t('visualization.target_dashboard')
-    : t('visualization.target_screen')
+const targetSource = t('visualization.target_dashboard_dataV')
 
 const curSource =
   dvInfo.value.type === 'dashboard'
@@ -760,7 +777,7 @@ const init = viewItem => {
   } else {
     checkJumpStr = checkAllAxisStr
   }
-  const request = { busiFlag: dvInfo.value.type } as BusiTreeRequest
+  const request = { busiFlag: 'dashboard-dataV' } as BusiTreeRequest
   // 获取可关联的仪表板
   queryTreeApi(request).then(rsp => {
     if (rsp && rsp[0]?.id === '0') {
@@ -855,7 +872,7 @@ const save = () => {
         }
       }
       if (subCheckCount > 0) {
-        ElMessage.error('字段【' + linkJumpInfo.sourceFieldName + '】存在空配置，请先完善配置！')
+        ElMessage.error(t('visualization.jump_null_tips', [linkJumpInfo.sourceFieldName]))
       }
     }
   })
@@ -865,8 +882,8 @@ const save = () => {
   state.loading = true
   updateJumpSet(state.linkJump)
     .then(() => {
-      snapshotStore.recordSnapshotCache()
-      ElMessage.success('保存成功')
+      snapshotStore.recordSnapshotCache('updateJumpSet')
+      ElMessage.success(t('common.save_success'))
       // 刷新跳转信息
       queryVisualizationJumpInfo(dvInfo.value.id).then(rsp => {
         dvMainStore.setNowPanelJumpInfo(rsp.data)
@@ -880,6 +897,9 @@ const save = () => {
 }
 const nodeClick = data => {
   state.linkJumpInfo = state.mapJumpInfoArray[data.sourceFieldId]
+  if (!state.linkJumpInfo.windowSize) {
+    state.linkJumpInfo.windowSize = 'middle'
+  }
   if (!state.linkJumpInfo.linkType) {
     state.linkJumpInfo.linkType = 'outer'
   }
@@ -1021,12 +1041,16 @@ const filterNodeMethod = (value, data) => {
 const isEmbedded = computed(() => appStore.getIsDataEaseBi || appStore.getIsIframe)
 const openType = '_blank'
 
-const resourceEdit = resourceId => {
+const resourceEdit = async resourceId => {
   if (state.curDataVWeight && state.curDataVWeight < 7) {
     ElMessage.error(t('visualization.no_edit_auth'))
     return
   }
-  const baseUrl = dvInfo.value.type === 'dataV' ? '#/dvCanvas?dvId=' : '#/dashboard?resourceId='
+  let busiFlagResult
+  await findDvType(resourceId).then(res => {
+    busiFlagResult = res.data
+  })
+  const baseUrl = busiFlagResult === 'dataV' ? '#/dvCanvas?dvId=' : '#/dashboard?resourceId='
   if (isEmbedded.value) {
     embeddedStore.clearState()
     if (dvInfo.value.type === 'dataV') {
@@ -1373,6 +1397,13 @@ span {
   }
 }
 
+.main-scrollbar-container-min {
+  :deep(.ed-scrollbar) {
+    height: fit-content;
+    max-height: 138px !important;
+  }
+}
+
 .top-area-value {
   font-weight: 400;
   font-size: 14px;
@@ -1477,6 +1508,7 @@ span {
   font-size: 14px;
   display: flex;
   align-items: center;
+  overflow: hidden;
 }
 
 .label-content-details {

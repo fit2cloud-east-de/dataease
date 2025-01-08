@@ -18,7 +18,6 @@
             <artifactId>guava</artifactId>
             <version>${guava.version}</version>
         </dependency>
-
         <dependency>
             <groupId>io.dataease</groupId>
             <artifactId>api-base</artifactId>

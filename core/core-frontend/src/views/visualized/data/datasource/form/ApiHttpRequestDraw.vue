@@ -109,6 +109,7 @@ const columns = shallowRef([])
 const valueList = shallowRef([])
 const tableData = shallowRef([])
 const apiItemBasicInfo = ref<FormInstance>()
+const isSupportSetKey = ref(false)
 const isNumber = (rule, value, callback) => {
   if (!value) {
     callback(new Error(t('datasource.please_input_query_timeout')))
@@ -167,9 +168,10 @@ const editItem = ref(false)
 const copyItem = ref(false)
 const copyDs = ref(false)
 provide('api-active-name', activeName)
-const initApiItem = (val: ApiItem, from, name, edit) => {
+const initApiItem = (val: ApiItem, from, name, edit, supportSetKey) => {
   copyItem.value = val.copy
   copyDs.value = from.copy
+  isSupportSetKey.value = supportSetKey
   activeName.value = name
   editItem.value = edit
   apiItemList = from.apiConfiguration
@@ -627,7 +629,7 @@ defineExpose({
             <span>{{ t('datasource.req_param') }}</span>
           </div>
           <!-- HTTP 请求参数 -->
-          <el-form-item>
+          <el-form-item class="line-height_18">
             <api-http-request-form
               v-if="edit_api_item"
               :request="apiItem.request"
@@ -718,7 +720,6 @@ defineExpose({
               class-name="checkbox-table"
               prop="originName"
               :label="t('datasource.parse_filed')"
-              :show-overflow-tooltip="true"
               width="200"
             >
               <template #default="scope">
@@ -728,7 +729,12 @@ defineExpose({
                   :disabled="apiItem.useJsonPath"
                   @change="handleCheckAllChange(scope.row)"
                 >
-                  {{ scope.row.originName }}
+                  <span
+                    :title="scope.row.originName"
+                    class="ellipsis"
+                    style="display: inline-block; max-width: 80px"
+                    >{{ scope.row.originName }}</span
+                  >
                 </el-checkbox>
               </template>
             </el-table-column>
@@ -817,7 +823,7 @@ defineExpose({
               prop="primaryKey"
               class-name="checkbox-table"
               :label="t('datasource.set_key')"
-              v-if="apiItem.type !== 'params'"
+              v-if="apiItem.type !== 'params' && isSupportSetKey"
               width="100"
             >
               <template #default="scope">
@@ -975,6 +981,12 @@ defineExpose({
 
   .base-info {
     margin: 24px 0 16px 0;
+  }
+
+  .line-height_18 {
+    .ed-form-item__content {
+      line-height: 18px;
+    }
   }
 
   .request-info {

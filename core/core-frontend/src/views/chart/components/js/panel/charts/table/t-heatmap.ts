@@ -67,12 +67,12 @@ export class TableHeatmap extends G2PlotChartView<HeatmapOptions, Heatmap> {
   axis: AxisType[] = ['xAxis', 'xAxisExt', 'extColor', 'filter']
   axisConfig: AxisConfig = {
     xAxis: {
-      name: `横轴 / ${t('chart.dimension')}`,
+      name: `${t('chart.x_axis')} / ${t('chart.dimension')}`,
       type: 'd',
       limit: 1
     },
     xAxisExt: {
-      name: `纵轴 / ${t('chart.dimension')}`,
+      name: `${t('chart.y_axis')} / ${t('chart.dimension')}`,
       type: 'd',
       limit: 1
     },
@@ -263,7 +263,7 @@ export class TableHeatmap extends G2PlotChartView<HeatmapOptions, Heatmap> {
   }
 
   protected configXAxis(chart: Chart, options: HeatmapOptions): HeatmapOptions {
-    const xAxis = getXAxis(chart, options)
+    const xAxis = getXAxis(chart)
     return {
       ...options,
       xAxis: xAxis ? { ...xAxis, grid: null } : false
@@ -312,7 +312,7 @@ export class TableHeatmap extends G2PlotChartView<HeatmapOptions, Heatmap> {
     chart.customStyle.legend.orient = 'vertical'
     chart.customStyle.legend.vPosition = 'center'
     chart.customStyle.legend.hPosition = 'right'
-    chart.customStyle.legend.rail = { defaultLength: 100 }
+    chart.customStyle.legend['rail'] = { defaultLength: 100 }
     return chart
   }
 

@@ -22,6 +22,7 @@ import { useI18n } from '@/hooks/web/useI18n'
 import { isNumber, keys, maxBy, merge, minBy, some, isEmpty, get } from 'lodash-es'
 import { copyContent, CustomDataCell } from '../../common/common_table'
 import Decimal from 'decimal.js'
+import { DEFAULT_TABLE_HEADER } from '@/views/chart/components/editor/util/chart'
 
 type DataItem = Record<string, any>
 
@@ -174,7 +175,9 @@ export class TablePivot extends S2ChartView<PivotSheet> {
 
     // total config
     const { basicStyle, tooltip, tableTotal } = parseJson(chart.customAttr)
-    tableTotal.row.subTotalsDimensions = r
+    if (!tableTotal.row.subTotalsDimensionsNew || tableTotal.row.subTotalsDimensions == undefined) {
+      tableTotal.row.subTotalsDimensions = r
+    }
     tableTotal.col.subTotalsDimensions = c
 
     // 解析合计、小计排序
@@ -372,48 +375,96 @@ export class TablePivot extends S2ChartView<PivotSheet> {
     if (!isAlphaColor(tableHeaderBgColor)) {
       tableHeaderBgColor = hexColorToRGBA(tableHeaderBgColor, basicStyle.alpha)
     }
+    let tableHeaderCornerBgColor =
+      tableHeader.tableHeaderCornerBgColor ?? DEFAULT_TABLE_HEADER.tableHeaderCornerBgColor
+    if (!isAlphaColor(tableHeaderCornerBgColor)) {
+      tableHeaderCornerBgColor = hexColorToRGBA(tableHeaderCornerBgColor, basicStyle.alpha)
+    }
+    let tableHeaderColBgColor =
+      tableHeader.tableHeaderColBgColor ?? DEFAULT_TABLE_HEADER.tableHeaderColBgColor
+    if (!isAlphaColor(tableHeaderColBgColor)) {
+      tableHeaderColBgColor = hexColorToRGBA(tableHeaderColBgColor, basicStyle.alpha)
+    }
     let tableBorderColor = basicStyle.tableBorderColor
     if (!isAlphaColor(tableBorderColor)) {
       tableBorderColor = hexColorToRGBA(tableBorderColor, basicStyle.alpha)
     }
     const tableHeaderFontColor = hexColorToRGBA(tableHeader.tableHeaderFontColor, basicStyle.alpha)
+    const tableHeaderColFontColor = hexColorToRGBA(
+      tableHeader.tableHeaderColFontColor,
+      basicStyle.alpha
+    )
+    const tableHeaderCornerFontColor = hexColorToRGBA(
+      tableHeader.tableHeaderCornerFontColor,
+      basicStyle.alpha
+    )
     const fontStyle = tableHeader.isItalic ? 'italic' : 'normal'
+    const colFontStyle = tableHeader.isColItalic ? 'italic' : 'normal'
+    const cornerFontStyle = tableHeader.isCornerItalic ? 'italic' : 'normal'
     const fontWeight = tableHeader.isBolder === false ? 'normal' : 'bold'
+    const colFontWeight = tableHeader.isColBolder === false ? 'normal' : 'bold'
+    const cornerFontWeight = tableHeader.isCornerBolder === false ? 'normal' : 'bold'
     const pivotTheme = {
       rowCell: {
         cell: {
-          backgroundColor: tableHeaderBgColor,
+          backgroundColor: tableHeaderColBgColor,
           horizontalBorderColor: tableBorderColor,
           verticalBorderColor: tableBorderColor
         },
         text: {
-          fill: tableHeaderFontColor,
-          fontSize: tableHeader.tableTitleFontSize,
-          textAlign: tableHeader.tableHeaderAlign,
+          fill: tableHeaderColFontColor,
+          fontSize: tableHeader.tableTitleColFontSize,
+          textAlign: tableHeader.tableHeaderColAlign,
           textBaseline: 'top',
-          fontStyle,
-          fontWeight
+          fontStyle: colFontStyle,
+          fontWeight: colFontWeight
         },
         bolderText: {
-          fill: tableHeaderFontColor,
-          fontSize: tableHeader.tableTitleFontSize,
-          textAlign: tableHeader.tableHeaderAlign,
-          fontStyle,
-          fontWeight
+          fill: tableHeaderColFontColor,
+          fontSize: tableHeader.tableTitleColFontSize,
+          textAlign: tableHeader.tableHeaderColAlign,
+          fontStyle: colFontStyle,
+          fontWeight: colFontWeight
         },
         measureText: {
-          fill: tableHeaderFontColor,
-          fontSize: tableHeader.tableTitleFontSize,
-          textAlign: tableHeader.tableHeaderAlign,
-          fontStyle,
-          fontWeight
+          fill: tableHeaderColFontColor,
+          fontSize: tableHeader.tableTitleColFontSize,
+          textAlign: tableHeader.tableHeaderColAlign,
+          fontStyle: colFontStyle,
+          fontWeight: colFontWeight
         },
         seriesText: {
-          fill: tableHeaderFontColor,
-          fontSize: tableHeader.tableTitleFontSize,
-          textAlign: tableHeader.tableHeaderAlign,
-          fontStyle,
-          fontWeight
+          fill: tableHeaderColFontColor,
+          fontSize: tableHeader.tableTitleColFontSize,
+          textAlign: tableHeader.tableHeaderColAlign,
+          fontStyle: colFontStyle,
+          fontWeight: colFontWeight
+        }
+      },
+      cornerCell: {
+        cell: {
+          backgroundColor: tableHeaderCornerBgColor
+        },
+        text: {
+          fill: tableHeaderCornerFontColor,
+          fontSize: tableHeader.tableTitleCornerFontSize,
+          textAlign: tableHeader.tableHeaderCornerAlign,
+          fontStyle: cornerFontStyle,
+          fontWeight: cornerFontWeight
+        },
+        bolderText: {
+          fill: tableHeaderCornerFontColor,
+          fontSize: tableHeader.tableTitleCornerFontSize,
+          textAlign: tableHeader.tableHeaderCornerAlign,
+          fontStyle: cornerFontStyle,
+          fontWeight: cornerFontWeight
+        },
+        measureText: {
+          fill: tableHeaderCornerFontColor,
+          fontSize: tableHeader.tableTitleCornerFontSize,
+          textAlign: tableHeader.tableHeaderCornerAlign,
+          fontStyle: cornerFontStyle,
+          fontWeight: cornerFontWeight
         }
       }
     }
@@ -511,7 +562,7 @@ function customCalcFunc(query, data, status, chart, totalCfgMap, axisMap, custom
   }
 }
 
-function getCustomCalcResult(query, axisMap, chart: ChartObj, status: TotalStatus, customCalc) {
+function getTreeCustomCalcResult(query, axisMap, status: TotalStatus, customCalc) {
   const quotaField = query[EXTRA_FIELD]
   const { row, col } = axisMap
   // 行列交叉总计
@@ -521,26 +572,18 @@ function getCustomCalcResult(query, axisMap, chart: ChartObj, status: TotalStatu
   // 列总计
   if (status.isColTotal && !status.isRowSubTotal) {
     const { colTotal, rowSubInColTotal } = customCalc
-    const { tableLayoutMode } = chart.customAttr.basicStyle
     const path = getTreePath(query, row)
     let val
     if (path.length) {
-      if (tableLayoutMode === 'grid' && colTotal) {
+      const subLevel = getSubLevel(query, row)
+      if (subLevel + 1 === row.length && colTotal) {
         path.push(quotaField)
         val = get(colTotal.data, path)
       }
-      // 树形模式的行小计放在列总计里面
-      if (tableLayoutMode === 'tree') {
-        const subLevel = getSubLevel(query, row)
-        if (subLevel + 1 === row.length && colTotal) {
-          path.push(quotaField)
-          val = get(colTotal.data, path)
-        }
-        if (subLevel + 1 < row.length && rowSubInColTotal) {
-          const data = rowSubInColTotal?.[subLevel]?.data
-          path.push(quotaField)
-          val = get(data, path)
-        }
+      if (subLevel + 1 < row.length && rowSubInColTotal) {
+        const data = rowSubInColTotal?.[subLevel]?.data
+        path.push(quotaField)
+        val = get(data, path)
       }
     }
     return val
@@ -565,13 +608,133 @@ function getCustomCalcResult(query, axisMap, chart: ChartObj, status: TotalStatu
     const { rowTotal } = customCalc
     const path = getTreePath(query, col)
     let val
-    if (path.length && rowTotal) {
-      path.push(quotaField)
-      val = get(rowTotal.data, path)
+    if (rowTotal) {
+      if (path.length) {
+        path.push(quotaField)
+        val = get(rowTotal.data, path)
+      }
+      // 列维度为空，行维度不为空
+      if (!col.length && row.length) {
+        val = get(rowTotal.data, quotaField)
+      }
     }
-    // 列维度为空，行维度不为空
-    if (!col.length && row.length) {
-      val = get(rowTotal.data, quotaField)
+    return val
+  }
+  // 行小计
+  if (status.isRowSubTotal) {
+    // 列维度为空，行小计直接当成列总计
+    if (
+      (!status.isColTotal && !status.isColSubTotal) ||
+      (!col.length && status.isColTotal && status.isRowSubTotal)
+    ) {
+      const { rowSubTotal } = customCalc
+      const rowLevel = getSubLevel(query, row)
+      const colPath = getTreePath(query, col)
+      const rowPath = getTreePath(query, row)
+      const path = [...colPath, ...rowPath]
+      const data = rowSubTotal?.[rowLevel]?.data
+      let val
+      if (path.length && rowSubTotal) {
+        path.push(quotaField)
+        val = get(data, path)
+      }
+      return val
+    }
+  }
+  // 行总计里面的列小计
+  if (status.isRowTotal && status.isColSubTotal) {
+    const { colSubInRowTotal } = customCalc
+    const colLevel = getSubLevel(query, col)
+    const { data } = colSubInRowTotal?.[colLevel]
+    const colPath = getTreePath(query, col)
+    let val
+    if (colPath.length && colSubInRowTotal) {
+      colPath.push(quotaField)
+      val = get(data, colPath)
+    }
+    return val
+  }
+  // 列总计里面的行小计
+  if (status.isColTotal && status.isRowSubTotal) {
+    const { rowSubInColTotal } = customCalc
+    const rowSubLevel = getSubLevel(query, row)
+    const data = rowSubInColTotal?.[rowSubLevel]?.data
+    const path = getTreePath(query, row)
+    let val
+    if (path.length && rowSubInColTotal) {
+      path.push(quotaField)
+      val = get(data, path)
+    }
+    return val
+  }
+  // 列小计里面的行小计
+  if (status.isColSubTotal && status.isRowSubTotal) {
+    const { rowSubInColSub } = customCalc
+    const rowSubLevel = getSubLevel(query, row)
+    const colSubLevel = getSubLevel(query, col)
+    const data = rowSubInColSub?.[rowSubLevel]?.[colSubLevel]?.data
+    const rowPath = getTreePath(query, row)
+    const colPath = getTreePath(query, col)
+    const path = [...rowPath, ...colPath]
+    let val
+    if (path.length && rowSubInColSub) {
+      path.push(quotaField)
+      val = get(data, path)
+    }
+    return val
+  }
+  return NaN
+}
+
+function getGridCustomCalcResult(query, axisMap, status: TotalStatus, customCalc) {
+  const quotaField = query[EXTRA_FIELD]
+  const { row, col } = axisMap
+  // 行列交叉总计
+  if (status.isRowTotal && status.isColTotal) {
+    return customCalc.rowColTotal?.data?.[quotaField]
+  }
+  // 列总计
+  if (status.isColTotal && !status.isRowSubTotal) {
+    const { colTotal } = customCalc
+    const path = getTreePath(query, row)
+    let val
+    if (path.length) {
+      if (colTotal) {
+        path.push(quotaField)
+        val = get(colTotal.data, path)
+      }
+    }
+    return val
+  }
+  // 列小计
+  if (status.isColSubTotal && !status.isRowTotal && !status.isRowSubTotal) {
+    const { colSubTotal } = customCalc
+    const subLevel = getSubLevel(query, col)
+    const rowPath = getTreePath(query, row)
+    const colPath = getTreePath(query, col)
+    const path = [...rowPath, ...colPath]
+    const data = colSubTotal?.[subLevel]?.data
+    let val
+    if (path.length && data) {
+      path.push(quotaField)
+      val = get(data, path)
+    }
+    return val
+  }
+  // 行总计
+  if (status.isRowTotal && !status.isColSubTotal) {
+    const { rowTotal } = customCalc
+    const path = getTreePath(query, col)
+    let val
+    if (rowTotal) {
+      if (path.length) {
+        path.push(quotaField)
+        val = get(rowTotal.data, path)
+      }
+      // 列维度为空，行维度不为空
+      if (!col.length && row.length) {
+        val = get(rowTotal.data, quotaField)
+      }
     }
     return val
   }
@@ -632,6 +795,13 @@ function getCustomCalcResult(query, axisMap, chart: ChartObj, status: TotalStatu
     }
     return val
   }
+}
+function getCustomCalcResult(query, axisMap, chart: ChartObj, status: TotalStatus, customCalc) {
+  const { tableLayoutMode } = chart.customAttr.basicStyle
+  if (tableLayoutMode === 'tree') {
+    return getTreeCustomCalcResult(query, axisMap, status, customCalc)
+  }
+  return getGridCustomCalcResult(query, axisMap, status, customCalc)
 }
 
 function getSubLevel(query, axis) {

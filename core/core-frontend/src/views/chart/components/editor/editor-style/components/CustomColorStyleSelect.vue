@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import icon_admin_outlined from '@/assets/svg/icon_admin_outlined.svg'
 import { ElColorPicker, ElPopover } from 'element-plus-secondary'
-import { computed, nextTick, onMounted, reactive, ref, toRefs, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
 import { COLOR_CASES, COLOR_PANEL } from '@/views/chart/components/editor/util/chart'
 import GradientColorSelector from '@/views/chart/components/editor/editor-style/components/GradientColorSelector.vue'
@@ -372,6 +372,7 @@ const colorItemBorderColor = (index, state) => {
                 class="select-color-item"
                 :class="{ active: state.basicStyleForm[colorSchemeName] === option.value }"
                 @click="selectColorCase(option)"
+                :title="option.name"
               >
                 <div style="float: left">
                   <span
@@ -490,11 +491,8 @@ const colorItemBorderColor = (index, state) => {
             ></div>
           </div>
           <div :id="`series-color-picker-${sub ? 1 : 0}-${index}`"></div>
-          <span
-            :title="item.name"
-            class="color-item-name"
-            :class="themes === 'dark' ? 'dark' : ''"
-            >{{ item.name }}</span
+          <span class="color-item-name" :class="themes === 'dark' ? 'dark' : ''">
+            {{ item.name }}</span
           >
         </div>
       </div>
@@ -650,7 +648,7 @@ const colorItemBorderColor = (index, state) => {
       justify-content: start;
       align-items: flex-start;
       .color-item-name {
-        max-width: 120px;
+        max-width: 30px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -725,6 +723,10 @@ const colorItemBorderColor = (index, state) => {
 
   .cases-list__text {
     margin-left: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 30px;
   }
 }
 .series-color-picker-wrapper {

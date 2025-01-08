@@ -31,6 +31,7 @@ const change = () => {
   <el-form label-position="top">
     <el-form-item class="api-auth-config" :label="t('datasource.verification_method')">
       <el-select
+        style="width: 100%"
         v-model="request.authManager.verification"
         @change="change"
         :placeholder="t('datasource.verification_method')"

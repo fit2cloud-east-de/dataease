@@ -1,16 +1,13 @@
 <script lang="tsx" setup>
-import { computed, inject, onMounted, PropType, reactive, ref, watch } from 'vue'
+import { computed, onMounted, PropType, reactive, ref, watch } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
 import { COLOR_PANEL, DEFAULT_QUADRANT_STYLE } from '@/views/chart/components/editor/util/chart'
 import { useEmitt } from '@/hooks/web/useEmitt'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
-import { storeToRefs } from 'pinia'
-import { deepCopy } from '@/utils/utils'
 useEmitt({
   name: 'quadrant-default-baseline',
   callback: args => quadrantDefaultBaseline(args)
 })
-const quotaData = ref<Axis[]>(inject('quotaData'))
 const { t } = useI18n()
 const dvMainStore = dvMainStoreWithOut()
 const props = defineProps({
@@ -144,11 +141,12 @@ onMounted(() => {
   >
     <template v-if="showProperty('lineStyle')">
       <div style="display: flex">
-        <el-form-item
-          :label="t('chart.split_line')"
-          class="form-item"
-          :class="'form-item-' + themes"
-        >
+        <el-form-item class="form-item" :class="'form-item-' + themes">
+          <template #label>
+            <span style="width: 50px; text-overflow: ellipsis; white-space: nowrap">
+              {{ t('chart.split_line') }}
+            </span>
+          </template>
           <el-color-picker
             v-model="state.quadrantForm.lineStyle.stroke"
             class="color-picker-style"
@@ -194,7 +192,11 @@ onMounted(() => {
         </el-form-item>
       </div>
       <div style="display: flex">
-        <el-form-item class="form-item" label="X 轴恒线" :class="'form-item-' + themes">
+        <el-form-item
+          class="form-item"
+          :label="t('chart.x_axis_constant_line')"
+          :class="'form-item-' + themes"
+        >
           <el-input-number
             controls-position="right"
             style="width: 100%"
@@ -208,7 +210,7 @@ onMounted(() => {
         </el-form-item>
         <el-form-item
           class="form-item"
-          label="Y 轴恒线"
+          :label="t('chart.y_axis_constant_line')"
           :class="'form-item-' + themes"
           style="padding-left: 4px"
         >
