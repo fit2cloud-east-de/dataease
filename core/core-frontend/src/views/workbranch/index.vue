@@ -532,6 +532,7 @@ loadShareBase()
           color: #646a73;
           font-weight: 400;
           line-height: 22px;
+          font-size: 14px;
         }
         .num {
           margin-top: 4px;

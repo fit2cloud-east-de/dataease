@@ -10,6 +10,8 @@ export default {
       dateRange: 'Date Range Picker',
       add_component_hint: 'Click or drag the component on the left to add a field'
     },
+    openMobileTerminal: 'Open mobile terminal',
+    watermarkManagement: 'Watermark Management',
     inputText: 'Please enter',
     selectText: 'Please select',
     add: 'Add',
@@ -18,9 +20,9 @@ export default {
     phone: 'Phone',
     pwd: 'Password',
     require: 'Required',
-    personal_info: 'Personal info',
+    personal_info: 'Personal Info',
     about: 'About',
-    exit_system: 'Exit system',
+    exit_system: 'Log Out',
     letter_start: 'Must start with a letter',
     required: 'Required',
     operate: 'Operation',
@@ -114,6 +116,7 @@ export default {
     client: 'Client'
   },
   data_set: {
+    validation_succeeded: 'Field expression validation succeeded',
     to_nth_digits: 'Retain the Mth to Nth digits',
     the_column_permissions: 'Are you sure you want to delete column permissions?',
     last_n_digits: 'Retain the first M digits and the last N digits',
@@ -691,7 +694,7 @@ export default {
     label_color: 'Label color',
     input_box_style: 'Input box style',
     overall_refresh: 'Overall refresh',
-    previews_take_effect: 'Only public links and new Tab previews take effect',
+    previews_take_effect: 'Only public links take effect',
     jump_icon_color: 'Link, drill, jump icon color',
     level_display_color: 'Drill level display color',
     a_new_theme: 'Create a new theme',
@@ -701,7 +704,7 @@ export default {
     to_delete_: 'Are you sure you want to delete [{0}]?'
   },
   user: {
-    change_password: 'Change password',
+    change_password: 'Change Password',
     select_users: 'Please select a user',
     account: 'Account',
     name: 'Name',
@@ -876,7 +879,7 @@ export default {
     panel: 'Dashboard',
     screen: 'Data screen',
     dataset: 'Dataset',
-    datasource: 'Datasource',
+    datasource: 'Data source',
     all_types: 'All types',
     empty_desc: 'Please select user/role and resource type',
     row_column: 'Row and column permission settings',
@@ -1569,11 +1572,11 @@ export default {
     change_chart_type: 'Change type',
     chart_type_table: 'Table',
     chart_type_quota: 'Indicator',
-    chart_type_trend: 'Line/surface chart',
-    chart_type_compare: 'Column/bar chart',
-    chart_type_distribute: 'Distribution chart',
-    chart_type_relation: 'Relationship chart',
-    chart_type_dual_axes: 'Dual axis chart',
+    chart_type_trend: 'Line/surface ',
+    chart_type_compare: 'Column/bar ',
+    chart_type_distribute: 'Distribution ',
+    chart_type_relation: 'Relationship ',
+    chart_type_dual_axes: 'Dual axis ',
     chart_type_space: 'Map',
     preview: 'Previous step',
     next: 'Next',
@@ -2291,7 +2294,8 @@ Scatter chart (bubble) chart: {a} (series name), {b} (data name), {c} (value arr
     },
     batch_manage: 'Batch management',
     origin_name: 'Physical field name',
-    origin_type: 'Physical field type'
+    origin_type: 'Physical field type',
+    field_diff: 'The selected field types are inconsistent and do not support conversion'
   },
   deDataset: {
     search_by_name: 'Search by name',
@@ -2426,7 +2430,7 @@ Scatter chart (bubble) chart: {a} (series name), {b} (data name), {c} (value arr
     consanguinity: 'Blood relationship',
     collapse_navigation: 'Collapse navigation',
     operate_cancelled: 'Operation canceled',
-    bind: 'Bind',
+    bind: 'Bind ',
     unbind: 'Unbind',
     unlock: 'Unlock',
     unlock_success: 'Unlock successfully',
@@ -2503,7 +2507,7 @@ Scatter chart (bubble) chart: {a} (series name), {b} (data name), {c} (value arr
     confirm: 'Confirm',
     cancel: 'Cancel',
     prompt: 'Prompt',
-    operating: 'Operation',
+    operating: 'Action',
     input_limit: 'Length is {0} to {1} characters',
     login: 'Login',
     welcome: 'One-stop open source data analysis platform',
@@ -2521,7 +2525,7 @@ Scatter chart (bubble) chart: {a} (series name), {b} (data name), {c} (value arr
     mobile_phone: 'Please enter your mobile number',
     mobile_phone_number: 'Mobile number',
     role: 'Role',
-    personal_info: 'Personal info',
+    personal_info: 'Personal Info',
     user_center: 'User Center',
     api_keys: 'API Keys',
     quota: 'Quota Management',
@@ -2533,7 +2537,7 @@ Scatter chart (bubble) chart: {a} (series name), {b} (data name), {c} (value arr
     system: 'System',
     personal_setting: 'Personal settings',
     test_resource_pool: 'Test resource pool',
-    system_setting: 'System settings',
+    system_setting: 'System Settings',
     input_content: 'Please enter content',
     create: 'Create',
     edit: 'Edit',
@@ -2545,8 +2549,8 @@ Scatter chart (bubble) chart: {a} (series name), {b} (data name), {c} (value arr
     not_filled: 'Not filled',
     please_select: 'Please select ',
     search_by_name: 'Search by name',
-    personal_information: 'Personal info',
-    exit_system: 'Exit system',
+    personal_information: 'Personal Info',
+    exit_system: 'Exit System',
     verification: 'Verification',
     title: 'Title',
     custom: 'Custom',
@@ -2804,6 +2808,9 @@ Scatter chart (bubble) chart: {a} (series name), {b} (data name), {c} (value arr
     column_name: 'Field name'
   },
   visualization: {
+    dashboard_adaptor: 'Zoom Mode',
+    scale_keep_height_and_width: 'Canvas Ratio',
+    scale_with_width: 'Component Ratio',
     multi_selected: '{0} components selected',
     number1: '1',
     number2: '2',
@@ -3966,7 +3973,9 @@ Scatter chart (bubble) chart: {a} (series name), {b} (data name), {c} (value arr
     es_params_label: 'Query Parameters',
     es_params_tip: 'Please follow the Elasticsearch query syntax',
     dynamic_partition_enable: 'Dynamic Partitioning',
-    time_end: 'End'
+    time_end: 'End',
+    es_query_param_formatter_error:
+      'Query parameter format error, please enter the correct JSON format, please check'
   },
   watermark: {
     support_params: 'Currently supported parameters:',
@@ -4011,6 +4020,7 @@ Scatter chart (bubble) chart: {a} (series name), {b} (data name), {c} (value arr
     instance_title: 'Task log',
     add_task: 'Add task',
     lark_groups: 'Lark group',
+    larksuite_groups: 'Larksuite group',
     send_setting: 'Send settings',
     retrying_settings: 'Send failed retry settings',
     start_time: 'Start time',
@@ -4116,6 +4126,10 @@ Scatter chart (bubble) chart: {a} (series name), {b} (data name), {c} (value arr
     exporting: 'Backend export in progress, can go to',
     progress_to_download: 'Check progress and download',
     form: {
+      add_detail_columns: 'Add column details',
+      detail_columns: 'Column details',
+      display_name: 'Display Name',
+      show_more_detail: 'Show more',
       confirm_to_mark_as_complete: 'Confirm to mark as complete?',
       mobile_number_format_is_incorrect: 'Mobile number format is incorrect',
       email_format_is_incorrect: 'Email format is incorrect',
@@ -4452,7 +4466,7 @@ Scatter chart (bubble) chart: {a} (series name), {b} (data name), {c} (value arr
     bind: 'Bind',
     unbind_success: 'Unbind successfully',
     confirm_unbind_dingtalk: 'Are you sure you want to unbind DingTalk? ',
-    pls_use: 'Please use',
+    pls_use: 'Please use ',
     bind_use_qr: 'Scan QR code to bind',
     pls_use_dingtalk: 'Please use DingTalk to scan QR code to log in',
     api_limit_5: 'Supports creation of up to 5 ApiKeys',
@@ -4505,7 +4519,8 @@ Scatter chart (bubble) chart: {a} (series name), {b} (data name), {c} (value arr
       'After deletion, all resources under this folder will be deleted, please proceed with caution.',
     sync_to_org: 'Migrate to Target Organization',
     sync_org_placeholder: 'Please select the target organization',
-    relation_picture: 'Bloodline Relationship Diagram'
+    relation_picture: 'Bloodline Relationship Diagram',
+    save_error: "Prohibit operations on the 'Migration Resources' directory"
   },
   security: {
     title: 'Security Settings'

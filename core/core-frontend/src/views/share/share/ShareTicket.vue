@@ -65,7 +65,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="exp" :label="$t('visualization.over_time')" width="117">
+        <el-table-column prop="exp" :label="$t('visualization.over_time')">
           <template v-slot:header>
             <div class="ticket-exp-head">
               <span>{{ t('visualization.over_time') }}</span>
@@ -108,13 +108,14 @@
               </el-tooltip>
 
               <el-tooltip class="item" effect="dark" :content="t('commons.delete')" placement="top">
-                <el-button text @click.stop="deleteTicket(scope.row)">
-                  <template #icon>
-                    <Icon name="icon_delete-trash_outlined"
-                      ><icon_deleteTrash_outlined class="svg-icon"
-                    /></Icon>
-                  </template>
-                </el-button>
+                <el-icon
+                  style="margin-left: 8px; color: #646a73; cursor: pointer"
+                  @click.stop="deleteTicket(scope.row)"
+                >
+                  <Icon name="icon_delete-trash_outlined"
+                    ><icon_deleteTrash_outlined class="svg-icon"
+                  /></Icon>
+                </el-icon>
               </el-tooltip>
             </div>
           </template>
@@ -223,8 +224,7 @@ const formatLinkBase = () => {
   if (embeddedStore.baseUrl) {
     prefix = embeddedStore.baseUrl + '#'
   } else {
-    const href = window.location.href
-    prefix = href.substring(0, href.indexOf('#') + 1)
+    prefix = window.location.origin + window.location.pathname + '#'
   }
   if (prefix.includes('oidcbi/') || prefix.includes('casbi/')) {
     prefix = prefix.replace('oidcbi/', '')
@@ -378,13 +378,13 @@ onMounted(() => {
     }
   }
   .ticket-table {
-    border-top: 1px solid #d5d7d8;
     min-height: 156px;
     padding: 0 0;
     height: 50px;
     overflow-y: overlay;
     position: relative;
     height: calc(100% - 124px);
+
     :deep(.ticket-exp-head) {
       display: flex;
       line-height: 22px;
@@ -424,7 +424,6 @@ onMounted(() => {
 
     :deep(.ed-table__header) {
       background-color: #f5f6f7;
-      border-bottom: 1px solid #d5d7d8;
       thead {
         tr {
           th {

@@ -151,6 +151,13 @@ const closeEditComponentName = () => {
     return
   }
   view.value.title = inputComponentName.value.name
+  if (view.value.type === 'VQuery') {
+    view.value.customStyle.component.title = inputComponentName.value.name
+  }
+  if (curComponent.value) {
+    curComponent.value.label = inputComponentName.value.name
+    curComponent.value.name = inputComponentName.value.name
+  }
   inputComponentName.value.name = ''
   inputComponentName.value.id = ''
 }
@@ -761,10 +768,13 @@ const addAxis = (e, axis: AxisType) => {
     }
   } else {
     if (!dup && typeValid) {
+      const isGaugeOrLiquid = view.value.type === 'gauge' || view.value.type === 'liquid'
+      const quotaData = cloneDeep(state.quotaData)
       emitter.emit('addAxis', {
         axisType: axis,
         axis: [view.value[axis][e.newDraggableIndex]],
-        editType: 'add'
+        editType: 'add',
+        ...(isGaugeOrLiquid ? { quotaData: quotaData } : {})
       })
     }
   }
@@ -1131,6 +1141,10 @@ const onChangeMiscStyleForm = val => {
 
 const onTextChange = val => {
   view.value.customStyle.text = val
+  if (curComponent.value) {
+    curComponent.value.name = view.value.title
+    curComponent.value.title = view.value.title
+  }
   if (mobileInPc.value) {
     //移动端设计
     useEmitt().emitter.emit('onMobileStatusChange', {
@@ -3200,7 +3214,7 @@ const deleteChartFieldItem = id => {
                           <span v-if="view.type !== 'richTextView'">
                             {{ t('chart.result_count') }}
                           </span>
-                          <span v-if="view.type !== 'richTextView'">
+                          <span style="padding-left: 8px" v-if="view.type !== 'richTextView'">
                             <el-radio-group
                               v-model="view.resultMode"
                               :effect="themes"
@@ -3208,7 +3222,7 @@ const deleteChartFieldItem = id => {
                               size="small"
                               @change="recordSnapshotInfo('render')"
                             >
-                              <el-radio label="all" :effect="themes">
+                              <el-radio class="margin20-radio" label="all" :effect="themes">
                                 <span
                                   class="result-count-label"
                                   :class="{ dark: themes === 'dark' }"
@@ -3216,7 +3230,7 @@ const deleteChartFieldItem = id => {
                                   {{ t('chart.result_mode_all') }}
                                 </span>
                               </el-radio>
-                              <el-radio label="custom">
+                              <el-radio label="custom" :effect="themes">
                                 <el-input-number
                                   v-model="view.resultCount"
                                   :min="1"
@@ -4760,6 +4774,10 @@ span {
     justify-content: space-between;
     height: 40px;
     padding: 0 6px;
+
+    .margin20-radio {
+      margin-right: 20px;
+    }
 
     .result-count-label {
       color: #1f2329;

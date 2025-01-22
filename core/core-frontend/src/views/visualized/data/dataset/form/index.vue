@@ -13,6 +13,7 @@ import icon_switch_outlined from '@/assets/svg/icon_switch_outlined.svg'
 import icon_copy_outlined from '@/assets/svg/icon_copy_outlined.svg'
 import icon_deleteTrash_outlined from '@/assets/svg/icon_delete-trash_outlined.svg'
 import icon_edit_outlined from '@/assets/svg/icon_edit_outlined.svg'
+import icon_info_outlined from '@/assets/svg/icon_info_outlined.svg'
 import {
   ref,
   toRaw,
@@ -978,6 +979,41 @@ const dragstart = (e: DragEvent, ele) => {
 const setActiveName = (data: Table) => {
   if (data.unableCheck) return
   activeName.value = data.tableName
+}
+
+const verify = () => {
+  if (datasetPreviewLoading.value) return
+  calcEdit.value.formField.validate(val => {
+    if (val) {
+      calcEdit.value.setFieldForm()
+      if (!calcEdit.value.fieldForm.originName.trim()) {
+        ElMessage.error(t('data_set.cannot_be_empty_de_'))
+        return
+      }
+      const obj = cloneDeep(calcEdit.value.fieldForm)
+      const { deType, dateFormat, deExtractType } = obj
+      obj.dateFormat = deType === 1 ? dateFormat : ''
+      obj.dateFormatType = deType === 1 ? dateFormat : ''
+      obj.deTypeArr = deType === 1 && deExtractType === 0 ? [deType, dateFormat] : [deType]
+      const result = allfields.value.findIndex(ele => obj.id === ele.id)
+      const allfieldsCopy = cloneDeep(unref(allfields))
+      if (result !== -1) {
+        allfieldsCopy.splice(result, 1, obj)
+      } else {
+        allfieldsCopy.push(obj)
+      }
+      const arr = []
+      dfsNodeList(arr, datasetDrag.value.getNodeList())
+      datasetPreviewLoading.value = true
+      getPreviewData({ union: arr, allFields: allfieldsCopy })
+        .then(() => {
+          ElMessage.success(t('data_set.validation_succeeded'))
+        })
+        .finally(() => {
+          datasetPreviewLoading.value = false
+        })
+    }
+  })
 }
 
 const isDragging = ref(false)
@@ -2131,8 +2167,9 @@ const getDsIconName = data => {
                   t('commons.clear')
                 }}</el-button>
               </div>
-              <div class="cascader-batch" v-if="showCascaderBatch">
+              <div class="cascader-batch">
                 <el-cascader
+                  :disabled="!showCascaderBatch"
                   :class="!!deTypeArr.length && 'select-type'"
                   v-model="deTypeArr"
                   @change="cascaderChangeArr"
@@ -2165,6 +2202,16 @@ const getDsIconName = data => {
                     ></Icon>
                   </el-icon>
                 </span>
+                <el-tooltip class="item" effect="dark" placement="top">
+                  <template #content>
+                    <div>{{ t('dataset.field_diff') }}</div>
+                  </template>
+                  <el-icon size="16px" style="margin-left: 6px" v-show="!showCascaderBatch">
+                    <Icon name="icon_info_outlined"
+                      ><icon_info_outlined class="svg-icon tip-icon"
+                    /></Icon>
+                  </el-icon>
+                </el-tooltip>
               </div>
               <el-button
                 @click="dqTransArr('q')"
@@ -2216,6 +2263,7 @@ const getDsIconName = data => {
     <calc-field-edit ref="calcEdit" :crossDs="crossDatasources" />
     <template #footer>
       <el-button secondary @click="closeEditCalc()">{{ t('dataset.cancel') }} </el-button>
+      <el-button secondary @click="verify">{{ t('datasource.validate') }} </el-button>
       <el-button type="primary" @click="confirmEditCalc()">{{ t('dataset.confirm') }} </el-button>
     </template>
   </el-dialog>
@@ -2784,6 +2832,12 @@ const getDsIconName = data => {
     position: relative;
     margin-left: 30%;
     width: 176px;
+    display: flex;
+    align-items: center;
+  }
+
+  .tip-icon {
+    color: #f54a45;
   }
 }
 

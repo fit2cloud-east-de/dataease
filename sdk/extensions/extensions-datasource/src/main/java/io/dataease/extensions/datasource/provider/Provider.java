@@ -8,7 +8,6 @@ import io.dataease.extensions.datasource.dto.*;
 import io.dataease.extensions.datasource.model.SQLMeta;
 import io.dataease.extensions.datasource.vo.DatasourceConfiguration;
 import lombok.Getter;
-import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
@@ -197,13 +196,8 @@ public abstract class Provider {
     }
 
     public String replaceComment(String s) {
-        try {
-            net.sf.jsqlparser.statement.Statement parse = CCJSqlParserUtil.parse(s);
-            return parse.toString();
-        } catch (Exception e) {
-            DEException.throwException("SQL ERROR");
-        }
-        return null;
+        String regex = "/\\*[\\s\\S]*?\\*/|-- .*";
+        return s.replaceAll(regex, " ");
     }
 
     public SqlDialect getDialect(DatasourceSchemaDTO coreDatasource) {
@@ -289,7 +283,7 @@ public abstract class Provider {
                 Integer lport = Provider.getLPorts().get(datasourceId);
                 if (lport != null) {
                     configuration.setLPort(lport);
-                    if (Provider.getSessions().get(datasourceId) == null || !Provider.getSessions().get(datasourceId).isConnected()) {
+                        if (Provider.getSessions().get(datasourceId) == null || !Provider.getSessions().get(datasourceId).isConnected()) {
                         Session session = initSession(configuration);
                         Provider.getSessions().put(datasourceId, session);
                     }

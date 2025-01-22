@@ -1,6 +1,7 @@
 export default {
   common: {
     timeout_tips: '请求超时，请稍后再试',
+    watermarkManagement: '水印管理',
     component: {
       input: '单行输入',
       textarea: '多行输入',
@@ -11,6 +12,7 @@ export default {
       dateRange: '时间范围',
       add_component_hint: '点击或拖拽左侧组件添加字段'
     },
+    openMobileTerminal: '开启移动端',
     inputText: '请输入',
     selectText: '请选择',
     add: '添加',
@@ -115,6 +117,7 @@ export default {
     client: '客户端'
   },
   data_set: {
+    validation_succeeded: '字段表达式校验成功',
     to_nth_digits: '保留第M至N位',
     the_column_permissions: '确定删除列权限吗?',
     last_n_digits: '保留前M位,后N位',
@@ -229,7 +232,7 @@ export default {
     convert_to_indicator: '转换为指标',
     convert_to_dimension: '转换为维度',
     selected: '已选择',
-    bar: '条',
+    bar: '项',
     format_edit: '格式编辑',
     custom_time_format: '自定义时间格式',
     cannot_be_empty_: '过滤字段不能为空',
@@ -671,7 +674,7 @@ export default {
     label_color: '标签颜色',
     input_box_style: '输入框样式',
     overall_refresh: '整体刷新',
-    previews_take_effect: '仅公共链接和新Tab预览生效',
+    previews_take_effect: '仅公共链接生效',
     jump_icon_color: '联动、钻取、跳转的图标颜色',
     level_display_color: '钻取层级展示颜色',
     a_new_theme: '新建主题',
@@ -2236,7 +2239,8 @@ export default {
     },
     batch_manage: '批量管理',
     origin_name: '物理字段名',
-    origin_type: '物理字段类型'
+    origin_type: '物理字段类型',
+    field_diff: '所选字段类型不一致，不支持转换'
   },
   deDataset: {
     search_by_name: '通过名称搜索',
@@ -2734,6 +2738,9 @@ export default {
     column_name: '字段名称'
   },
   visualization: {
+    dashboard_adaptor: '缩放模式',
+    scale_keep_height_and_width: '按画布比例缩放',
+    scale_with_width: '按组件比例缩放',
     multi_selected: '已选{0}项',
     number1: '一',
     number2: '二',
@@ -3863,7 +3870,8 @@ export default {
     es_params_label: '查询参数',
     es_params_tip: '请遵循 Elasitcsearch 的查询语法',
     dynamic_partition_enable: '动态分区',
-    time_end: '结束'
+    time_end: '结束',
+    es_query_param_formatter_error: '查询参数格式错误，请输入正确的JSON格式，请检查'
   },
   watermark: {
     support_params: '当前支持的参数：',
@@ -3907,6 +3915,7 @@ export default {
     instance_title: '任务日志',
     add_task: '添加任务',
     lark_groups: '飞书群',
+    larksuite_groups: '国际飞书群',
     send_setting: '发送设置',
     retrying_settings: '发送失败重试设置',
     start_time: '开始时间',
@@ -4007,6 +4016,10 @@ export default {
     exporting: '后台导出中,可前往',
     progress_to_download: '查看进度，进行下载',
     form: {
+      add_detail_columns: '添加字段描述',
+      detail_columns: '字段描述',
+      display_name: '显示名称',
+      show_more_detail: '查看更多',
       confirm_to_mark_as_complete: '确认标记为完成?',
       mobile_number_format_is_incorrect: '手机号码格式不正确',
       email_format_is_incorrect: '邮箱格式不正确',
@@ -4376,7 +4389,8 @@ export default {
     del_folder_tips: '删除后，此文件夹下的所有资源都会被删除，请谨慎操作。',
     sync_to_org: '迁移至目标组织',
     sync_org_placeholder: '请选择目标组织',
-    relation_picture: '血缘关系图'
+    relation_picture: '血缘关系图',
+    save_error: '禁止操作【迁移资源】目录'
   },
   security: {
     title: '安全设置'

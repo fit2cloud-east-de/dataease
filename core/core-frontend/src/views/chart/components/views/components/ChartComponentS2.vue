@@ -185,6 +185,23 @@ const handleDefaultVal = (chart: Chart) => {
       customAttr.tableTotal.row.subTotalsDimensionsNew =
         !!customAttr.tableTotal.row.subTotalsDimensionsNew
     }
+    const { tableHeader } = customAttr
+    // 存量透视表处理
+    if (!tableHeader.tableHeaderColBgColor) {
+      tableHeader.tableHeaderColBgColor = tableHeader.tableHeaderBgColor
+      tableHeader.tableHeaderColFontColor = tableHeader.tableHeaderFontColor
+      tableHeader.tableTitleColFontSize = tableHeader.tableTitleFontSize
+      tableHeader.tableHeaderColAlign = tableHeader.tableHeaderAlign
+      tableHeader.isColBolder = tableHeader.isBolder
+      tableHeader.isColItalic = tableHeader.isItalic
+
+      tableHeader.tableHeaderCornerBgColor = tableHeader.tableHeaderBgColor
+      tableHeader.tableHeaderCornerFontColor = tableHeader.tableHeaderFontColor
+      tableHeader.tableTitleCornerFontSize = tableHeader.tableTitleFontSize
+      tableHeader.tableHeaderCornerAlign = tableHeader.tableHeaderAlign
+      tableHeader.isCornerBolder = tableHeader.isBolder
+      tableHeader.isCornerItalic = tableHeader.isItalic
+    }
   }
 }
 const renderChart = (viewInfo: Chart, resetPageInfo: boolean) => {
@@ -235,7 +252,16 @@ const setupPage = (chart: ChartObj, resetPageInfo?: boolean) => {
     return
   }
   const pageInfo = state.pageInfo
-  pageInfo.pageSize = customAttr.basicStyle.tablePageSize ?? 20
+  state.pageStyle = customAttr.basicStyle.tablePageStyle
+  if (state.pageStyle === 'general') {
+    if (state.currentPageSize === 0) {
+      state.currentPageSize = pageInfo.pageSize
+    } else {
+      pageInfo.pageSize = state.currentPageSize
+    }
+  } else {
+    pageInfo.pageSize = customAttr.basicStyle.tablePageSize ?? 20
+  }
   if (state.totalItems > state.pageInfo.pageSize || state.pageStyle === 'general') {
     pageInfo.total = state.totalItems
     state.showPage = true
@@ -244,12 +270,6 @@ const setupPage = (chart: ChartObj, resetPageInfo?: boolean) => {
   }
   if (resetPageInfo) {
     state.pageInfo.currentPage = 1
-  }
-  state.pageStyle = customAttr.basicStyle.tablePageStyle
-  if (state.pageStyle === 'general') {
-    if (state.currentPageSize == 0) {
-      state.currentPageSize = pageInfo.pageSize
-    }
   }
 }
 

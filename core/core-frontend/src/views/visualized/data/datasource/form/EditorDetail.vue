@@ -770,6 +770,7 @@ defineExpose({
         {{ t('datasource.basic_info') }}
       </div>
       <el-form
+        @submit.prevent
         ref="dsForm"
         :model="form"
         :rules="rule"
@@ -1334,12 +1335,12 @@ defineExpose({
       <el-form
         ref="dsApiForm"
         :model="form"
+        style="margin-top: 24px"
         :rules="apiRule"
         label-width="180px"
         label-position="top"
         require-asterisk-position="right"
       >
-        <!--        API update setting -->
         <el-form-item
           :label="t('datasource.update_type')"
           prop="syncSetting.updateType"
@@ -1702,7 +1703,7 @@ defineExpose({
     font-size: 16px;
     font-weight: 500;
     margin-right: 8px;
-    max-width: 80%;
+    max-width: 70%;
   }
   .req-title,
   .req-value {
@@ -1710,7 +1711,7 @@ defineExpose({
     font-size: 14px;
     font-weight: 400;
     :nth-child(1) {
-      width: 100px;
+      width: 120px;
     }
     :nth-child(2) {
       margin-left: 24px;

@@ -372,34 +372,38 @@ const jumpTargetAdaptor = () => {
 }
 
 const assignment = content => {
-  const on = content.match(/\[(.+?)\]/g)
-  if (on) {
-    const thresholdStyleInfo = conditionAdaptor(state.viewDataInfo)
-    on.forEach(itm => {
-      if (dataRowFiledName.value.includes(itm)) {
-        const ele = itm.slice(1, -1)
-        let value = dataRowNameSelect.value[ele] !== undefined ? dataRowNameSelect.value[ele] : null
-        let targetValue = !!value ? value : state.emptyValue
-        if (thresholdStyleInfo && thresholdStyleInfo[ele]) {
-          const thresholdStyle = thresholdStyleInfo[ele]
-          targetValue = `<span style="color:${thresholdStyle.color};background-color: ${thresholdStyle.backgroundColor}">${targetValue}</span>`
+  if (content) {
+    const on = content?.match(/\[(.+?)\]/g)
+    if (on) {
+      const thresholdStyleInfo = conditionAdaptor(state.viewDataInfo)
+      on.forEach(itm => {
+        if (dataRowFiledName.value.includes(itm)) {
+          const ele = itm.slice(1, -1)
+          let value =
+            dataRowNameSelect.value[ele] !== undefined ? dataRowNameSelect.value[ele] : null
+          let targetValue = !!value ? value : state.emptyValue
+          if (thresholdStyleInfo && thresholdStyleInfo[ele]) {
+            const thresholdStyle = thresholdStyleInfo[ele]
+            targetValue = `<span style="color:${thresholdStyle.color};background-color: ${thresholdStyle.backgroundColor}">${targetValue}</span>`
+          }
+          if (initReady.value) {
+            content = content.replace(itm, targetValue)
+          } else {
+            content = content.replace(itm, !!value ? targetValue : '[获取中...]')
+          }
         }
-        if (initReady.value) {
-          content = content.replace(itm, targetValue)
-        } else {
-          content = content.replace(itm, !!value ? targetValue : '[获取中...]')
-        }
-      }
-    })
+      })
+    }
+    content = content.replace('class="base-selected"', '')
+    //De 本地跳转失效问题
+    content = content.replace(/href="#\//g, 'href="/#/')
+    content = content.replace(/href=\\"#\//g, 'href=\\"/#/')
+    content = content.replace(/href=\\"#\//g, 'href=\\"/#/')
+    resetSelect()
+    initFontFamily(content)
+    jumpTargetAdaptor()
   }
-  content = content.replace('class="base-selected"', '')
-  //De 本地跳转失效问题
-  content = content.replace(/href="#\//g, 'href="/#/')
-  content = content.replace(/href=\\"#\//g, 'href=\\"/#/')
-  content = content.replace(/href=\\"#\//g, 'href=\\"/#/')
-  resetSelect()
-  initFontFamily(content)
-  jumpTargetAdaptor()
+
   return content
 }
 const initFontFamily = htmlText => {
@@ -535,13 +539,25 @@ const updateEmptyValue = view => {
       : '-'
 }
 
+const checkCompareCalc = view => {
+  let compareCount = 0
+  view.yAxis?.forEach(item => {
+    if (item?.compareCalc?.type !== 'none') {
+      compareCount++
+    }
+  })
+  return compareCount > 0
+}
+
 const calcData = (view: Chart, callback) => {
   isError.value = false
   updateEmptyValue(view)
   if (view.tableId || view['dataFrom'] === 'template') {
     const v = JSON.parse(JSON.stringify(view))
-    v.resultCount = 1
-    v.resultMode = 'custom'
+    if (!checkCompareCalc(view)) {
+      v.resultCount = 1
+      v.resultMode = 'custom'
+    }
     getData(v)
       .then(res => {
         if (res.code && res.code !== 0) {

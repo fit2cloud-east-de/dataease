@@ -28,7 +28,7 @@ import {
   SENIOR_STYLE_SETTING_LIGHT
 } from '@/views/chart/components/editor/util/chart'
 import { snapshotStoreWithOut } from '@/store/modules/data-visualization/snapshot'
-import { deepCopy } from '@/utils/utils'
+import { deepCopy, nameTrim } from '@/utils/utils'
 import { ElMessage, ElMessageBox } from 'element-plus-secondary'
 import { guid } from '@/views/visualized/data/dataset/form/util'
 const dvMainStore = dvMainStoreWithOut()
@@ -250,6 +250,8 @@ export function historyAdaptor(
       ? false
       : canvasStyleResult['suspensionButtonAvailable']
   canvasStyleResult['screenAdaptor'] = canvasStyleResult['screenAdaptor'] || 'widthFirst'
+  canvasStyleResult['dashboardAdaptor'] =
+    canvasStyleResult['dashboardAdaptor'] || 'keepHeightAndWidth'
   canvasStyleResult['refreshBrowserEnable'] =
     canvasStyleResult['refreshBrowserEnable'] === undefined
       ? false
@@ -583,6 +585,7 @@ export async function canvasSave(callBack) {
     ElMessage.error('数据集分组名称已存在')
     return
   }
+  nameTrim(dvInfo.value, t('components.length_1_64_characters'))
   const method = dvInfo.value.id && dvInfo.value.optType !== 'copy' ? updateCanvas : saveCanvas
   if (method === updateCanvas) {
     await dvNameCheck({
@@ -619,7 +622,7 @@ export function setIdValueTrans(from, to, content, colList) {
     pre[next[from]] = next[to]
     return pre
   }, {})
-  const on = content.match(/\[(.+?)\]/g)
+  const on = content?.match(/\[(.+?)\]/g)
   if (on) {
     on.forEach(itm => {
       const ele = itm.slice(1, -1)
@@ -978,5 +981,16 @@ export function mobileViewStyleSwitch(component) {
     viewInfo.customAttr = component.customAttr
     viewInfo.title = component.title
     viewInfo.name = component.name
+  }
+}
+
+export function syncViewTitle(element) {
+  if (element && canvasViewInfo.value[element.id]) {
+    if (['UserView'].includes(element.component)) {
+      canvasViewInfo.value[element.id].title = element.name
+    } else if (['VQuery'].includes(element.component)) {
+      canvasViewInfo.value[element.id].title = element.name
+      canvasViewInfo.value[element.id].customStyle.component.title = element.name
+    }
   }
 }

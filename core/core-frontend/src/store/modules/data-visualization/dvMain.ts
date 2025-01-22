@@ -192,10 +192,14 @@ export const dvMainStore = defineStore('dataVisualization', {
       baseCellInfo: {},
       dataPrepareState: false, //数据准备状态
       multiplexingStyleAdapt: true, //复用样式跟随主题
-      mainScrollTop: 0 //主画布运动量
+      mainScrollTop: 0, //主画布运动量
+      isIframe: false // 当前是否在iframe中
     }
   },
   actions: {
+    setIframeFlag(value) {
+      this.isIframe = value
+    },
     setCanvasAttachInfo(value) {
       this.canvasAttachInfo = value
     },
@@ -1202,6 +1206,7 @@ export const dvMainStore = defineStore('dataVisualization', {
             preActiveComponentIds.push(element.id)
           }
           if (element.component === 'VQuery') {
+            const defaultValueMap = {}
             element.propValue.forEach(filterItem => {
               if (filterItem.id === targetViewId) {
                 let queryParams = paramValue
@@ -1245,8 +1250,30 @@ export const dvMainStore = defineStore('dataVisualization', {
                   filterItem['conditionValueF'] = null
                   filterItem['defaultConditionValueF'] = null
                 }
+                if (filterItem['defaultValue']) {
+                  defaultValueMap[filterItem.id] = filterItem['defaultValue']
+                }
               }
             })
+            // 级联条件处理
+            if (element.cascade?.length && Object.keys(defaultValueMap).length) {
+              element.cascade.forEach(cascadeItem => {
+                Object.keys(defaultValueMap).forEach(key => {
+                  const curDefaultValue = defaultValueMap[key]
+                  if (cascadeItem.length) {
+                    cascadeItem.forEach(itemInner => {
+                      if (itemInner.datasetId.includes(key) && curDefaultValue) {
+                        itemInner['currentSelectValue'] = Array.isArray(curDefaultValue)
+                          ? curDefaultValue
+                          : [curDefaultValue]
+                      } else {
+                        itemInner['currentSelectValue'] = []
+                      }
+                    })
+                  }
+                })
+              })
+            }
           }
         })
       })

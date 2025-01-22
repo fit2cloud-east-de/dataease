@@ -49,6 +49,21 @@
         <el-radio :effect="themes" label="no">{{ t('visualization.no_gap') }}</el-radio>
       </el-radio-group>
     </el-form-item>
+    <el-form-item
+      v-if="dvInfo.type === 'dashboard'"
+      class="form-item"
+      :class="'form-item-' + themes"
+      :label="t('visualization.dashboard_adaptor')"
+    >
+      <el-radio-group v-model="canvasStyleData.dashboardAdaptor" @change="onKeepSizeChange">
+        <el-radio :effect="themes" label="keepHeightAndWidth">{{
+          t('visualization.scale_keep_height_and_width')
+        }}</el-radio>
+        <el-radio :effect="themes" label="withWidth">{{
+          t('visualization.scale_with_width')
+        }}</el-radio>
+      </el-radio-group>
+    </el-form-item>
     <el-form-item class="form-item" :class="'form-item-' + themes" style="margin-bottom: 8px">
       <el-checkbox
         :effect="themes"
@@ -274,6 +289,7 @@ import { ElFormItem, ElIcon, ElSpace } from 'element-plus-secondary'
 import Icon from '@/components/icon-custom/src/Icon.vue'
 import { useAppearanceStoreWithOut } from '@/store/modules/appearance'
 import { isDesktop } from '@/utils/ModelUtil'
+import eventBus from '@/utils/eventBus'
 const appearanceStore = useAppearanceStoreWithOut()
 const isDesktopFlag = isDesktop()
 const snapshotStore = snapshotStoreWithOut()
@@ -314,6 +330,11 @@ const fontFamilyChange = () => {
     `${canvasStyleData.value.fontFamily}`
   )
   adaptTitleFontFamilyAll(canvasStyleData.value.fontFamily)
+  snapshotStore.recordSnapshotCache('renderChart')
+}
+
+const onKeepSizeChange = () => {
+  eventBus.emit('event-canvas-size-init')
   snapshotStore.recordSnapshotCache('renderChart')
 }
 

@@ -219,6 +219,9 @@ public class DatasetTableFieldManage {
         if (crossDs) {
             DEException.throwException(Translator.get("i18n_dataset_cross_error"));
         }
+        if (!isCopilotSupport(dsMap)) {
+            DEException.throwException(Translator.get("i18n_copilot_ds"));
+        }
 
         QueryWrapper<CoreDatasetTableField> wrapper = new QueryWrapper<>();
         wrapper.eq("dataset_group_id", id);
@@ -262,7 +265,7 @@ public class DatasetTableFieldManage {
                 .filter(ele -> {
                     boolean flag = true;
                     if (Objects.equals(ele.getExtField(), ExtFieldConstant.EXT_CALC)) {
-                        String originField = Utils.calcFieldRegex(ele.getOriginName(), tableObj, fields, true, null, Utils.mergeParam(Utils.getParams(fields), null), pluginManage);
+                        String originField = Utils.calcFieldRegex(ele, tableObj, fields, true, null, Utils.mergeParam(Utils.getParams(fields), null), pluginManage);
                         for (String func : FunctionConstant.AGG_FUNC) {
                             if (Utils.matchFunction(func, originField)) {
                                 flag = false;
@@ -311,5 +314,10 @@ public class DatasetTableFieldManage {
         if (name != null && name.length() > 100) {
             DEException.throwException(Translator.get("i18n_name_limit_100"));
         }
+    }
+
+    public boolean isCopilotSupport(Map<Long, DatasourceSchemaDTO> dsMap) {
+        DatasourceSchemaDTO value = dsMap.entrySet().iterator().next().getValue();
+        return StringUtils.equalsIgnoreCase(value.getType(), "mysql");
     }
 }

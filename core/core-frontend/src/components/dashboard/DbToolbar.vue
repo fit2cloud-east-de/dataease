@@ -764,7 +764,9 @@ const initOpenHandler = newWindow => {
   margin-left: 10px;
 }
 .drop-style {
-  width: 120px;
+  :deep(.ed-dropdown-menu__item) {
+    padding: 5px 12px !important;
+  }
   :deep(.ed-dropdown-menu__item:not(.is_disabled):focus) {
     color: inherit;
     background-color: rgba(31, 35, 41, 0.1);
@@ -886,11 +888,18 @@ const initOpenHandler = newWindow => {
 }
 .custom-normal-button {
   background-color: transparent;
-  border-color: #a6a6a6;
-  color: #ffffff;
+  border-color: #a6a6a6 !important;
+  color: #ffffff !important;
   &:hover {
     color: #ffffff;
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: #ffffff1a !important;
+  }
+  &:active {
+    color: #ffffff;
+    background-color: #ffffff33 !important;
+  }
+  &.is-disabled {
+    color: var(--ed-button-disabled-text-color) !important;
   }
 }
 

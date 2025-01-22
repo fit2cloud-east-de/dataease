@@ -101,7 +101,7 @@
         </el-tooltip>
       </el-icon>
       <template #dropdown>
-        <el-dropdown-menu style="width: 158px">
+        <el-dropdown-menu>
           <el-dropdown-item @click="copyComponent" v-if="barShowCheck('copy')">{{
             t('visualization.copy')
           }}</el-dropdown-item>
@@ -132,13 +132,20 @@
               <el-dropdown style="width: 100%" trigger="hover" placement="right-start">
                 <div
                   class="flex-align-center"
-                  style="width: 100%; padding: 5px 6px 5px 16px; line-height: 24px"
+                  style="
+                    position: relative;
+                    width: 100%;
+                    padding: 5px 32px 5px 16px;
+                    line-height: 24px;
+                  "
                 >
                   {{ t('visualization.export_as') }}
-                  <el-icon size="16px" style="margin-left: auto"><ArrowRight /></el-icon>
+                  <el-icon size="16px" style="position: absolute; right: 8px; margin-right: 0"
+                    ><ArrowRight
+                  /></el-icon>
                 </div>
                 <template #dropdown>
-                  <el-dropdown-menu style="width: 120px">
+                  <el-dropdown-menu>
                     <el-dropdown-item v-if="exportPermissions[1]" @click="exportAsExcel"
                       >Excel</el-dropdown-item
                     >
@@ -220,7 +227,7 @@ import icon_params_setting from '@/assets/svg/icon_params_setting.svg'
 import dvBarUnLinkage from '@/assets/svg/dv-bar-unLinkage.svg'
 import database from '@/assets/svg/database.svg'
 import icon_more_outlined from '@/assets/svg/icon_more_outlined.svg'
-import dvPreviewDownload from '@/assets/svg/dv-preview-download.svg'
+import dvPreviewDownload from '@/assets/svg/icon_download_outlined.svg'
 import { computed, h, onBeforeUnmount, onMounted, reactive, ref, toRefs, watch } from 'vue'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { storeToRefs } from 'pinia'
@@ -344,7 +351,8 @@ const {
   componentData,
   canvasViewInfo,
   mobileInPc,
-  dvInfo
+  dvInfo,
+  isIframe
 } = storeToRefs(dvMainStore)
 
 const state = reactive({
@@ -598,7 +606,9 @@ const initCurFields = () => {
   }
 }
 
-const showDownload = computed(() => canvasViewInfo.value[element.value.id]?.dataFrom !== 'template')
+const showDownload = computed(
+  () => canvasViewInfo.value[element.value.id]?.dataFrom !== 'template' && !isIframe.value
+)
 // 富文本-End
 
 const datasetParamsSetShow = computed(() => {

@@ -30,7 +30,7 @@ public class Utils {
     }
 
     // 解析计算字段
-    public static String calcFieldRegex(String originField, SQLObj tableObj, List<DatasetTableFieldDTO> originFields, boolean isCross, Map<Long, DatasourceSchemaDTO> dsMap, Map<String, String> paramMap, PluginManageApi pluginManage) {
+    public static String calcFieldRegex(DatasetTableFieldDTO chartField, SQLObj tableObj, List<DatasetTableFieldDTO> originFields, boolean isCross, Map<Long, DatasourceSchemaDTO> dsMap, Map<String, String> paramMap, PluginManageApi pluginManage) {
         try {
             int i = 0;
             DsTypeDTO datasourceType = null;
@@ -38,14 +38,14 @@ public class Utils {
                 Map.Entry<Long, DatasourceSchemaDTO> next = dsMap.entrySet().iterator().next();
                 datasourceType = getDs(pluginManage, next.getValue().getType());
             }
-            return buildCalcField(originField, tableObj, originFields, i, isCross, datasourceType, paramMap);
+            return buildCalcField(chartField, tableObj, originFields, i, isCross, datasourceType, paramMap, true, chartField.getOriginName());
         } catch (Exception e) {
             DEException.throwException(Translator.get("i18n_field_circular_ref"));
         }
         return null;
     }
 
-    public static String calcSimpleFieldRegex(String originField, SQLObj tableObj, List<DatasetTableFieldDTO> originFields, boolean isCross, Map<Long, String> dsTypeMap, PluginManageApi pluginManage) {
+    public static String calcSimpleFieldRegex(DatasetTableFieldDTO chartField, SQLObj tableObj, List<DatasetTableFieldDTO> originFields, boolean isCross, Map<Long, String> dsTypeMap, PluginManageApi pluginManage) {
         try {
             int i = 0;
             DsTypeDTO datasourceType = null;
@@ -53,19 +53,20 @@ public class Utils {
                 Map.Entry<Long, String> next = dsTypeMap.entrySet().iterator().next();
                 datasourceType = getDs(pluginManage, next.getValue());
             }
-            return buildCalcField(originField, tableObj, originFields, i, isCross, datasourceType, null);
+            return buildCalcField(chartField, tableObj, originFields, i, isCross, datasourceType, null, true, chartField.getOriginName());
         } catch (Exception e) {
             DEException.throwException(Translator.get("i18n_field_circular_ref"));
         }
         return null;
     }
 
-    public static String buildCalcField(String originField, SQLObj tableObj, List<DatasetTableFieldDTO> originFields, int i, boolean isCross, DsTypeDTO datasourceType, Map<String, String> paramMap) throws Exception {
+    public static String buildCalcField(DatasetTableFieldDTO chartField, SQLObj tableObj, List<DatasetTableFieldDTO> originFields, int i, boolean isCross, DsTypeDTO datasourceType, Map<String, String> paramMap, boolean isFirst, String fieldExpression) throws Exception {
         try {
             i++;
             if (i > 100) {
                 DEException.throwException(Translator.get("i18n_field_circular_error"));
             }
+            String originField = getCalcField(chartField, originFields, isFirst, fieldExpression);
             originField = originField.replaceAll("[\\t\\n\\r]]", "");
             // 正则提取[xxx]
             String regex = "\\[(.*?)]";
@@ -98,7 +99,7 @@ public class Utils {
                         }
                     } else {
                         originField = originField.replaceAll("\\[" + ele.getId() + "]", "(" + ele.getOriginName() + ")");
-                        originField = buildCalcField(originField, tableObj, originFields, i, isCross, datasourceType, paramMap);
+                        originField = buildCalcField(chartField, tableObj, originFields, i, isCross, datasourceType, paramMap, false, originField);
                     }
                 }
             }
@@ -107,6 +108,19 @@ public class Utils {
             DEException.throwException(Translator.get("i18n_field_circular_error"));
         }
         return null;
+    }
+
+    public static String getCalcField(DatasetTableFieldDTO ele, List<DatasetTableFieldDTO> originFields, boolean isFirst, String fieldExpression) {
+        if (isFirst) {
+            for (DatasetTableFieldDTO field : originFields) {
+                if (Objects.equals(ele.getId(), field.getId())) {
+                    return field.getOriginName();
+                }
+            }
+            return "";
+        } else {
+            return fieldExpression;
+        }
     }
 
     public static String getLogic(String logic) {

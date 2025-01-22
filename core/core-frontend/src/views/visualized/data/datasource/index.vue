@@ -5,6 +5,7 @@ import icon_copy_filled from '@/assets/svg/icon_copy_filled.svg'
 import icon_dataset from '@/assets/svg/icon_dataset.svg'
 import icon_deleteTrash_outlined from '@/assets/svg/icon_delete-trash_outlined.svg'
 import icon_intoItem_outlined from '@/assets/svg/icon_into-item_outlined.svg'
+import { debounce } from 'lodash-es'
 import icon_rename_outlined from '@/assets/svg/icon_rename_outlined.svg'
 import icon_warning_colorful_red from '@/assets/svg/icon_warning_colorful_red.svg'
 import dvFolder from '@/assets/svg/dv-folder.svg'
@@ -89,6 +90,7 @@ import { iconFieldMap } from '@/components/icon-group/field-list'
 import { iconDatasourceMap } from '@/components/icon-group/datasource-list'
 import { querySymmetricKey } from '@/api/login'
 import { symmetricDecrypt } from '@/utils/encryption'
+import { isFreeFolder } from '@/utils/utils'
 const route = useRoute()
 const interactiveStore = interactiveStoreWithOut()
 interface Field {
@@ -505,6 +507,9 @@ const listDs = () => {
         Object.assign(nodeInfo, cloneDeep(defaultInfo))
         dfsDatasourceTree(state.datasourceTree, id)
         setTimeout(() => {
+          if (dsName.value) {
+            dsListTree.value.filter(dsName.value)
+          }
           dsListTree.value.setCurrentKey(nodeInfo.id, true)
         }, 100)
       }
@@ -1009,6 +1014,15 @@ const loadInit = () => {
   }
 }
 
+const proxyAllowDrop = debounce((arg1, arg2) => {
+  const flagArray = ['dashboard', 'dataV', 'dataset', 'datasource']
+  const flag = flagArray.findIndex(item => item === 'datasource')
+  if (flag < 0 || !isFreeFolder(arg2, flag + 1)) {
+    return allowDrop(arg1, arg2)
+  }
+  ElMessage.warning(t('free.save_error'))
+  return false
+}, 300)
 onMounted(() => {
   const dsId = wsCache.get('ds-info-id') || route.params.id
   nodeInfo.id = (dsId as string) || (route.query.id as string) || ''
@@ -1151,7 +1165,7 @@ const getMenuList = (val: boolean) => {
             :data="state.datasourceTree"
             :props="defaultProps"
             @node-drag-start="handleDragStart"
-            :allow-drop="allowDrop"
+            :allow-drop="proxyAllowDrop"
             @node-drop="handleDrop"
             draggable
             @node-click="handleNodeClick"
@@ -1653,14 +1667,9 @@ const getMenuList = (val: boolean) => {
                     </el-button>
                   </el-col>
                 </el-row>
-                <el-row>
-                  <el-col :span="19">
-                    <span
-                      >{{ t('data_source.data_time') }}
-                      {{ timestampFormatDate(api['updateTime']) }}</span
-                    >
-                  </el-col>
-                </el-row>
+                <div>
+                  {{ t('data_source.data_time') }} {{ timestampFormatDate(api['updateTime']) }}
+                </div>
 
                 <div class="req-title">
                   <span>{{ t('datasource.method') }}</span>
@@ -1668,7 +1677,7 @@ const getMenuList = (val: boolean) => {
                 </div>
                 <div class="req-value">
                   <span>{{ api.method }}</span>
-                  <el-tooltip w effect="dark" :content="api.url" placement="top">
+                  <el-tooltip effect="dark" :content="api.url" placement="top">
                     <span>{{ api.url }}</span>
                   </el-tooltip>
                 </div>
@@ -2072,7 +2081,7 @@ const getMenuList = (val: boolean) => {
       font-size: 16px;
       font-weight: 500;
       margin-right: 8px;
-      max-width: 80%;
+      max-width: 70%;
       display: inline-flex;
     }
     .req-title,
@@ -2081,7 +2090,7 @@ const getMenuList = (val: boolean) => {
       font-size: 14px;
       font-weight: 400;
       :nth-child(1) {
-        width: 100px;
+        width: 110px;
       }
 
       :nth-child(2) {

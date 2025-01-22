@@ -10,7 +10,7 @@ import type { DatasetOrFolder } from '@/api/dataset'
 import { cloneDeep } from 'lodash-es'
 import nothingTree from '@/assets/img/nothing-tree.png'
 import { useCache } from '@/hooks/web/useCache'
-
+import { filterFreeFolder } from '@/utils/utils'
 export interface Tree {
   name: string
   value?: string | number
@@ -153,6 +153,7 @@ const createInit = (type, data: Tree, exec, name: string) => {
   if (data.id) {
     if (exec !== 'rename') {
       listDatasources({ leaf: false, id: data.id, weight: 7 }).then(res => {
+        filterFreeFolder(res, 'datasource')
         dfs(res as unknown as Tree[])
         state.tData = (res as unknown as Tree[]) || []
         if (state.tData.length && state.tData[0].name === 'root' && state.tData[0].id === '0') {
@@ -250,7 +251,7 @@ const saveDataset = () => {
     if (result) {
       const params: Omit<DatasetOrFolder, 'nodeType'> & { nodeType: 'folder' | 'datasource' } = {
         nodeType: nodeType.value as 'folder' | 'datasource',
-        name: datasetForm.name
+        name: datasetForm.name.trim()
       }
       switch (cmd.value) {
         case 'move':
@@ -290,6 +291,9 @@ const saveDataset = () => {
         request.apiConfiguration = ''
         checkRepeat(request).then(res => {
           let method = request.id === '' ? save : update
+          if (request.type !== 'API') {
+            request.syncSetting = null
+          }
           if (res) {
             ElMessageBox.confirm(t('datasource.has_same_ds'), options as ElMessageBoxOptions)
               .then(() => {

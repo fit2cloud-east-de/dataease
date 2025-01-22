@@ -1,6 +1,9 @@
 import { BusiTreeNode } from '@/models/tree/TreeNode'
 import { useCache } from '@/hooks/web/useCache'
 import { loadScript } from '@/utils/RemoteJs'
+import { ElMessage } from 'element-plus-secondary'
+import { useI18n } from '@/hooks/web/useI18n'
+const { t } = useI18n()
 
 const { wsCache } = useCache()
 export function deepCopy(target) {
@@ -235,4 +238,60 @@ export const getBrowserLocale = () => {
 }
 export const getLocale = () => {
   return wsCache.get('user.language') || getBrowserLocale() || 'zh-CN'
+}
+
+export const isFreeFolder = (node, flag) => {
+  const oid = wsCache.get('user.oid')
+  if (!oid) {
+    return false
+  }
+  const freeRootId = (Number(oid) + flag).toString()
+  let cNode = node
+  while (cNode) {
+    const data = cNode.data
+    const id = data['id']
+    if (id === freeRootId) {
+      return true
+    }
+    cNode = cNode['parent']
+  }
+  return false
+}
+
+export const filterFreeFolder = (list, flagText) => {
+  const flagArray = ['dashboard', 'dataV', 'dataset', 'datasource']
+  const index = flagArray.findIndex(item => item === flagText)
+  const oid = wsCache.get('user.oid')
+  if (!oid || index < 0) {
+    return
+  }
+  const freeRootId = (Number(oid) + index + 1).toString()
+  let len = list.length
+  while (len--) {
+    const node = list[len]
+    if (node['id'] === freeRootId) {
+      list.splice(len, 1)
+      return
+    }
+    if (node['id'] === '0') {
+      const children = node['children']
+      let innerLen = children?.length
+      while (innerLen--) {
+        const kid = children[innerLen]
+        if (kid['id'] === freeRootId) {
+          children.splice(innerLen, 1)
+          return
+        }
+      }
+    }
+  }
+}
+export const nameTrim = (target: {}, msg = '名称字段长度1-64个字符') => {
+  if (target.name) {
+    target.name = target.name.trim()
+    if (target.name.length < 1 || target.name.length > 64) {
+      ElMessage.warning(msg)
+      throw new Error(msg)
+    }
+  }
 }

@@ -13,6 +13,7 @@ import io.dataease.extensions.view.dto.SqlVariableDetails;
 import io.dataease.i18n.Translator;
 import io.dataease.license.utils.LicenseUtil;
 import io.dataease.utils.JsonUtil;
+import io.dataease.utils.LogUtil;
 import net.sf.jsqlparser.expression.*;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
 import net.sf.jsqlparser.expression.operators.conditional.OrExpression;
@@ -50,13 +51,14 @@ public class SqlparserUtils {
     private final List<Map<String, String>> sysParams = new ArrayList<>();
 
     public String handleVariableDefaultValue(String sql, String sqlVariableDetails, boolean isEdit, boolean isFromDataSet, List<SqlVariableDetails> parameters, boolean isCross, Map<Long, DatasourceSchemaDTO> dsMap, PluginManageApi pluginManage, UserFormVO userEntity) {
+        DatasourceSchemaDTO ds = dsMap.entrySet().iterator().next().getValue();
         if (StringUtils.isEmpty(sql)) {
             DEException.throwException(Translator.get("i18n_sql_not_empty"));
         }
         this.userEntity = userEntity;
         try {
             this.removeSysParams = true;
-            removeVariables(sql, "");
+            removeVariables(sql, ds.getType());
         } catch (Exception e) {
             DEException.throwException(e);
         }
@@ -103,7 +105,6 @@ public class SqlparserUtils {
         }
 
         try {
-            DatasourceSchemaDTO ds = dsMap.entrySet().iterator().next().getValue();
             this.removeSysParams = false;
             sql = removeVariables(sql, ds.getType());
             // replace keyword '`'
@@ -280,6 +281,28 @@ public class SqlparserUtils {
             List<Join> joinsList = new ArrayList<>();
             for (Join join : joins) {
                 FromItem rightItem = join.getRightItem();
+                Collection<Expression> exprs = join.getOnExpressions();
+                Collection<Expression> exprs2 = new ArrayList<>();
+                for (Expression expr : exprs) {
+                    StringBuilder stringBuilder = new StringBuilder();
+                    BinaryExpression binaryExpression = null;
+                    try {
+                        binaryExpression = (BinaryExpression) expr;
+                    } catch (Exception e) {
+                    }
+                    if (binaryExpression != null) {
+                        boolean hasSubBinaryExpression = binaryExpression instanceof AndExpression || binaryExpression instanceof OrExpression;
+                        if (!hasSubBinaryExpression && !(binaryExpression.getLeftExpression() instanceof BinaryExpression) && !(binaryExpression.getLeftExpression() instanceof InExpression) && (hasVariable(binaryExpression.getLeftExpression().toString()) || hasVariable(binaryExpression.getRightExpression().toString()))) {
+                            stringBuilder.append(handleSubstitutedSql(binaryExpression.toString()));
+                        } else {
+                            expr.accept(getExpressionDeParser(stringBuilder));
+                        }
+                    } else {
+                        expr.accept(getExpressionDeParser(stringBuilder));
+                    }
+                    exprs2.add(CCJSqlParserUtil.parseCondExpression(stringBuilder.toString()));
+                }
+                join.setOnExpressions(exprs2);
                 if (rightItem instanceof ParenthesedSelect) {
                     try {
                         PlainSelect selectBody = ((ParenthesedSelect) rightItem).getPlainSelect();
@@ -548,9 +571,13 @@ public class SqlparserUtils {
                 getBuffer().append(" " + operator + " ");
                 hasSubBinaryExpression = false;
                 if (expr.getRightExpression() instanceof Parenthesis) {
-                    Parenthesis parenthesis = (Parenthesis) expr.getRightExpression();
-                    BinaryExpression rightBinaryExpression = (BinaryExpression) parenthesis.getExpression();
-                    hasSubBinaryExpression = rightBinaryExpression instanceof AndExpression || rightBinaryExpression instanceof OrExpression;
+                    try {
+                        Parenthesis parenthesis = (Parenthesis) expr.getRightExpression();
+                        BinaryExpression rightBinaryExpression = (BinaryExpression) parenthesis.getExpression();
+                        hasSubBinaryExpression = rightBinaryExpression instanceof AndExpression || rightBinaryExpression instanceof OrExpression;
+                    } catch (Exception e) {
+                        LogUtil.error("Failed parse sql", e);
+                    }
                 }
                 if (expr.getRightExpression() instanceof BinaryExpression) {
                     try {

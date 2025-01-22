@@ -10,6 +10,8 @@ export default {
       dateRange: '時間範圍',
       add_component_hint: '點選或拖曳左側元件新增欄位'
     },
+    openMobileTerminal: '開啟行動端',
+    watermarkManagement: '水印管理',
     inputText: '請輸入',
     selectText: '請選擇',
     add: '新增',
@@ -114,6 +116,7 @@ export default {
     client: '客戶端'
   },
   data_set: {
+    validation_succeeded: '欄位表達式校驗成功',
     to_nth_digits: '保留第M至N位元',
     the_column_permissions: '確定刪除列權限嗎?',
     last_n_digits: '保留前M位元,後N位元',
@@ -228,7 +231,7 @@ export default {
     convert_to_indicator: '轉換為指標',
     convert_to_dimension: '轉換為維度',
     selected: '已選擇',
-    bar: '條',
+    bar: '項',
     format_edit: '格式編輯',
     custom_time_format: '自訂時間格式',
     cannot_be_empty_: '過濾欄位不能為空',
@@ -669,7 +672,7 @@ export default {
     label_color: '標籤顏色',
     input_box_style: '輸入框樣式',
     overall_refresh: '整體刷新',
-    previews_take_effect: '僅公共連結和新Tab預覽生效',
+    previews_take_effect: '僅公共連結生效',
     jump_icon_color: '連動、鑽取、跳轉的圖示顏色',
     level_display_color: '鑽取層級展示顏色',
     a_new_theme: '新建主題',
@@ -2234,7 +2237,8 @@ export default {
     },
     batch_manage: '批次管理',
     origin_name: '物理欄位名稱',
-    origin_type: '物理字段類型'
+    origin_type: '物理字段類型',
+    field_diff: '所選字段類型不一致，不支持轉換'
   },
   deDataset: {
     search_by_name: '透過名稱搜尋',
@@ -2732,6 +2736,9 @@ export default {
     column_name: '欄位名稱'
   },
   visualization: {
+    dashboard_adaptor: '縮放模式',
+    scale_keep_height_and_width: '按畫布比例縮放',
+    scale_with_width: '按元件比例縮放',
     multi_selected: '已選{0}項',
     number1: '一',
     number2: '二',
@@ -3859,7 +3866,8 @@ export default {
     es_params_label: '查詢參數',
     es_params_tip: '請遵循 Elasitcsearch 的查詢語法',
     dynamic_partition_enable: '動態分區',
-    time_end: '結束'
+    time_end: '結束',
+    es_query_param_formatter_error: '查詢參數格式錯誤，請輸入正確的JSON格式，請檢查'
   },
   watermark: {
     support_params: '目前支援的參數：',
@@ -3903,6 +3911,7 @@ export default {
     instance_title: '任務日誌',
     add_task: '新增任務',
     lark_groups: '飛書群',
+    larksuite_groups: '國際飛書群',
     send_setting: '發送設定',
     retrying_settings: '發送失敗重試設定',
     start_time: '開始時間',
@@ -4003,6 +4012,10 @@ export default {
     exporting: '後台導出中,可前往',
     progress_to_download: '查看進度，進行下載',
     form: {
+      add_detail_columns: '添加字段描述',
+      detail_columns: '字段描述',
+      display_name: '顯示名稱',
+      show_more_detail: '查看更多',
       confirm_to_mark_as_complete: '確認標記為完成?',
       mobile_number_format_is_incorrect: '手機號碼格式不正確',
       email_format_is_incorrect: '郵件格式不正確',
@@ -4371,7 +4384,8 @@ export default {
     del_folder_tips: '刪除後，此文件夾下的所有資源都會被刪除，請謹慎操作。',
     sync_to_org: '遷移至目標組織',
     sync_org_placeholder: '請選擇目標組織',
-    relation_picture: '血緣關系圖'
+    relation_picture: '血緣關系圖',
+    save_error: '禁止操作【遷移資源】目錄'
   },
   security: {
     title: '安全設置'
