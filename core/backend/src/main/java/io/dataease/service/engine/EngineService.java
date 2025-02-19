@@ -173,6 +173,7 @@ public class EngineService {
             jsonObjectMap.put("host", env.getProperty("doris.host", "doris"));
             jsonObjectMap.put("port", env.getProperty("doris.port", "9030"));
             jsonObjectMap.put("httpPort", env.getProperty("doris.httpPort", "8030"));
+            jsonObjectMap.put("queryTimeout", 300);
 
             DeEngine engine = new DeEngine();
             engine.setId("doris");
